@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Dashboard from "../components/Dashboard/Dashboard";
 import { useExecutionData } from "../hooks/useExecutionData";
 
@@ -16,10 +15,8 @@ export default function DashboardPage() {
   const { decision, onShowMe, onThanks, onAsk, dismiss, restore } =
     useExecutionData();
 
-  const [forceQuiet, setForceQuiet] = useState(false);
   const isDev = import.meta.env.DEV;
-
-  const effectiveDecision = forceQuiet ? null : decision;
+  const asking = !!decision;
 
   const handleThanks = () => {
     onThanks();
@@ -29,7 +26,7 @@ export default function DashboardPage() {
   return (
     <>
       <Dashboard
-        decision={effectiveDecision}
+        decision={decision}
         initial="M"
         onShowMe={onShowMe}
         onThanks={handleThanks}
@@ -40,16 +37,9 @@ export default function DashboardPage() {
         <div className="tex-dev-toggle">
           <button
             type="button"
-            onClick={() => {
-              if (forceQuiet) {
-                setForceQuiet(false);
-                restore();
-              } else {
-                setForceQuiet(true);
-              }
-            }}
+            onClick={() => (asking ? dismiss() : restore())}
           >
-            {forceQuiet ? "Asking" : "Quiet"}
+            {asking ? "Quiet" : "Asking"}
           </button>
         </div>
       )}

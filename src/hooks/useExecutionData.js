@@ -23,6 +23,9 @@ const MOCK_STATS = { decisionsThisHour: 4827, needsYou: 1 };
  * Reads the current focus + stats from the backend, with a mock fallback
  * when VITE_TEX_API_BASE is unset.
  *
+ * Default first-load state is QUIET (decision = null). Use the dev toggle
+ * in the bottom-left to flip to the asking state with the mock decision.
+ *
  * Exposes:
  *   - decision, stats, loading
  *   - onShowMe()   open evidence for the current decision
@@ -32,7 +35,7 @@ const MOCK_STATS = { decisionsThisHour: 4827, needsYou: 1 };
  *   - restore()    re-show the last seen decision (dev helper)
  */
 export function useExecutionData() {
-  const [decision, setDecision] = useState(MOCK_FOCUS);
+  const [decision, setDecision] = useState(null);
   const [lastSeen, setLastSeen] = useState(MOCK_FOCUS);
   const [stats, setStats] = useState(MOCK_STATS);
   const [loading, setLoading] = useState(false);

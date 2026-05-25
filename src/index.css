@@ -15,10 +15,10 @@
   --tex-ink-mute: #a8a8a2;
   --tex-paper: #ffffff;
 
-  /* Canvas — warm light wash, the screenshot's background */
-  --tex-canvas: #F5F2EC;
-  --tex-canvas-warm: rgba(220, 200, 170, 0.10);
-  --tex-canvas-cool: rgba(190, 200, 220, 0.08);
+  /* Canvas — cool paper-white, matching the screenshot */
+  --tex-canvas: #F2F2F5;
+  --tex-canvas-cool: rgba(195, 210, 235, 0.32);
+  --tex-canvas-rose: rgba(220, 200, 210, 0.22);
 
   /* The orb — exact blue-grey gradient lifted from "Absolute." */
   --tex-glass-1: #F4F6FA;

@@ -104,7 +104,7 @@
   box-shadow: 0 0 8px rgba(91, 110, 132, 0.5);
 }
 
-/* --- ASKING state: warm amber, slower breath ------------ */
+/* --- ASKING state: same blue-gray, slower breath -------- */
 .tex-orb--asking .tex-orb-halo-outer,
 .tex-orb--asking .tex-orb-halo-mid,
 .tex-orb--asking .tex-orb-halo-inner,
@@ -115,42 +115,32 @@
 .tex-orb--asking .tex-orb-halo-outer {
   background: radial-gradient(
     circle at center,
-    rgba(200, 150, 100, 0.20) 0%,
-    rgba(200, 150, 100, 0.09) 30%,
-    rgba(200, 150, 100, 0.03) 58%,
-    rgba(245, 242, 236, 0) 75%
+    rgba(150, 175, 210, 0.22) 0%,
+    rgba(150, 175, 210, 0.10) 28%,
+    rgba(150, 175, 210, 0.03) 55%,
+    rgba(245, 242, 236, 0) 72%
   );
 }
 .tex-orb--asking .tex-orb-halo-mid {
   background: radial-gradient(
     circle at center,
-    rgba(200, 130, 80, 0.30) 0%,
-    rgba(200, 130, 80, 0.13) 42%,
-    rgba(200, 130, 80, 0.04) 75%,
-    rgba(245, 242, 236, 0) 92%
+    rgba(120, 150, 195, 0.32) 0%,
+    rgba(120, 150, 195, 0.14) 40%,
+    rgba(120, 150, 195, 0.04) 72%,
+    rgba(245, 242, 236, 0) 90%
   );
-}
-.tex-orb--asking .tex-orb-ring {
-  border-color: rgba(200, 130, 80, 0.20);
 }
 .tex-orb--asking .tex-orb-halo-inner {
   background: radial-gradient(
     circle at center,
-    rgba(170, 105, 60, 0.50) 0%,
-    rgba(170, 105, 60, 0.22) 50%,
-    rgba(170, 105, 60, 0.06) 85%,
+    rgba(91, 110, 132, 0.5) 0%,
+    rgba(91, 110, 132, 0.22) 50%,
+    rgba(91, 110, 132, 0.06) 85%,
     rgba(245, 242, 236, 0) 100%
   );
 }
 .tex-orb--asking .tex-orb-core {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #F4E6D6 0%,
-    #D4A47A 30%,
-    #A87248 70%,
-    #5B3819 100%
-  );
-  box-shadow: 0 0 10px rgba(170, 105, 60, 0.55);
+  box-shadow: 0 0 8px rgba(91, 110, 132, 0.5);
 }
 
 /* --- Keyframes ------------------------------------------- */

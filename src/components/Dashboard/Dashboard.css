@@ -24,28 +24,30 @@
 }
 
 .tex-canvas-wash--cool {
-  top: -120px;
-  right: -160px;
-  width: 720px;
-  height: 720px;
+  top: -180px;
+  right: -200px;
+  width: 820px;
+  height: 820px;
   background: radial-gradient(
     circle at center,
-    rgba(195, 210, 235, 0.30) 0%,
-    rgba(195, 210, 235, 0.10) 40%,
-    rgba(195, 210, 235, 0) 70%
+    rgba(195, 210, 235, 0.55) 0%,
+    rgba(195, 210, 235, 0.20) 35%,
+    rgba(195, 210, 235, 0.05) 60%,
+    rgba(195, 210, 235, 0) 78%
   );
 }
 
 .tex-canvas-wash--warm {
-  bottom: -180px;
-  left: -120px;
-  width: 640px;
-  height: 640px;
+  bottom: -220px;
+  left: -180px;
+  width: 760px;
+  height: 760px;
   background: radial-gradient(
     circle at center,
-    rgba(220, 200, 170, 0.20) 0%,
-    rgba(220, 200, 170, 0.06) 45%,
-    rgba(220, 200, 170, 0) 72%
+    rgba(220, 195, 210, 0.40) 0%,
+    rgba(220, 195, 210, 0.14) 38%,
+    rgba(220, 195, 210, 0.04) 62%,
+    rgba(220, 195, 210, 0) 80%
   );
 }
 
