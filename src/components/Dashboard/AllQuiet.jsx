@@ -17,11 +17,11 @@ export default function AllQuiet() {
         <div className="tex-quiet-word">
           <GlassWord
             text="All quiet"
-            fontSize={42}
-            letterSpacing={-1.6}
-            width={240}
-            height={64}
-            baseline={42}
+            fontSize={104}
+            letterSpacing={-4}
+            width={520}
+            height={140}
+            baseline={104}
           />
         </div>
       </div>
