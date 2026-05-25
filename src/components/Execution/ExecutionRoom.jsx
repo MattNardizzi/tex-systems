@@ -7,24 +7,27 @@ import {
   ClockCounterClockwise,
   FileText,
   PlusCircle,
+  Microphone,
 } from "@phosphor-icons/react";
 import "./ExecutionRoom.css";
 
 /**
- * ExecutionRoom
+ * ExecutionRoom — Tex motherboard
  *
- * The Tex execution room — the moment a verdict needs a human.
+ * The home of the governance system. Six rooms, one canvas.
+ * The colleague's report up top, the six rooms below.
  */
 export default function ExecutionRoom({
-  decision,
   stats = { decisionsThisHour: 4827, needsYou: 1 },
-  onShowMe = () => {},
-  onThanks = () => {},
   onAsk = () => {},
-  activeLayer = "execution",
+  onSearch = () => {},
+  onOpenRoom = () => {},
+  activeLayer = "home",
 }) {
   const [askValue, setAskValue] = useState("");
   const [askFocused, setAskFocused] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const handleAskSubmit = (e) => {
     e.preventDefault();
@@ -34,90 +37,124 @@ export default function ExecutionRoom({
     }
   };
 
-  const d = decision || {
-    id: "c447f14b",
-    summary: "Kestrel asked to wire fifty thousand dollars in your CEO's name.",
-    aside: "I said no.",
-    badge: "stopped",
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      onSearch(searchValue.trim());
+    }
   };
+
+  // The six rooms. Sentences a CEO would say, in the colleague's voice.
+  const rooms = [
+    {
+      key: "stats",
+      name: "Stats",
+      line: "At a glance.",
+    },
+    {
+      key: "today",
+      name: "Today",
+      line: "4,827 handled. One needs you.",
+      dot: "coral",
+    },
+    {
+      key: "week",
+      name: "This week",
+      line: "Clean. Three worth your attention.",
+    },
+    {
+      key: "month",
+      name: "This month",
+      line: "On track. Audit in 14 days.",
+    },
+    {
+      key: "team",
+      name: "The team",
+      line: "83 agents under my watch.",
+    },
+    {
+      key: "pending",
+      name: "What's pending",
+      line: "Two changes waiting.",
+      dot: "amber",
+    },
+  ];
 
   return (
     <div className="tex-shell">
-      {/* Sidebar */}
-      <aside className="tex-sidebar">
-        <div className="tex-logo">T</div>
-
-        <nav className="tex-nav">
-          <NavIcon title="Home" icon={House} />
-          <NavIcon title="Discovery" icon={MagnifyingGlass} />
-          <NavIcon title="Identity" icon={UserCircle} dotColor="amber" />
-          <NavIcon title="Observability" icon={ChartLine} />
-          <NavIcon
-            title="Execution"
-            icon={ClockCounterClockwise}
-            dotColor="coral"
-            active={activeLayer === "execution"}
-          />
-          <NavIcon title="Evidence" icon={FileText} />
-          <NavIcon title="Evolution" icon={PlusCircle} dotColor="amber" />
-        </nav>
-
-        <div className="tex-avatar">M</div>
-      </aside>
-
-      {/* Main */}
+      {/* Main canvas — no sidebar, the rooms are the navigation */}
       <main className="tex-main">
         {/* Soft ambient washes */}
         <div className="tex-wash tex-wash-blue" aria-hidden="true" />
         <div className="tex-wash tex-wash-rose" aria-hidden="true" />
 
-        {/* Tex is here */}
-        <div className="tex-presence" role="status" aria-live="polite">
-          <span className="tex-presence-dot" />
-          <span className="tex-presence-label">Tex is here</span>
-        </div>
+        {/* Top bar: T mark · Tex is here · avatar */}
+        <header className="tex-topbar">
+          <div className="tex-logo">T</div>
 
-        {/* Header row */}
-        <header className="tex-header">
+          <div className="tex-presence" role="status" aria-live="polite">
+            <span className="tex-presence-dot">
+              <span className="tex-presence-dot-core" />
+            </span>
+            <span className="tex-presence-label">Tex is here</span>
+          </div>
+
+          <div className="tex-avatar">M</div>
+        </header>
+
+        {/* The colleague's morning report */}
+        <section className="tex-header">
           <div>
-            <div className="tex-eyebrow">Execution</div>
             <h1 className="tex-h1">Monday morning</h1>
           </div>
           <div className="tex-header-stats">
-            <div className="tex-stat-row">
-              {stats.decisionsThisHour.toLocaleString()} decisions this hour
-            </div>
             <div className="tex-stat-row tex-stat-row--bold">
-              {stats.needsYou} needs you
+              I handled {stats.decisionsThisHour.toLocaleString()} this hour.
             </div>
+            <div className="tex-stat-row">One needs you.</div>
           </div>
-        </header>
+        </section>
 
-        {/* The card */}
-        <article className="tex-card" aria-label="Decision awaiting your review">
-          <span className="tex-card-edge" aria-hidden="true" />
-          <span className="tex-card-dot" aria-hidden="true" />
+        {/* Search */}
+        <form
+          className={`tex-search ${searchFocused ? "tex-search--focused" : ""}`}
+          onSubmit={handleSearchSubmit}
+        >
+          <MagnifyingGlass size={16} weight="regular" className="tex-search-icon" />
+          <input
+            type="text"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            placeholder="Search"
+            className="tex-search-input"
+            aria-label="Search"
+          />
+        </form>
 
-          <p className="tex-verdict">{d.summary}</p>
-          <p className="tex-aside">{d.aside}</p>
-
-          <div className="tex-actions">
+        {/* The six rooms — 3 × 2 grid */}
+        <div className="tex-grid" role="navigation" aria-label="Rooms">
+          {rooms.map((r) => (
             <button
+              key={r.key}
               type="button"
-              className="tex-btn tex-btn--primary"
-              onClick={onShowMe}
+              className="tex-tile"
+              onClick={() => onOpenRoom(r.key)}
             >
-              Show me
+              {r.dot && (
+                <span
+                  className={`tex-tile-dot tex-tile-dot--${r.dot}`}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="tex-tile-name" aria-label={r.name}>
+                <TileWord text={r.name} />
+              </span>
+              <span className="tex-tile-line">{r.line}</span>
             </button>
-            <button
-              type="button"
-              className="tex-btn tex-btn--ghost"
-              onClick={onThanks}
-            >
-              Thank you
-            </button>
-          </div>
-        </article>
+          ))}
+        </div>
 
         {/* Ask Tex */}
         <form
@@ -135,22 +172,51 @@ export default function ExecutionRoom({
             className="tex-ask-input"
             aria-label="Ask Tex anything"
           />
+          <Microphone size={14} weight="regular" className="tex-ask-mic" />
         </form>
       </main>
     </div>
   );
 }
 
-function NavIcon({ title, icon: Icon, active = false, dotColor }) {
+/**
+ * TileWord
+ * Renders the tile name in Source Serif with the same cool-steel gradient
+ * used on "Absolute." on the homepage.
+ */
+function TileWord({ text }) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      className={`tex-nav-item ${active ? "tex-nav-item--active" : ""}`}
+    <svg
+      className="tex-tile-glass"
+      viewBox="0 0 400 80"
+      preserveAspectRatio="xMinYMid meet"
+      aria-hidden="true"
     >
-      <Icon size={20} weight="regular" />
-      {dotColor && <span className={`tex-nav-dot tex-nav-dot--${dotColor}`} />}
-    </button>
+      <defs>
+        <linearGradient
+          id={`tex-tile-grad-${text.replace(/\s+/g, "-")}`}
+          x1="0%"
+          y1="0%"
+          x2="0%"
+          y2="100%"
+        >
+          <stop offset="0%" stopColor="#F4F6FA" stopOpacity="0.98" />
+          <stop offset="28%" stopColor="#C8D2DE" stopOpacity="0.92" />
+          <stop offset="58%" stopColor="#5B6E84" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#1D2733" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <text
+        x="0"
+        y="58"
+        fontFamily="var(--tex-serif)"
+        fontSize="56"
+        fontWeight="400"
+        letterSpacing="-1.5"
+        fill={`url(#tex-tile-grad-${text.replace(/\s+/g, "-")})`}
+      >
+        {text}
+      </text>
+    </svg>
   );
 }
