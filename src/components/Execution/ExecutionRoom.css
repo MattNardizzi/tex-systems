@@ -261,12 +261,19 @@
   margin-bottom: 32px;
 }
 
-/* --- Each room tile --------------------------------------- */
+/* --- Each room tile — the "Absolute" gradient as the surface */
 .tex-tile {
   position: relative;
   aspect-ratio: 1 / 0.78;
-  background: #ffffff;
-  border: 0.5px solid rgba(0, 0, 0, 0.04);
+  background:
+    linear-gradient(
+      180deg,
+      #F4F6FA 0%,
+      #C8D2DE 28%,
+      #5B6E84 58%,
+      #1D2733 100%
+    );
+  border: 0.5px solid rgba(91, 110, 132, 0.35);
   border-radius: 22px;
   padding: 24px 26px 24px;
   display: flex;
@@ -276,21 +283,39 @@
   cursor: pointer;
   font-family: inherit;
   text-align: left;
+  overflow: hidden;
   box-shadow:
-    0 1px 2px rgba(40, 30, 20, 0.03),
-    0 16px 40px -16px rgba(60, 55, 75, 0.1),
-    0 32px 70px -28px rgba(80, 75, 95, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(40, 30, 20, 0.04),
+    0 18px 44px -16px rgba(29, 39, 51, 0.28),
+    0 36px 80px -28px rgba(29, 39, 51, 0.32);
   transition:
     transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* The subtle top sheen — same recipe as the rim on "Absolute." */
+.tex-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0) 14%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+}
+
 .tex-tile:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 2px rgba(40, 30, 20, 0.03),
-    0 20px 48px -16px rgba(60, 55, 75, 0.16),
-    0 40px 90px -30px rgba(80, 75, 95, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(40, 30, 20, 0.04),
+    0 22px 52px -16px rgba(29, 39, 51, 0.34),
+    0 46px 100px -30px rgba(29, 39, 51, 0.36);
 }
 
 .tex-tile:active {
@@ -304,16 +329,19 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  box-shadow: 0 0 0 2.5px rgba(244, 246, 250, 0.35);
+  z-index: 2;
 }
 
 .tex-tile-dot--coral { background: var(--tex-coral); }
 .tex-tile-dot--amber { background: var(--tex-amber); }
 
-/* The room name — rendered as SVG with the "Absolute" gradient */
+/* The room name — rendered as SVG, ivory ink on the steel surface */
 .tex-tile-name {
-  display: block;
-  flex: 1;
+  position: relative;
+  z-index: 1;
   display: flex;
+  flex: 1;
   align-items: flex-end;
 }
 
@@ -325,11 +353,13 @@
 }
 
 .tex-tile-line {
+  position: relative;
+  z-index: 1;
   font-family: var(--tex-serif);
   font-size: 15px;
   line-height: 1.4;
   letter-spacing: -0.005em;
-  color: var(--tex-ink-soft);
+  color: rgba(244, 246, 250, 0.82);
   font-style: italic;
   margin-top: 8px;
   font-weight: 400;

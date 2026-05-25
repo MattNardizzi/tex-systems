@@ -200,10 +200,9 @@ function TileWord({ text }) {
           x2="0%"
           y2="100%"
         >
-          <stop offset="0%" stopColor="#F4F6FA" stopOpacity="0.98" />
-          <stop offset="28%" stopColor="#C8D2DE" stopOpacity="0.92" />
-          <stop offset="58%" stopColor="#5B6E84" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#1D2733" stopOpacity="1" />
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+          <stop offset="50%" stopColor="#F4F6FA" stopOpacity="0.98" />
+          <stop offset="100%" stopColor="#C8D2DE" stopOpacity="0.92" />
         </linearGradient>
       </defs>
       <text
@@ -214,6 +213,19 @@ function TileWord({ text }) {
         fontWeight="400"
         letterSpacing="-1.5"
         fill={`url(#tex-tile-grad-${text.replace(/\s+/g, "-")})`}
+      >
+        {text}
+      </text>
+      <text
+        x="0"
+        y="58"
+        fontFamily="var(--tex-serif)"
+        fontSize="56"
+        fontWeight="400"
+        letterSpacing="-1.5"
+        fill="none"
+        stroke="rgba(29, 39, 51, 0.18)"
+        strokeWidth="0.4"
       >
         {text}
       </text>
