@@ -16,12 +16,12 @@ export default function AllQuiet() {
         <Orb state="quiet" size="lg" />
         <div className="tex-quiet-word">
           <GlassWord
-            text="All quiet"
-            fontSize={104}
-            letterSpacing={-4}
-            width={520}
-            height={140}
-            baseline={104}
+            text="All Quiet"
+            fontSize={83}
+            letterSpacing={-3.2}
+            width={420}
+            height={112}
+            baseline={83}
           />
         </div>
       </div>
