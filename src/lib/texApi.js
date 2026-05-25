@@ -5,6 +5,9 @@
  *
  * Set VITE_TEX_API_BASE in Vercel → Settings → Environment Variables
  *   e.g.  https://tex-api.onrender.com
+ *
+ * When VITE_TEX_API_BASE is unset, the hook in useExecutionData.js
+ * falls back to mock data so the app still renders.
  */
 
 const BASE = import.meta.env.VITE_TEX_API_BASE || "";
@@ -22,23 +25,10 @@ async function request(path, init = {}) {
   return res.json();
 }
 
-/** Pull the current decision that needs human attention (the one shown on the card). */
 export const getCurrentFocus = () => request("/api/execution/focus");
-
-/** Pull hour stats for the header. */
 export const getExecutionStats = () => request("/api/execution/stats");
-
-/** User tapped "Show me" — open the evidence pane. */
-export const showEvidence = (decisionId) =>
-  request(`/api/execution/${decisionId}/evidence`);
-
-/** User tapped "Thank you" — acknowledge and dismiss. */
-export const acknowledgeDecision = (decisionId) =>
-  request(`/api/execution/${decisionId}/ack`, { method: "POST" });
-
-/** Ask Tex anything — natural-language bar. */
+export const showEvidence = (id) => request(`/api/execution/${id}/evidence`);
+export const acknowledgeDecision = (id) =>
+  request(`/api/execution/${id}/ack`, { method: "POST" });
 export const askTex = (text) =>
-  request("/api/tex/ask", {
-    method: "POST",
-    body: JSON.stringify({ text }),
-  });
+  request("/api/tex/ask", { method: "POST", body: JSON.stringify({ text }) });

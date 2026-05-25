@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   House,
-  Search,
+  MagnifyingGlass,
   UserCircle,
   ChartLine,
   ClockCounterClockwise,
@@ -14,14 +14,6 @@ import "./ExecutionRoom.css";
  * ExecutionRoom
  *
  * The Tex execution room — the moment a verdict needs a human.
- *
- * Props:
- *   - decision: { id, summary, aside, badge, timestamp }  (the one decision shown)
- *   - stats:    { decisionsThisHour, needsYou }
- *   - onShowMe: () => void   (user taps "Show me")
- *   - onThanks: () => void   (user taps "Thank you")
- *   - onAsk:    (text) => void  (user submits the "Ask Tex anything" bar)
- *   - activeLayer: "execution" | "discovery" | ...   (which sidebar item glows)
  */
 export default function ExecutionRoom({
   decision,
@@ -57,7 +49,7 @@ export default function ExecutionRoom({
 
         <nav className="tex-nav">
           <NavIcon title="Home" icon={House} />
-          <NavIcon title="Discovery" icon={Search} />
+          <NavIcon title="Discovery" icon={MagnifyingGlass} />
           <NavIcon title="Identity" icon={UserCircle} dotColor="amber" />
           <NavIcon title="Observability" icon={ChartLine} />
           <NavIcon
@@ -132,7 +124,7 @@ export default function ExecutionRoom({
           className={`tex-ask ${askFocused ? "tex-ask--focused" : ""}`}
           onSubmit={handleAskSubmit}
         >
-          <Search size={16} weight="regular" className="tex-ask-icon" />
+          <MagnifyingGlass size={16} weight="regular" className="tex-ask-icon" />
           <input
             type="text"
             value={askValue}

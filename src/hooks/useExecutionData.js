@@ -7,8 +7,6 @@ import {
   askTex,
 } from "../lib/texApi";
 
-/* Mock used when no VITE_TEX_API_BASE is set yet — keeps the screen alive
-   so you can drop the component into any project and see it render. */
 const MOCK_FOCUS = {
   id: "c447f14b",
   summary: "Kestrel asked to wire fifty thousand dollars in your CEO's name.",
@@ -25,7 +23,7 @@ export function useExecutionData() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!import.meta.env.VITE_TEX_API_BASE) return; // stay on mock
+    if (!import.meta.env.VITE_TEX_API_BASE) return;
     let cancelled = false;
     setLoading(true);
 
@@ -37,7 +35,9 @@ export function useExecutionData() {
       })
       .finally(() => !cancelled && setLoading(false));
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const onShowMe = async () => {
@@ -48,7 +48,6 @@ export function useExecutionData() {
     }
     try {
       const evidence = await showEvidence(decision.id);
-      // route to evidence pane, or open a modal — your choice
       window.dispatchEvent(new CustomEvent("tex:evidence", { detail: evidence }));
     } catch (err) {
       console.error(err);
