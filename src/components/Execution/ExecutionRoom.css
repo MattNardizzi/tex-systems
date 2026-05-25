@@ -1,0 +1,382 @@
+/* ============================================================
+   ExecutionRoom.css
+   Pixel-matches the Tex Execution screenshot.
+   Drop into src/components/Execution/ next to ExecutionRoom.jsx
+   ============================================================ */
+
+/* --- Type ------------------------------------------------- */
+:root {
+  --tex-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Helvetica Neue", Arial, sans-serif;
+  --tex-serif: "Source Serif 4", "Source Serif Pro", "New York",
+    "Times New Roman", Georgia, serif;
+
+  --tex-ink: #1d1a17;
+  --tex-ink-soft: #6b6358;
+  --tex-ink-mute: #8b8478;
+  --tex-paper: #ffffff;
+  --tex-coral: #c5482f;
+  --tex-amber: #d39830;
+
+  --tex-bg-1: #f6f6f8;
+  --tex-bg-2: #eef0f6;
+  --tex-bg-3: #e8ecf4;
+}
+
+/* --- Layout ----------------------------------------------- */
+.tex-shell {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--tex-bg-1) 0%, var(--tex-bg-2) 55%, var(--tex-bg-3) 100%);
+  font-family: var(--tex-sans);
+  color: var(--tex-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Sidebar ---------------------------------------------- */
+.tex-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 0 24px;
+  gap: 6px;
+}
+
+.tex-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--tex-ink);
+  color: #faf8f3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  margin-bottom: 22px;
+}
+
+.tex-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tex-nav-item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  color: var(--tex-ink-mute);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tex-nav-item:hover {
+  color: var(--tex-ink);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.tex-nav-item--active {
+  background: #ffffff;
+  color: var(--tex-ink);
+  box-shadow: 0 6px 16px -4px rgba(40, 30, 20, 0.1),
+    0 0 0 0.5px rgba(0, 0, 0, 0.05);
+}
+
+.tex-nav-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5px var(--tex-bg-2);
+}
+
+.tex-nav-item--active .tex-nav-dot {
+  box-shadow: 0 0 0 2.5px #fff;
+}
+
+.tex-nav-dot--coral { background: var(--tex-coral); }
+.tex-nav-dot--amber { background: var(--tex-amber); }
+
+.tex-avatar {
+  margin-top: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #b8c7e3, #d4d9e8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #2a3142;
+}
+
+/* --- Main canvas ------------------------------------------ */
+.tex-main {
+  position: relative;
+  padding: 28px 64px 48px 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.tex-wash {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tex-wash-blue {
+  top: 8%;
+  right: 10%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(195, 210, 235, 0.45) 0%, rgba(195, 210, 235, 0) 70%);
+}
+
+.tex-wash-rose {
+  bottom: 14%;
+  right: 28%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(220, 200, 210, 0.35) 0%, rgba(220, 200, 210, 0) 70%);
+}
+
+/* --- Presence indicator ----------------------------------- */
+.tex-presence {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.85;
+  margin-bottom: 22px;
+}
+
+.tex-presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tex-ink-soft);
+  animation: tex-breath 4s ease-in-out infinite;
+}
+
+@keyframes tex-breath {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.4); }
+}
+
+.tex-presence-label {
+  font-size: 12px;
+  color: var(--tex-ink-soft);
+  letter-spacing: 0.08em;
+  font-weight: 400;
+}
+
+/* --- Header ----------------------------------------------- */
+.tex-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 36px;
+}
+
+.tex-eyebrow {
+  font-size: 12px;
+  color: var(--tex-ink-mute);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.tex-h1 {
+  font-family: var(--tex-serif);
+  font-size: 38px;
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  color: var(--tex-ink);
+  font-weight: 400;
+  margin: 0;
+}
+
+.tex-header-stats {
+  text-align: right;
+  font-size: 14px;
+  color: var(--tex-ink-mute);
+  letter-spacing: -0.005em;
+  line-height: 1.6;
+}
+
+.tex-stat-row--bold {
+  color: var(--tex-ink);
+  font-weight: 500;
+}
+
+/* --- The card --------------------------------------------- */
+.tex-card {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  width: 100%;
+  max-width: 880px;
+  padding: 60px 64px 52px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 0.5px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(40, 30, 20, 0.03),
+    0 24px 60px -16px rgba(60, 55, 75, 0.12),
+    0 50px 100px -30px rgba(80, 75, 95, 0.1);
+  margin-bottom: 48px;
+}
+
+.tex-card-edge {
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+}
+
+.tex-card-dot {
+  position: absolute;
+  top: 28px;
+  right: 32px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tex-coral);
+}
+
+.tex-verdict {
+  font-family: var(--tex-serif);
+  font-size: 40px;
+  line-height: 1.22;
+  letter-spacing: -0.018em;
+  color: var(--tex-ink);
+  font-weight: 400;
+  margin: 0 0 16px;
+  text-wrap: balance;
+  max-width: 720px;
+}
+
+.tex-aside {
+  font-family: var(--tex-serif);
+  font-size: 36px;
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  color: var(--tex-ink-soft);
+  font-weight: 400;
+  font-style: italic;
+  margin: 0 0 52px;
+}
+
+/* --- Actions ---------------------------------------------- */
+.tex-actions {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.tex-btn {
+  font-family: inherit;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  border: none;
+  cursor: pointer;
+  border-radius: 980px;
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.tex-btn:active { transform: scale(0.98); }
+
+.tex-btn--primary {
+  background: var(--tex-ink);
+  color: #faf8f3;
+  font-weight: 500;
+  padding: 14px 30px;
+}
+
+.tex-btn--primary:hover { background: #2c2825; }
+
+.tex-btn--ghost {
+  background: transparent;
+  color: var(--tex-ink-soft);
+  font-weight: 400;
+  padding: 14px 22px;
+}
+
+.tex-btn--ghost:hover { color: var(--tex-ink); }
+
+/* --- Ask Tex anything ------------------------------------- */
+.tex-ask {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 980px;
+  padding: 13px 22px;
+  width: min(380px, 80%);
+  box-shadow: 0 8px 24px -8px rgba(60, 55, 75, 0.12);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.tex-ask--focused {
+  background: #ffffff;
+  box-shadow: 0 12px 32px -8px rgba(60, 55, 75, 0.18),
+    0 0 0 2px rgba(29, 26, 23, 0.06);
+}
+
+.tex-ask-icon {
+  color: var(--tex-ink-mute);
+  flex-shrink: 0;
+}
+
+.tex-ask-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--tex-ink);
+  letter-spacing: -0.005em;
+}
+
+.tex-ask-input::placeholder {
+  color: var(--tex-ink-mute);
+}
+
+/* --- Responsive ------------------------------------------- */
+@media (max-width: 720px) {
+  .tex-shell { grid-template-columns: 64px 1fr; }
+  .tex-main  { padding: 24px 20px 32px; }
+  .tex-card  { padding: 40px 28px 36px; }
+  .tex-verdict { font-size: 28px; }
+  .tex-aside   { font-size: 26px; margin-bottom: 36px; }
+  .tex-h1      { font-size: 28px; }
+  .tex-header-stats { font-size: 12px; }
+}
