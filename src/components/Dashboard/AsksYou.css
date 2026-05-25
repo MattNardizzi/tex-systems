@@ -1,0 +1,119 @@
+/* ============================================================
+   AsksYou — orb on the left, sentence on the right.
+   ============================================================ */
+
+.tex-asks {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 40px 24px 80px;
+}
+
+.tex-asks-stage {
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  max-width: 940px;
+  width: 100%;
+  animation: tex-asks-arrive 1.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.tex-asks-speech {
+  flex: 1;
+  max-width: 560px;
+  min-width: 0;
+}
+
+.tex-asks-summary {
+  font-family: var(--tex-serif);
+  font-size: 32px;
+  line-height: 1.32;
+  letter-spacing: -0.012em;
+  font-weight: 400;
+  color: var(--tex-ink);
+  margin: 0;
+  opacity: 0;
+  animation: tex-asks-line 1.0s cubic-bezier(0.22, 0.61, 0.36, 1) 0.4s forwards;
+}
+
+.tex-asks-aside {
+  font-family: var(--tex-serif);
+  font-size: 28px;
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--tex-ink-soft);
+  margin: 10px 0 0;
+  opacity: 0;
+  animation: tex-asks-line 1.0s cubic-bezier(0.22, 0.61, 0.36, 1) 1.4s forwards;
+}
+
+.tex-asks-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 40px;
+  opacity: 0;
+  animation: tex-asks-line 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) 2.4s forwards;
+}
+
+/* Buttons — colleague vocabulary, never operator. */
+.tex-btn {
+  font-family: var(--tex-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--tex-ink);
+  padding: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tex-btn--primary {
+  padding: 11px 22px;
+  border-radius: 980px;
+  background: var(--tex-ink);
+  color: #faf8f3;
+  font-weight: 500;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.35);
+}
+
+.tex-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.4);
+}
+
+.tex-btn--primary:active { transform: translateY(0); }
+
+.tex-btn--plain {
+  padding: 11px 14px;
+  color: var(--tex-ink-soft);
+}
+
+.tex-btn--plain:hover { color: var(--tex-ink); }
+
+@keyframes tex-asks-arrive {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tex-asks-line {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive — stack on narrow screens */
+@media (max-width: 760px) {
+  .tex-asks-stage {
+    flex-direction: column;
+    gap: 24px;
+    text-align: center;
+  }
+  .tex-asks-speech { text-align: center; }
+  .tex-asks-actions { justify-content: center; }
+  .tex-asks-summary { font-size: 26px; }
+  .tex-asks-aside { font-size: 22px; }
+}

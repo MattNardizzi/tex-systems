@@ -1,0 +1,122 @@
+/* ============================================================
+   TopBar — minimal chrome.
+   ============================================================ */
+
+.tex-topbar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 22px 40px;
+  width: 100%;
+}
+
+.tex-topbar-left  { justify-self: start; }
+.tex-topbar-right { justify-self: end; }
+.tex-topbar-center { justify-self: center; }
+
+/* T mark — the only logo */
+.tex-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--tex-ink);
+  color: #faf8f3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tex-serif);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* User avatar */
+.tex-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.03);
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tex-sans);
+  font-size: 12px;
+  color: #555;
+  font-weight: 500;
+}
+
+/* Presence — cool-steel dot + label, lifted from marketing site */
+.tex-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.tex-presence-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%,
+    rgba(244, 246, 250, 0.95) 0%,
+    rgba(200, 210, 222, 0.9) 30%,
+    rgba(91, 110, 132, 0.95) 70%,
+    rgba(29, 39, 51, 1) 100%);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(91, 110, 132, 0.55),
+    0 0 0 2px rgba(180, 200, 230, 0.18),
+    0 0 14px 2px rgba(160, 190, 230, 0.6),
+    0 0 32px 6px rgba(140, 180, 230, 0.22);
+  animation: tex-presence-breath 3.4s ease-in-out infinite;
+  display: inline-block;
+}
+
+.tex-presence-dot-core {
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 38%;
+  height: 38%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    #FFFFFF 0%,
+    #E6F0FF 45%,
+    rgba(200, 218, 240, 0.3) 100%);
+  filter: blur(0.4px);
+}
+
+.tex-presence-label {
+  font-family: var(--tex-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--tex-ink-soft);
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+@keyframes tex-presence-breath {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 0 0 0.5px rgba(91, 110, 132, 0.55),
+      0 0 0 2px rgba(180, 200, 230, 0.14),
+      0 0 12px 2px rgba(160, 190, 230, 0.5),
+      0 0 28px 5px rgba(140, 180, 230, 0.18);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow:
+      inset 0 0 0 0.5px rgba(91, 110, 132, 0.55),
+      0 0 0 2px rgba(180, 200, 230, 0.22),
+      0 0 18px 3px rgba(160, 190, 230, 0.75),
+      0 0 38px 8px rgba(140, 180, 230, 0.30);
+  }
+}
+
+@media (max-width: 600px) {
+  .tex-topbar { padding: 18px 22px; }
+}

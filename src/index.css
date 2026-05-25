@@ -1,6 +1,35 @@
 /* ============================================================
-   Global reset + base
+   Tex — global tokens & reset
+   The product and the marketing site share one design system.
    ============================================================ */
+
+:root {
+  --tex-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Helvetica Neue", Arial, sans-serif;
+  --tex-serif: "Source Serif 4", "Source Serif Pro", "New York",
+    "Times New Roman", Georgia, serif;
+
+  /* Ink */
+  --tex-ink: #1d1a17;
+  --tex-ink-soft: #6b6358;
+  --tex-ink-mute: #a8a8a2;
+  --tex-paper: #ffffff;
+
+  /* Canvas — warm light wash, the screenshot's background */
+  --tex-canvas: #F5F2EC;
+  --tex-canvas-warm: rgba(220, 200, 170, 0.10);
+  --tex-canvas-cool: rgba(190, 200, 220, 0.08);
+
+  /* The orb — exact blue-grey gradient lifted from "Absolute." */
+  --tex-glass-1: #F4F6FA;
+  --tex-glass-2: #C8D2DE;
+  --tex-glass-3: #5B6E84;
+  --tex-glass-4: #1D2733;
+
+  /* States */
+  --tex-coral: #c5482f;
+  --tex-amber: #d39830;
+}
 
 *,
 *::before,
@@ -18,10 +47,9 @@ body,
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "Helvetica Neue", Arial, sans-serif;
-  color: #1d1a17;
-  background: #f6f6f8;
+  font-family: var(--tex-sans);
+  color: var(--tex-ink);
+  background: var(--tex-canvas);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -29,9 +57,22 @@ body {
 
 button {
   font-family: inherit;
+  cursor: pointer;
 }
 
 input,
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

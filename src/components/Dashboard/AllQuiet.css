@@ -1,0 +1,35 @@
+/* ============================================================
+   AllQuiet — resting state layout.
+   ============================================================ */
+
+.tex-quiet {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 40px 24px 80px;
+}
+
+.tex-quiet-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 56px;
+  animation: tex-quiet-arrive 1.2s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.tex-quiet-word {
+  opacity: 0;
+  animation: tex-quiet-word 1.4s cubic-bezier(0.22, 0.61, 0.36, 1) 0.6s forwards;
+}
+
+@keyframes tex-quiet-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tex-quiet-word {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

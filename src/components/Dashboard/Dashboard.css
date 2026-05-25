@@ -1,0 +1,89 @@
+/* ============================================================
+   Dashboard — the shell. Canvas, washes, body, footer.
+   ============================================================ */
+
+.tex-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--tex-canvas);
+  overflow: hidden;
+  font-family: var(--tex-sans);
+  color: var(--tex-ink);
+}
+
+/* Soft ambient washes — the lavender + warm scheme from the screenshot,
+   subtle enough not to compete with the orb. */
+.tex-canvas-wash {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tex-canvas-wash--cool {
+  top: -120px;
+  right: -160px;
+  width: 720px;
+  height: 720px;
+  background: radial-gradient(
+    circle at center,
+    rgba(195, 210, 235, 0.30) 0%,
+    rgba(195, 210, 235, 0.10) 40%,
+    rgba(195, 210, 235, 0) 70%
+  );
+}
+
+.tex-canvas-wash--warm {
+  bottom: -180px;
+  left: -120px;
+  width: 640px;
+  height: 640px;
+  background: radial-gradient(
+    circle at center,
+    rgba(220, 200, 170, 0.20) 0%,
+    rgba(220, 200, 170, 0.06) 45%,
+    rgba(220, 200, 170, 0) 72%
+  );
+}
+
+.tex-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tex-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 22px 40px 28px;
+}
+
+.tex-footer-link {
+  font-family: var(--tex-serif);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--tex-ink-mute);
+  letter-spacing: 0.01em;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.tex-footer-link:hover {
+  color: var(--tex-ink);
+  border-bottom-color: rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 600px) {
+  .tex-footer { padding: 16px 22px 22px; }
+}

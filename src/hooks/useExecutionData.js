@@ -17,8 +17,23 @@ const MOCK_FOCUS = {
 
 const MOCK_STATS = { decisionsThisHour: 4827, needsYou: 1 };
 
+/**
+ * useExecutionData
+ *
+ * Reads the current focus + stats from the backend, with a mock fallback
+ * when VITE_TEX_API_BASE is unset.
+ *
+ * Exposes:
+ *   - decision, stats, loading
+ *   - onShowMe()   open evidence for the current decision
+ *   - onThanks()   ack the current decision on the backend
+ *   - onAsk(text)  send a natural-language question
+ *   - dismiss()    clear decision locally (returns canvas to AllQuiet)
+ *   - restore()    re-show the last seen decision (dev helper)
+ */
 export function useExecutionData() {
   const [decision, setDecision] = useState(MOCK_FOCUS);
+  const [lastSeen, setLastSeen] = useState(MOCK_FOCUS);
   const [stats, setStats] = useState(MOCK_STATS);
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +45,10 @@ export function useExecutionData() {
     Promise.allSettled([getCurrentFocus(), getExecutionStats()])
       .then(([focusRes, statsRes]) => {
         if (cancelled) return;
-        if (focusRes.status === "fulfilled") setDecision(focusRes.value);
+        if (focusRes.status === "fulfilled") {
+          setDecision(focusRes.value);
+          setLastSeen(focusRes.value);
+        }
         if (statsRes.status === "fulfilled") setStats(statsRes.value);
       })
       .finally(() => !cancelled && setLoading(false));
@@ -48,7 +66,9 @@ export function useExecutionData() {
     }
     try {
       const evidence = await showEvidence(decision.id);
-      window.dispatchEvent(new CustomEvent("tex:evidence", { detail: evidence }));
+      window.dispatchEvent(
+        new CustomEvent("tex:evidence", { detail: evidence })
+      );
     } catch (err) {
       console.error(err);
     }
@@ -58,12 +78,10 @@ export function useExecutionData() {
     if (!decision) return;
     if (!import.meta.env.VITE_TEX_API_BASE) {
       console.log("[mock] Thank you →", decision.id);
-      setDecision(null);
       return;
     }
     try {
       await acknowledgeDecision(decision.id);
-      setDecision(null);
     } catch (err) {
       console.error(err);
     }
@@ -82,5 +100,17 @@ export function useExecutionData() {
     }
   };
 
-  return { decision, stats, loading, onShowMe, onThanks, onAsk };
+  const dismiss = () => setDecision(null);
+  const restore = () => setDecision(lastSeen);
+
+  return {
+    decision,
+    stats,
+    loading,
+    onShowMe,
+    onThanks,
+    onAsk,
+    dismiss,
+    restore,
+  };
 }
