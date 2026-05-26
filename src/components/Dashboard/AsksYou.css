@@ -1,5 +1,6 @@
 /* ============================================================
-   AsksYou — orb on the left, sentence on the right.
+   AsksYou — the moment Tex needs you.
+   Mirrors the homepage MomentSection.
    ============================================================ */
 
 .tex-asks {
@@ -8,112 +9,119 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 40px 24px 80px;
+  padding: 40px 24px 120px;
 }
 
 .tex-asks-stage {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  min-height: 500px;
   display: flex;
   align-items: center;
-  gap: 64px;
-  max-width: 940px;
-  width: 100%;
+  justify-content: center;
   animation: tex-asks-arrive 1.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
+.tex-asks-orb {
+  position: absolute;
+  top: 50%;
+  left: 26%;
+  transform: translate(-50%, -50%);
+}
+
 .tex-asks-speech {
-  flex: 1;
-  max-width: 560px;
-  min-width: 0;
+  position: absolute;
+  top: 50%;
+  left: 56%;
+  transform: translateY(-50%);
+  max-width: 480px;
 }
 
 .tex-asks-summary {
   font-family: var(--tex-serif);
-  font-size: 32px;
-  line-height: 1.32;
-  letter-spacing: -0.012em;
+  font-style: italic;
   font-weight: 400;
+  font-size: clamp(36px, 4.2vw, 60px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   color: var(--tex-ink);
-  margin: 0;
-  opacity: 0;
-  animation: tex-asks-line 1.0s cubic-bezier(0.22, 0.61, 0.36, 1) 0.4s forwards;
+  margin: 0 0 18px 0;
 }
 
 .tex-asks-aside {
   font-family: var(--tex-serif);
-  font-size: 28px;
-  line-height: 1.4;
-  letter-spacing: -0.008em;
   font-style: italic;
-  font-weight: 400;
+  font-weight: 300;
+  font-size: clamp(20px, 1.9vw, 26px);
+  line-height: 1.4;
+  letter-spacing: -0.005em;
   color: var(--tex-ink-soft);
-  margin: 10px 0 0;
-  opacity: 0;
-  animation: tex-asks-line 1.0s cubic-bezier(0.22, 0.61, 0.36, 1) 1.4s forwards;
+  margin: 0 0 36px 0;
 }
 
 .tex-asks-actions {
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-top: 40px;
-  opacity: 0;
-  animation: tex-asks-line 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) 2.4s forwards;
 }
 
-/* Buttons — colleague vocabulary, never operator. */
 .tex-btn {
   font-family: var(--tex-sans);
   font-size: 14px;
-  letter-spacing: 0;
   font-weight: 500;
-  border: none;
-  background: transparent;
-  color: var(--tex-ink);
-  padding: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  letter-spacing: 0.005em;
+  border-radius: 999px;
+  padding: 12px 28px;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .tex-btn--primary {
-  padding: 11px 22px;
-  border-radius: 980px;
+  color: var(--tex-paper);
   background: var(--tex-ink);
-  color: #faf8f3;
-  font-weight: 500;
-  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.35);
 }
 
 .tex-btn--primary:hover {
+  background: #000000;
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.4);
 }
 
-.tex-btn--primary:active { transform: translateY(0); }
+.tex-btn--primary:focus-visible {
+  outline: 2px solid var(--tex-ink);
+  outline-offset: 4px;
+}
 
 .tex-btn--plain {
-  padding: 11px 14px;
   color: var(--tex-ink-soft);
+  padding: 12px 8px;
 }
 
-.tex-btn--plain:hover { color: var(--tex-ink); }
+.tex-btn--plain:hover {
+  color: var(--tex-ink);
+}
 
 @keyframes tex-asks-arrive {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes tex-asks-line {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive — stack on narrow screens */
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .tex-asks-stage {
-    flex-direction: column;
-    gap: 24px;
-    text-align: center;
+    min-height: 620px;
   }
-  .tex-asks-speech { text-align: center; }
-  .tex-asks-actions { justify-content: center; }
-  .tex-asks-summary { font-size: 26px; }
-  .tex-asks-aside { font-size: 22px; }
+  .tex-asks-orb {
+    left: 50%;
+    top: 28%;
+  }
+  .tex-asks-speech {
+    top: auto;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    max-width: 80%;
+  }
+  .tex-asks-actions {
+    justify-content: center;
+  }
 }

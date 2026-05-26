@@ -1,5 +1,5 @@
 /* ============================================================
-   TopBar — minimal chrome.
+   TopBar — minimal chrome. Matches the homepage header.
    ============================================================ */
 
 .tex-topbar {
@@ -8,7 +8,7 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 22px 40px;
+  padding: 28px 40px;
   width: 100%;
 }
 
@@ -16,107 +16,115 @@
 .tex-topbar-right { justify-self: end; }
 .tex-topbar-center { justify-self: center; }
 
-/* T mark — the only logo */
+/* T mark — the only logo. Matches homepage exactly. */
 .tex-mark {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 9px;
-  background: var(--tex-ink);
-  color: #faf8f3;
+  background: linear-gradient(180deg, #2a2520 0%, #14110d 100%);
+  color: #ffffff;
+  font-family: var(--tex-serif);
+  font-size: 19px;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--tex-serif);
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 1px 2px rgba(20, 17, 13, 0.18);
 }
 
-/* User avatar */
+/* Avatar — borderless, soft paper-3 bg. Reads as identity, not chrome. */
 .tex-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.03);
-  border: 0.5px solid rgba(0, 0, 0, 0.06);
-  display: flex;
+  background: var(--tex-paper-3);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--tex-sans);
   font-size: 12px;
-  color: #555;
   font-weight: 500;
+  color: var(--tex-ink-soft);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-/* Presence — cool-steel dot + label, lifted from marketing site */
+.tex-avatar:hover {
+  background: var(--tex-ink);
+  color: var(--tex-paper);
+}
+
+/* Presence — same as the homepage. */
 .tex-presence {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
 }
 
 .tex-presence-dot {
   position: relative;
-  width: 10px;
-  height: 10px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tex-presence-dot::before,
+.tex-presence-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%,
-    rgba(244, 246, 250, 0.95) 0%,
-    rgba(200, 210, 222, 0.9) 30%,
-    rgba(91, 110, 132, 0.95) 70%,
-    rgba(29, 39, 51, 1) 100%);
-  box-shadow:
-    inset 0 0 0 0.5px rgba(91, 110, 132, 0.55),
-    0 0 0 2px rgba(180, 200, 230, 0.18),
-    0 0 14px 2px rgba(160, 190, 230, 0.6),
-    0 0 32px 6px rgba(140, 180, 230, 0.22);
-  animation: tex-presence-breath 3.4s ease-in-out infinite;
-  display: inline-block;
+  background: radial-gradient(
+    circle at center,
+    rgba(91, 110, 132, 0.32) 0%,
+    rgba(91, 110, 132, 0.12) 50%,
+    rgba(91, 110, 132, 0) 90%
+  );
+  animation: tex-presence-halo 4.2s ease-in-out infinite;
+}
+
+.tex-presence-dot::after {
+  animation-delay: 2.1s;
 }
 
 .tex-presence-dot-core {
-  position: absolute;
-  top: 18%;
-  left: 22%;
-  width: 38%;
-  height: 38%;
+  position: relative;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: radial-gradient(circle,
-    #FFFFFF 0%,
-    #E6F0FF 45%,
-    rgba(200, 218, 240, 0.3) 100%);
-  filter: blur(0.4px);
+  background: radial-gradient(
+    circle at 35% 30%,
+    var(--tex-glass-1) 0%,
+    var(--tex-glass-2) 30%,
+    var(--tex-glass-3) 75%,
+    var(--tex-glass-4) 100%
+  );
+  box-shadow: 0 0 4px rgba(91, 110, 132, 0.45);
+}
+
+@keyframes tex-presence-halo {
+  0%, 100% { opacity: 0.4; transform: scale(0.7); }
+  50%      { opacity: 1;   transform: scale(1.0); }
 }
 
 .tex-presence-label {
   font-family: var(--tex-serif);
   font-style: italic;
-  font-size: 13px;
-  color: var(--tex-ink-soft);
-  letter-spacing: 0.01em;
   font-weight: 400;
-}
-
-@keyframes tex-presence-breath {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow:
-      inset 0 0 0 0.5px rgba(91, 110, 132, 0.55),
-      0 0 0 2px rgba(180, 200, 230, 0.14),
-      0 0 12px 2px rgba(160, 190, 230, 0.5),
-      0 0 28px 5px rgba(140, 180, 230, 0.18);
-  }
-  50% {
-    transform: scale(1.08);
-    box-shadow:
-      inset 0 0 0 0.5px rgba(91, 110, 132, 0.55),
-      0 0 0 2px rgba(180, 200, 230, 0.22),
-      0 0 18px 3px rgba(160, 190, 230, 0.75),
-      0 0 38px 8px rgba(140, 180, 230, 0.30);
-  }
+  font-size: 14px;
+  letter-spacing: 0.005em;
+  color: var(--tex-ink-soft);
 }
 
 @media (max-width: 600px) {
-  .tex-topbar { padding: 18px 22px; }
+  .tex-topbar { padding: 20px 24px; }
+  .tex-presence-label { font-size: 13px; }
+}
+
+@media (max-width: 480px) {
+  .tex-presence-label { display: none; }
 }

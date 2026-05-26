@@ -8,12 +8,16 @@ import "./Dashboard.css";
 /**
  * Dashboard — the entire product surface.
  *
- * Two states, switched by whether `decision` is present:
- *   - decision == null → AllQuiet
- *   - decision != null → AsksYou
+ * One canvas, two states. Switched by whether `decision` is present:
+ *   - decision == null → AllQuiet — Tex at rest. The orb breathes alone.
+ *   - decision != null → AsksYou — Tex has stopped something. One thing.
  *
- * One persistent gesture: a small word-link in the bottom right that
- * opens the six rooms.
+ * Pure white paper. No ambient washes. The light comes from type and
+ * the orb itself, never from the room. This is the dashboard equivalent
+ * of an Apple Watch face — beautiful at minute one, beautiful at hour eight.
+ *
+ * The six rooms live one click away in the bottom right. Not a corner
+ * caption. A real pill the operator can press.
  */
 export default function Dashboard({
   decision,
@@ -27,10 +31,6 @@ export default function Dashboard({
 
   return (
     <div className="tex-shell">
-      {/* Ambient washes — the screenshot's lavender + warm corners */}
-      <div className="tex-canvas-wash tex-canvas-wash--cool" aria-hidden="true" />
-      <div className="tex-canvas-wash tex-canvas-wash--warm" aria-hidden="true" />
-
       <TopBar initial={initial} hidePresence={asking} />
 
       <main className="tex-body">

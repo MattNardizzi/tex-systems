@@ -1,34 +1,37 @@
 /* ============================================================
-   Tex — global tokens & reset
+   Tex — global tokens
+   ────────────────────────────────────────────────────────────
    The product and the marketing site share one design system.
+   Pure paper. Three type sizes. One palette. One rhythm.
    ============================================================ */
 
 :root {
+  /* Type families — two, plus mono for real machine identifiers. */
   --tex-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Helvetica Neue", Arial, sans-serif;
   --tex-serif: "Source Serif 4", "Source Serif Pro", "New York",
     "Times New Roman", Georgia, serif;
+  --tex-mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
 
-  /* Ink */
-  --tex-ink: #1d1a17;
-  --tex-ink-soft: #6b6358;
-  --tex-ink-mute: #a8a8a2;
+  /* Ink — black on paper, two soft greys for asides and proof. */
+  --tex-ink: #14110d;
+  --tex-ink-soft: #5e564c;
+  --tex-ink-mute: #9b9388;
+  --tex-ink-hair: #d8d4cc;
+
+  /* Paper — the room. Pure white at rest. */
   --tex-paper: #ffffff;
+  --tex-paper-2: #fafaf8;
+  --tex-paper-3: #f4f3ef;
 
-  /* Canvas — cool paper-white, matching the screenshot */
-  --tex-canvas: #F2F2F5;
-  --tex-canvas-cool: rgba(195, 210, 235, 0.32);
-  --tex-canvas-rose: rgba(220, 200, 210, 0.22);
-
-  /* The orb — exact blue-grey gradient lifted from "Absolute." */
+  /* Glass — the orb. The only soft object on the page. */
   --tex-glass-1: #F4F6FA;
   --tex-glass-2: #C8D2DE;
   --tex-glass-3: #5B6E84;
   --tex-glass-4: #1D2733;
 
-  /* States */
-  --tex-coral: #c5482f;
-  --tex-amber: #d39830;
+  /* Rhythm — 4px base, 8px standard. */
+  --tex-unit: 4px;
 }
 
 *,
@@ -49,15 +52,20 @@ body,
 body {
   font-family: var(--tex-sans);
   color: var(--tex-ink);
-  background: var(--tex-canvas);
+  background: var(--tex-paper);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "liga", "calt";
 }
 
 button {
   font-family: inherit;
   cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
 }
 
 input,
@@ -67,6 +75,12 @@ button {
 
 a {
   color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--tex-ink);
+  color: var(--tex-paper);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -75,4 +89,26 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Dev toggle — kept invisible enough not to dominate */
+.tex-dev-toggle {
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  z-index: 50;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+.tex-dev-toggle:hover { opacity: 1; }
+.tex-dev-toggle button {
+  font-family: var(--tex-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tex-ink-mute);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--tex-ink-hair);
+  background: var(--tex-paper);
 }

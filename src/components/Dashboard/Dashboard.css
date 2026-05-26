@@ -1,5 +1,6 @@
 /* ============================================================
-   Dashboard — the shell. Canvas, washes, body, footer.
+   Dashboard — the shell. Paper, body, footer.
+   No washes. The light comes from the type and the orb.
    ============================================================ */
 
 .tex-shell {
@@ -8,84 +9,49 @@
   flex-direction: column;
   min-height: 100vh;
   width: 100%;
-  background: var(--tex-canvas);
-  overflow: hidden;
+  background: var(--tex-paper);
   font-family: var(--tex-sans);
   color: var(--tex-ink);
 }
 
-/* Soft ambient washes — the lavender + warm scheme from the screenshot,
-   subtle enough not to compete with the orb. */
-.tex-canvas-wash {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.tex-canvas-wash--cool {
-  top: -180px;
-  right: -200px;
-  width: 820px;
-  height: 820px;
-  background: radial-gradient(
-    circle at center,
-    rgba(195, 210, 235, 0.55) 0%,
-    rgba(195, 210, 235, 0.20) 35%,
-    rgba(195, 210, 235, 0.05) 60%,
-    rgba(195, 210, 235, 0) 78%
-  );
-}
-
-.tex-canvas-wash--warm {
-  bottom: -220px;
-  left: -180px;
-  width: 760px;
-  height: 760px;
-  background: radial-gradient(
-    circle at center,
-    rgba(220, 195, 210, 0.40) 0%,
-    rgba(220, 195, 210, 0.14) 38%,
-    rgba(220, 195, 210, 0.04) 62%,
-    rgba(220, 195, 210, 0) 80%
-  );
-}
-
 .tex-body {
   position: relative;
-  z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
+/* Rooms gesture — a small word at the bottom right. Honest
+   navigation, not a confession. Six rooms live one click away. */
 .tex-footer {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: flex-end;
-  padding: 22px 40px 28px;
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  z-index: 20;
 }
 
 .tex-footer-link {
-  font-family: var(--tex-serif);
-  font-style: italic;
-  font-size: 14px;
-  font-weight: 400;
+  font-family: var(--tex-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: var(--tex-ink-mute);
-  letter-spacing: 0.01em;
-  background: transparent;
-  border: none;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0);
-  transition: color 0.2s ease, border-color 0.2s ease;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--tex-ink-hair);
+  background: var(--tex-paper);
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .tex-footer-link:hover {
   color: var(--tex-ink);
-  border-bottom-color: rgba(0, 0, 0, 0.25);
+  border-color: var(--tex-ink);
+  transform: translateY(-1px);
 }
 
 @media (max-width: 600px) {
-  .tex-footer { padding: 16px 22px 22px; }
+  .tex-footer {
+    bottom: 16px;
+    right: 16px;
+  }
 }

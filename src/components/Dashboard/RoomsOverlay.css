@@ -1,41 +1,36 @@
 /* ============================================================
-   RoomsOverlay — full-screen scrim with six sentences.
+   RoomsOverlay — six sentences, behind one click.
    No cards. No grid. The list is the chapter index of Tex.
    ============================================================ */
 
 .tex-rooms-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(245, 242, 236, 0.92) 0%,
-    rgba(245, 242, 236, 0.97) 60%,
-    rgba(245, 242, 236, 1) 100%
-  );
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   animation: tex-rooms-fade 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 .tex-rooms-panel {
   width: 100%;
   max-width: 720px;
-  padding: 40px;
+  padding: 48px 40px;
   animation: tex-rooms-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 .tex-rooms-eyebrow {
-  font-family: var(--tex-sans);
+  font-family: var(--tex-mono);
   font-size: 11px;
-  letter-spacing: 0.20em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--tex-ink-mute);
-  margin: 0 0 28px;
-  font-weight: 500;
+  margin: 0 0 32px;
+  font-weight: 400;
 }
 
 .tex-rooms-list {
@@ -49,37 +44,37 @@
   flex-direction: column;
   width: 100%;
   text-align: left;
-  background: transparent;
-  border: none;
   padding: 22px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  transition: opacity 0.2s ease;
+  border-bottom: 1px solid var(--tex-ink-hair);
+  transition: opacity 0.2s ease, padding-left 0.25s ease;
 }
 
 .tex-rooms-list li:last-child .tex-rooms-item {
   border-bottom: none;
 }
 
-.tex-rooms-item:hover { opacity: 0.7; }
+.tex-rooms-item:hover {
+  padding-left: 8px;
+}
 
 .tex-rooms-label {
-  font-family: var(--tex-sans);
-  font-size: 11px;
-  letter-spacing: 0.18em;
+  font-family: var(--tex-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--tex-ink-mute);
-  margin-bottom: 6px;
-  font-weight: 500;
+  margin-bottom: 8px;
+  font-weight: 400;
 }
 
 .tex-rooms-line {
   font-family: var(--tex-serif);
+  font-style: italic;
+  font-weight: 400;
   font-size: 22px;
   line-height: 1.4;
   letter-spacing: -0.005em;
   color: var(--tex-ink);
-  font-style: italic;
-  font-weight: 400;
 }
 
 @keyframes tex-rooms-fade {
@@ -93,6 +88,6 @@
 }
 
 @media (max-width: 600px) {
-  .tex-rooms-panel { padding: 24px; }
+  .tex-rooms-panel { padding: 32px 24px; }
   .tex-rooms-line  { font-size: 18px; }
 }

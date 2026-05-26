@@ -4,13 +4,17 @@ import "./AsksYou.css";
 /**
  * AsksYou — the moment something needs you.
  *
- * The orb is now amber and slower. It drifts to the left of the canvas.
- * Beside it, in serif italic, Tex says one thing — a single sentence and
- * a quiet aside ("I said no.").
+ * Mirrors the homepage MomentSection exactly. The orb drifts left into
+ * a track at ~26% from the left edge. Beside it, in serif italic, Tex
+ * says one thing — the summary and a quiet aside.
  *
  * Two actions, in the colleague's vocabulary:
- *   - "Show me"  — primary, dark capsule
- *   - "Thank you" — secondary, plain text
+ *   - "Show me"   — primary, ink-black pill (opens the decision)
+ *   - "Thank you" — secondary, plain text (dismisses)
+ *
+ * Color never panics. The orb stays blue-gray in both states; the
+ * composition is what tells the operator something changed, not the
+ * temperature of the room.
  */
 export default function AsksYou({
   decision,
@@ -22,7 +26,9 @@ export default function AsksYou({
   return (
     <div className="tex-asks">
       <div className="tex-asks-stage">
-        <Orb state="asking" size="md" />
+        <div className="tex-asks-orb">
+          <Orb state="asking" size="xl" />
+        </div>
 
         <div className="tex-asks-speech">
           <p className="tex-asks-summary">{decision.summary}</p>

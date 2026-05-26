@@ -1,81 +1,121 @@
-# Tex — frontend (v0.2.0)
+# Tex — dashboard
 
-The product dashboard, designed as Steve Jobs would design it in 2050.
+The product surface for Tex. Pure white paper, one orb, three type sizes — exact parity with the marketing site. This is what the operator sees after they sign in.
 
-## What's here
+## Two states
 
-Two states only:
+The dashboard has two states, switched by whether a decision is currently the focus.
 
-- **All quiet** — the resting state. A breathing orb in the same blue-gray
-  glass treatment as the marketing site's "Absolute." headline, with the
-  words "All quiet" rendered in the same glass type underneath.
-- **Asks you** — the moment something needs you. The orb shifts amber and
-  slows; beside it, Tex says one sentence in serif italic ("Kestrel asked
-  to wire fifty thousand dollars in your CEO's name. _I said no._"), with
-  two actions: **Show me** and **Thank you**.
+### AllQuiet — at rest
 
-The six rooms (Discovery, Identity, Observability, Execution, Evidence,
-Evolution) live behind a single gesture in the bottom-right corner. They
-are not a navigation grid; each is a sentence Tex says in the first
-person.
+The orb breathes alone in the center. Beneath it, in serif italic, Tex states what it has been doing while the operator wasn't watching:
+
+> _I let 4,827 through today._ None needed you.
+
+Below that, in small monospace, a live heartbeat:
+
+```
+LAST DECISION · 17s AGO · EVIDENCE ON FILE
+```
+
+The seconds tick up. The screen at rest is not "blank waiting for something to happen" — it is _the receipt for the silence._ The dashboard equivalent of a clock on a lock screen.
+
+### AsksYou — the moment
+
+When Tex stops something, the orb drifts left into a track at ~26% from the canvas edge. Beside it, in serif italic, Tex says one thing:
+
+> _Kestrel asked to wire fifty thousand dollars in your CEO's name._
+> _I said no._
+
+Two actions in the colleague's vocabulary: a black **Show me** pill (opens the decision), and a quiet **Thank you** plain link (dismisses). The orb never panics — same blue-gray glass in both states. The composition tells the operator something changed, not the temperature of the room.
+
+## The rooms
+
+The six rooms live one click away in the bottom-right of the canvas. Each is one sentence Tex says in the first person, never a label:
+
+```
+DISCOVERY     I'm watching eighty-three agents across your stack.
+IDENTITY      All eighty-three are who they say they are.
+OBSERVABILITY Nothing has drifted this week.
+EXECUTION     I allowed four thousand eight hundred sixteen,
+              held ten, stopped one.
+EVIDENCE      Every decision sealed and chained.
+              Ready when you need them.
+EVOLUTION     I've learned two things this week.
+              I'd like your sign-off before I use them.
+```
+
+The overlay is a white scrim with backdrop blur. No cards. No grid. The list is the chapter index of Tex.
+
+## Design system
+
+Same as the marketing site.
+
+- **Canvas:** pure white (`#ffffff`). No ambient washes.
+- **Type:** three sizes only.
+  - Display serif italic (`Source Serif 4`, 36–60px) — the one sentence per state.
+  - Reading serif italic (20–26px) — asides and captions.
+  - Proof mono (`SF Mono`, 10–11px, uppercase, tracked) — machine identifiers, timestamps, real counts.
+- **Ink:** `#14110d` on paper, with two soft greys (`#5e564c`, `#9b9388`).
+- **Glass:** the orb is the only soft object. Everything else is hard-edged.
+- **Motion:** the orb breathes (presence). It drifts (attention). Nothing performs for its own sake.
+
+## Wiring the live data
+
+Two values in `AllQuiet.jsx` are currently mocked and should come from your hook:
+
+| Mock value         | Where it lives                       | Should come from           |
+|--------------------|--------------------------------------|----------------------------|
+| `actionsToday`     | `AllQuiet.jsx` constant `4827`       | `stats.decisionsThisHour`  |
+| `secondsAgo`       | `AllQuiet.jsx` ticker starting at 14 | seconds since last decision timestamp |
+
+Pass them in as props once the hook exposes them. The structure is set up to receive them.
+
+## Stack
+
+- Vite + React 18
+- Inter + Source Serif 4 (Google Fonts)
+- No router, no state library, no UI framework
 
 ## Run
 
 ```bash
 npm install
-npm run dev
+npm run dev       # http://localhost:5173 — with the dev toggle visible
+npm run build     # produces dist/
+npm run preview   # serves dist/ — dev toggle hidden
 ```
 
-With no backend wired, you'll see the asking state by default (mock data).
-A tiny dev toggle in the bottom-left flips between Asking and Quiet.
-
-## Connecting the backend
-
-Set `VITE_TEX_API_BASE` to your Render URL (e.g.
-`https://tex-api.onrender.com`) in Vercel → Settings → Environment
-Variables. The hook will then call:
-
-- `GET  /api/execution/focus`       current decision to surface
-- `GET  /api/execution/stats`       hourly counters
-- `GET  /api/execution/:id/evidence` evidence bundle for a decision
-- `POST /api/execution/:id/ack`     acknowledge a decision
-- `POST /api/tex/ask`               natural-language question
-
-The contract is unchanged from v0.1; only the UI changed.
-
-## Tokens
-
-All values live in `src/index.css` under `:root`:
-
-- `--tex-canvas` `#F5F2EC` — the warm wash from the screenshot
-- `--tex-glass-1..4` — the four stops of the "Absolute." gradient
-- `--tex-serif`, `--tex-sans` — Source Serif 4, Inter
-- `--tex-ink`, `--tex-ink-soft`, `--tex-ink-mute` — three ink weights
-
-## Structure
+## File map
 
 ```
 src/
-  components/Dashboard/
-    Dashboard.jsx       shell, washes, footer
-    TopBar.jsx          T mark · presence · avatar
-    Orb.jsx             the breathing presence (quiet | asking)
-    GlassWord.jsx       the "Absolute." treatment, reusable
-    AllQuiet.jsx        resting-state layout
-    AsksYou.jsx         asking-state layout
-    RoomsOverlay.jsx    the six rooms behind a single gesture
-  hooks/
-    useExecutionData.js current focus + actions, mock fallback
-  lib/
-    texApi.js           same contract as v0.1
+  App.jsx                          mounts the only page
+  main.jsx                         React entry
+  index.css                        global tokens — type, ink, paper, dev toggle
+
   pages/
-    DashboardPage.jsx   the only page
+    DashboardPage.jsx              the only page, wires hook to component
+
+  hooks/
+    useExecutionData.js            reads from FastAPI backend; mocks if unset
+
+  lib/
+    texApi.js                      thin client for the FastAPI service
+
+  components/Dashboard/
+    Dashboard.jsx                  the shell — TopBar + body + footer + rooms
+    Dashboard.css
+    TopBar.jsx                     three header objects: T mark, Tex is here, avatar
+    TopBar.css
+    AllQuiet.jsx                   resting state — receipt + live heartbeat
+    AllQuiet.css
+    AsksYou.jsx                    event state — orb drift + serif italic message
+    AsksYou.css
+    RoomsOverlay.jsx               six rooms in Tex's first-person voice
+    RoomsOverlay.css
+    Orb.jsx                        the breathing presence (shared with homepage)
+    Orb.css
 ```
 
-## What was removed
-
-- The six-tile gradient grid
-- The "Monday morning" header
-- The top search bar
-- The "Ask Tex anything" footer bar
-- Phosphor icon dependency (no icons in the new design)
+— VortexBlack

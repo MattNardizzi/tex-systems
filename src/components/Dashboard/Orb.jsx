@@ -1,17 +1,28 @@
-import "./Orb.css";
+import './Orb.css';
 
-/**
- * Orb — the breathing presence at the center of Tex.
- *
- * Two states only:
- *   - "quiet"  : cool blue-gray halo, slow rhythm. Nothing needs you.
- *   - "asking" : warm amber halo, slower rhythm. One thing needs you.
- *
- * The color is lifted directly from the "Absolute." word on the marketing
- * site — the same #F4F6FA → #C8D2DE → #5B6E84 → #1D2733 axis, expressed
- * as concentric halos around a small glass core.
- */
-export default function Orb({ state = "quiet", size = "lg" }) {
+/* =============================================================
+   Orb — the breathing presence.
+
+   The protagonist of every section. Five layers — outer atmosphere,
+   mid halo, hairline ring, inner halo, core. All on a 4.2s breath
+   cycle. The orb is the only soft object in the room; everything
+   else is hard-edged so the softness reads as intentional.
+
+   States:
+     quiet   — at rest. Slow, even breath.
+     asking  — slightly weighted. The same blue-gray, never red.
+     proof   — held very still, used in the Evidence section where
+               the chain is doing the talking.
+
+   Sizes:
+     xs (96px) — for inline use beside text
+     sm (140px)
+     md (220px)
+     lg (320px)
+     xl (440px) — the hero / moment surface
+   ============================================================= */
+
+export default function Orb({ state = 'quiet', size = 'lg' }) {
   return (
     <div
       className={`tex-orb tex-orb--${state} tex-orb--${size}`}
