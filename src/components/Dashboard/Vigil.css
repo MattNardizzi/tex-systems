@@ -17,7 +17,13 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 40px 24px 120px;
+  /* Asymmetric vertical padding biases the centered stage upward.
+     A 24vh delta between top and bottom shifts the visual center of
+     the stage from 50% of the viewport (flex default) to ~38% —
+     the place the eye actually lands when it enters a page. Empty
+     space below a sentence reads as breath. Empty space above it
+     reads as missing. */
+  padding: 8vh 24px 32vh;
   position: relative;
 }
 
@@ -294,7 +300,8 @@
 
 @media (max-width: 720px) {
   .tex-vigil {
-    padding: 32px 20px 80px;
+    /* Same upward bias as desktop, scaled slightly tighter for mobile. */
+    padding: 6vh 20px 24vh;
   }
   .tex-vigil-door-line {
     font-size: clamp(28px, 7vw, 40px);

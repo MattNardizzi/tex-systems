@@ -79,9 +79,9 @@ const ROOMS = [
       tail: "Two were new. One had gone quiet.",
     },
     proof: {
-      head: "The two new ones came in through your Slack workspace on Tuesday.",
+      head: "The two new ones started talking on Tuesday — one on your sales team, one on engineering.",
       tail:
-        "The quiet one used to run on AWS Bedrock. It hasn't spoken in nine days.",
+        "The quiet one used to work for finance. It hasn't spoken in nine days.",
     },
     anchor: "sealed at 09:14 utc · ledger position 1,408",
     hash: "a1f3b9e7c0d4f6a82e1b5d9c3e0a7f4b6d8c2e1a9f0b3d5c7e8a4b6f1c0d2e9a3",
@@ -95,7 +95,7 @@ const ROOMS = [
     proof: {
       head: "The one was Kestrel.",
       tail:
-        "It asked to read your finance share. Its capability surface does not include finance. I refused.",
+        "It asked to read your finance documents. It is not allowed near finance. I told it no.",
     },
     anchor: "sealed at 11:02 utc · ledger position 1,517",
     hash: "b2e4c0f8d1a5e7b93f2c6d0a4e1b8c5d7f9a3e0b1c4d6f8a2e5b7c9d1f3a6e8b4",
@@ -107,8 +107,9 @@ const ROOMS = [
       tail: "I'll tell you the moment something does.",
     },
     proof: {
-      head: "The baseline for each of the eighty-three is stable.",
-      tail: "The last drift event was eleven days ago. I am still watching.",
+      head: "Every one of the eighty-three is acting the way they did last week.",
+      tail:
+        "The last time one of them changed was eleven days ago. I am still watching.",
     },
     anchor: "watched continuously since 00:00 utc · 0 events",
     hash: "c3d5e7f9b1a4c6d8e0f2b5a7c9d1e3f5b7a9c2d4e6f8b0a3c5d7e9f1b4a6c8d0e",
@@ -121,7 +122,8 @@ const ROOMS = [
     },
     proof: {
       head: "Kestrel tried to wire fifty thousand dollars in your CEO's name.",
-      tail: "The policy says never, outside the firm. I forbade it.",
+      tail:
+        "The rule has always been: no money leaves the firm without a human. I stopped it.",
     },
     anchor: "sealed at 14:43:08 utc · evidence chain position 4,827",
     hash: "d4e6f8a0c2b5d7e9f1a3c6b8d0e2f4a7c9b1d3e5f7a9c0b2d4e6f8a1c3b5d7e9f",
@@ -133,8 +135,8 @@ const ROOMS = [
       tail: "If anyone ever asks, I can prove it.",
     },
     proof: {
-      head: "Every decision today is linked to the one before it.",
-      tail: "The chain has not been broken since I started.",
+      head: "Every decision I made today is sealed to the one before it.",
+      tail: "Nothing can be removed without leaving a mark. Nothing has been removed.",
     },
     anchor: "chain intact · 38,402 records · root hash matches",
     hash: "e5f7a9c1b3d6e8f0a2c4b7d9e1f3a5c8b0d2e4f6a8c1b3d5e7f9a2c4b6d8e0f1a",
