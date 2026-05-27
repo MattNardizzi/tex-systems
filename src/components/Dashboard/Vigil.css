@@ -1,0 +1,276 @@
+/* ============================================================
+   Vigil — the entire product surface.
+
+   Three depths, one canvas. The type is the room. The dissolve
+   is the breath. The hash is the proof, sitting quietly under
+   the story like a watermark.
+
+   Door, vigil, and proof all live in the same centered stage.
+   They dissolve into one another at the same speed, in the
+   same place, in the same voice. The operator's eye never has
+   to relearn where Tex is.
+   ============================================================ */
+
+.tex-vigil {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 40px 24px 120px;
+  position: relative;
+}
+
+/* The stage is the centered breath of every phase. Door, vigil,
+   proof — all rendered in here. Crossfades are owned by the
+   parent re-keying the stage so React mounts/unmounts cleanly,
+   plus an `is-leaving` class for the outgoing fade. */
+.tex-vigil-stage {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: tex-vigil-arrive 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.tex-vigil-stage.is-leaving {
+  animation: tex-vigil-leave 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* ----------------------------------------------------------------
+   Phase 1 — the door.
+
+   Four lines. Each is its own paragraph, full ink, large serif.
+   They arrive in sequence — staggered animation-delay set
+   inline so the operator reads them in the order Tex says them.
+
+   The size has to be large enough that the visitor's first
+   physical reaction is to lean back, not lean in. Jobs would
+   make the type so large that the reader has to take it
+   seriously before they've finished reading.
+   ---------------------------------------------------------------- */
+
+.tex-vigil-door {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1vh, 18px);
+}
+
+.tex-vigil-door-line {
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(36px, 4.6vw, 64px);
+  line-height: 1.15;
+  letter-spacing: -0.022em;
+  color: var(--tex-ink);
+  margin: 0;
+  opacity: 0;
+  animation: tex-vigil-line-in 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes tex-vigil-line-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ----------------------------------------------------------------
+   Phase 2 — the vigil sentence.
+
+   One sentence, large serif. Same family and same letter-spacing
+   as the door. The "head" is upright, full ink — what Tex did.
+   The "tail" is italic, ink-soft — Tex pausing on the meaning.
+
+   The sentence is a button. The affordance is the cursor change
+   and a barely-perceptible lift on hover. No box. No underline.
+   The button is the same thing the eye is already reading.
+   ---------------------------------------------------------------- */
+
+.tex-vigil-sentence {
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(30px, 3.6vw, 52px);
+  line-height: 1.25;
+  letter-spacing: -0.018em;
+  color: var(--tex-ink);
+  background: transparent;
+  border: 0;
+  padding: 12px 16px;
+  margin: 0;
+  cursor: pointer;
+  max-width: 880px;
+  text-align: center;
+  border-radius: 8px;
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              color 320ms ease;
+}
+
+.tex-vigil-sentence:hover {
+  transform: translateY(-1px);
+  color: #000000;
+}
+
+.tex-vigil-sentence:focus-visible {
+  outline: 2px solid var(--tex-ink);
+  outline-offset: 8px;
+}
+
+.tex-vigil-head {
+  /* The first beat: upright, full ink. */
+  font-style: normal;
+  font-weight: 400;
+  color: var(--tex-ink);
+}
+
+.tex-vigil-tail {
+  /* The second beat: italic, ink-soft, weight 300. Same register
+     used for "None needed you." on the homepage. The visitor's
+     eye learns this as "Tex pausing" once, and recognizes it
+     everywhere. */
+  font-style: italic;
+  font-weight: 300;
+  color: var(--tex-ink-soft);
+}
+
+/* ----------------------------------------------------------------
+   Phase 3 — the proof.
+
+   The summary dissolves. In its place, Tex finishes the story of
+   that one thing — in the same serif, same size, same voice as
+   the vigil. Same head + tail rhythm. The reader does not feel
+   they moved to a new page. They feel Tex continued speaking.
+
+   Below the proof story, in smaller italic, the anchor line — a
+   factual statement about where this decision is sealed. Hovering
+   the anchor reveals the cryptographic hash in monospace, very
+   small, the way you'd show someone the serial number on a bill
+   if they asked to see it.
+   ---------------------------------------------------------------- */
+
+.tex-vigil-proof {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  max-width: 880px;
+}
+
+.tex-vigil-proof-line {
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(28px, 3.2vw, 46px);
+  line-height: 1.28;
+  letter-spacing: -0.016em;
+  color: var(--tex-ink);
+  margin: 0;
+  text-align: center;
+}
+
+.tex-vigil-anchor {
+  font-family: var(--tex-serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: 0.005em;
+  color: var(--tex-ink-soft);
+  background: transparent;
+  border: 0;
+  padding: 6px 10px;
+  margin: 0;
+  cursor: default;
+  border-radius: 6px;
+  transition: color 240ms ease;
+  animation: tex-vigil-anchor-in 700ms cubic-bezier(0.22, 0.61, 0.36, 1) 200ms both;
+}
+
+.tex-vigil-anchor:hover,
+.tex-vigil-anchor:focus-visible {
+  color: var(--tex-ink);
+  outline: none;
+}
+
+@keyframes tex-vigil-anchor-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The hash — monospace, small, lowercase hex. Hidden by default;
+   revealed when the operator hovers the anchor. The visual
+   contrast (serif everywhere else, mono here) is what makes the
+   hash feel like *proof* — the only place in the product where
+   the typography itself signals "this is machine truth, not a
+   sentence." */
+.tex-vigil-hash {
+  font-family: var(--tex-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--tex-ink-mute);
+  margin: -28px 0 0 0;
+  max-width: 720px;
+  word-break: break-all;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms ease, transform 320ms ease;
+  transform: translateY(-3px);
+}
+
+.tex-vigil-hash.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ----------------------------------------------------------------
+   The dissolves.
+
+   Arrive: 700ms ease-out, slight upward lift.
+   Leave:  700ms ease-in, slight downward settle, fading out.
+
+   Same curve, same duration. The operator's eye registers
+   continuous breath rather than two separate animations.
+   ---------------------------------------------------------------- */
+
+@keyframes tex-vigil-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tex-vigil-leave {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+/* ----------------------------------------------------------------
+   Small screens.
+
+   The door lines come down a notch; the vigil sentence wraps
+   more aggressively. The proof story stays large because it's
+   the moment the operator asked for detail.
+   ---------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .tex-vigil {
+    padding: 32px 20px 80px;
+  }
+  .tex-vigil-door-line {
+    font-size: clamp(28px, 7vw, 40px);
+  }
+  .tex-vigil-sentence {
+    font-size: clamp(24px, 5.4vw, 36px);
+  }
+  .tex-vigil-proof-line {
+    font-size: clamp(22px, 5vw, 32px);
+  }
+  .tex-vigil-anchor {
+    font-size: 14px;
+  }
+  .tex-vigil-hash {
+    font-size: 10px;
+  }
+}
+
+/* Reduced motion — the system-wide rule in index.css already
+   neutralizes animations. We keep the structure intact so
+   layout is identical with or without motion. */

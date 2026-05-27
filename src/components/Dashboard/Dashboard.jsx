@@ -1,68 +1,45 @@
-import { useState } from "react";
+import { useRef } from "react";
 import TopBar from "./TopBar";
-import AllQuiet from "./AllQuiet";
-import AsksYou from "./AsksYou";
-import RoomsOverlay from "./RoomsOverlay";
+import Vigil from "./Vigil";
 import "./Dashboard.css";
 
 /**
  * Dashboard — the entire product surface.
  *
- * One canvas, two states. Switched by whether `decision` is present:
- *   - decision == null → AllQuiet — Tex at rest. The orb breathes alone.
- *   - decision != null → AsksYou — Tex has stopped something. One thing.
+ * One canvas. One voice. Three depths.
  *
- * Pure white paper. No ambient washes. The light comes from type and
- * the orb itself, never from the room.
+ *   TopBar          — the persistent chrome. T mark (home) + initial.
+ *   Vigil           — the door, the briefing, the proof. All on one
+ *                     stage, dissolving into one another.
  *
- * Navigation is two gestures, no more:
- *   - touch the orb (in AllQuiet) → walk into the rooms
- *   - press the T mark (any state) → return home to the dashboard
+ * There is no scroll. There are no rooms. There is no overlay.
+ * Tex is talking. The operator is listening. When the operator
+ * wants to look closer at a sentence, the sentence opens in place.
+ * When the operator presses the T, Tex starts over from the door.
  *
- * There is no bottom-right pill. There is no menu. The orb is the
- * door. The T is the way home. Two gestures, taught once, used
- * forever. That's the whole vocabulary.
+ * That is the whole vocabulary.
  */
-export default function Dashboard({
-  decision,
-  initial = "M",
-  onShowMe = () => {},
-  onThanks = () => {},
-  onOpenRoom = () => {},
-}) {
-  const [roomsOpen, setRoomsOpen] = useState(false);
-  const asking = !!decision;
+export default function Dashboard({ initial = "M" }) {
+  /* The T mark resets the vigil. We expose a registration callback
+     to the Vigil component so it can install its own reset handler.
+     This keeps pacing logic where pacing lives. */
+  const homeHandler = useRef(() => {});
 
-  // The T always returns home: close the rooms, leave AsksYou alone
-  // (the user closes that with Got it / Show me, not by going home).
+  const registerHome = (fn) => {
+    homeHandler.current = fn;
+  };
+
   const handleHome = () => {
-    setRoomsOpen(false);
+    homeHandler.current();
   };
 
   return (
     <div className="tex-shell">
-      <TopBar
-        initial={initial}
-        onHome={handleHome}
-      />
+      <TopBar initial={initial} onHome={handleHome} />
 
       <main className="tex-body">
-        {asking ? (
-          <AsksYou
-            decision={decision}
-            onShowMe={onShowMe}
-            onThanks={onThanks}
-          />
-        ) : (
-          <AllQuiet onOpenRooms={() => setRoomsOpen(true)} />
-        )}
+        <Vigil onHomeRequested={registerHome} />
       </main>
-
-      <RoomsOverlay
-        open={roomsOpen}
-        onClose={() => setRoomsOpen(false)}
-        onOpenRoom={onOpenRoom}
-      />
     </div>
   );
 }
