@@ -41,13 +41,12 @@
   line-height: 1;
   color: var(--tex-ink-soft);
   background: transparent;
-  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
 .tex-rooms-close:hover {
   color: var(--tex-ink);
   background: var(--tex-paper-3);
-  transform: rotate(90deg);
 }
 
 .tex-rooms-close:focus-visible {
@@ -123,15 +122,17 @@
 }
 
 /* Dots — four position indicators, the current one filled,
-   the others outline. Clickable to jump. */
+   the others outline. Clickable to jump. Lives in the stage's
+   flow so it sits with the sentence as one composition; if the
+   sentence shifts height between rooms, the dots follow. That's
+   correct — the dots belong to the sentence, not to the
+   viewport floor. */
 .tex-rooms-dots {
-  position: fixed;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
+  margin-top: 80px;
   padding: 8px 4px;
 }
 
@@ -174,5 +175,5 @@
 @media (max-width: 600px) {
   .tex-rooms-close { top: 20px; right: 24px; }
   .tex-rooms-stage { padding: 0 24px; }
-  .tex-rooms-dots  { bottom: 28px; }
+  .tex-rooms-dots  { margin-top: 56px; }
 }

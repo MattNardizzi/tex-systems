@@ -7,8 +7,7 @@ import "./AllQuiet.css";
  *
  * The orb breathes. Below it, one serif italic sentence — Tex stating
  * what it's been doing while you weren't watching. Below that, a single
- * small pulse: a soft dot and "Ns" — the wristwatch tick of a system
- * you trust without checking.
+ * soft dot: the wristwatch tick of a system you trust without checking.
  *
  * The orb is the door into the rooms. Click it (or press Enter / Space
  * while it has focus) to walk in. The cursor changes on hover. A faint
@@ -17,29 +16,22 @@ import "./AllQuiet.css";
  * touching it is what works.
  *
  * First-visit cue: about 2s after the orb settles, a single soft ring
- * releases outward and the words "touch tex" fade in below the sentence
+ * releases outward and the words "tap tex" fade in below the sentence
  * for ~2s, then fade out. Stored in localStorage so it never returns on
  * this device. Teach once. Trust thereafter.
  *
- * In production the count and timestamp come from the API. The mock
- * values below keep the surface honest: a large count, a recent tick.
+ * The seconds-since-last-decision ticker that used to live here is gone.
+ * A number that increments every second turned the page into a news
+ * marquee. The dot breathes. That's the proof of life. Calm doesn't
+ * count.
  */
 const CUE_KEY = "tex.taught.touch";
 
 export default function AllQuiet({ onOpenRooms = () => {} }) {
-  // Live ticker so the seconds count up. The dashboard feels alive
-  // even when nothing else is happening.
-  const [secondsAgo, setSecondsAgo] = useState(14);
-
   // First-visit cue. Three stages: hidden → showing → gone forever.
   // We use a single "phase" string so the CSS can drive both the
-  // ring release and the words "touch tex" off one source of truth.
+  // ring release and the words "tap tex" off one source of truth.
   const [cuePhase, setCuePhase] = useState("hidden");
-
-  useEffect(() => {
-    const id = setInterval(() => setSecondsAgo((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     // Show the cue at most once per device. If localStorage isn't
@@ -99,13 +91,11 @@ export default function AllQuiet({ onOpenRooms = () => {} }) {
           <em> None needed you.</em>
         </p>
 
-        {/* One pulse, not three facts. The orb is already saying alive;
-            the sentence is already saying working. This is just the
-            tick of a wristwatch you weren't watching but trust. */}
-        <p className="tex-quiet-pulse">
-          <span className="tex-quiet-pulse-dot" aria-hidden="true" />
-          {secondsAgo}s
-        </p>
+        {/* One soft dot. No number, no seconds-ago. The orb is
+            already saying alive; the sentence is already saying
+            working. This is just the tick of a wristwatch you
+            weren't watching but trust. */}
+        <span className="tex-quiet-pulse-dot" aria-hidden="true" />
 
         {/* First-visit cue. The element is always rendered after the
             cue starts so the fade-out can play; visibility is owned by
@@ -116,7 +106,7 @@ export default function AllQuiet({ onOpenRooms = () => {} }) {
             data-phase={cuePhase}
             aria-hidden="true"
           >
-            touch tex
+            tap tex
           </p>
         )}
       </div>

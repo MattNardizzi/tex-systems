@@ -211,25 +211,26 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
             tap to look closer
           </p>
         )}
-      </div>
 
-      {/* Position dots — four, the current one filled, the others
-          outline. Clickable to jump. */}
-      <div className="tex-rooms-dots" role="tablist" aria-label="Rooms">
-        {ROOMS.map((r, i) => (
-          <button
-            key={r.key}
-            type="button"
-            role="tab"
-            aria-selected={i === index}
-            aria-label={r.key}
-            className={`tex-rooms-dot${i === index ? " is-current" : ""}`}
-            onClick={() => {
-              lockedUntil.current = Date.now() + 400;
-              setIndex(i);
-            }}
-          />
-        ))}
+        {/* Position dots — four, the current one filled, the others
+            outline. Clickable to jump. Lives inside the stage so it
+            belongs to the sentence, not to the viewport floor. */}
+        <div className="tex-rooms-dots" role="tablist" aria-label="Rooms">
+          {ROOMS.map((r, i) => (
+            <button
+              key={r.key}
+              type="button"
+              role="tab"
+              aria-selected={i === index}
+              aria-label={r.key}
+              className={`tex-rooms-dot${i === index ? " is-current" : ""}`}
+              onClick={() => {
+                lockedUntil.current = Date.now() + 400;
+                setIndex(i);
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
