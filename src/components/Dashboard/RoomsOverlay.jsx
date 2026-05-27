@@ -1,155 +1,235 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./RoomsOverlay.css";
 
 /**
- * RoomsOverlay — four rooms, one at a time.
+ * RoomsOverlay — the four rooms, one screen each.
  *
- * Earlier this was a list: four labels with four italic sentences stacked
- * down the page. A magazine table of contents. Useful, but it read instead
- * of speaking — and Tex is supposed to speak.
+ * Entered by touching the orb. Exited by the X (top-right) or by
+ * pressing the T mark (handled by the parent). Inside, the user
+ * moves between rooms with:
+ *   - mouse wheel
+ *   - two-finger trackpad swipe
+ *   - left/right or up/down arrow keys
+ *   - PageUp / PageDown / Space
+ *   - touch swipe on mobile
+ *   - clicking a dot at the bottom
  *
- * The fix is structural, not cosmetic. You don't see four rooms at once
- * anymore. You walk into one. The sentence sits centered the way the home
- * screen sentence sits centered, in the same serif italic, in the same
- * silence. Below it, a row of four tiny marks tells you which room you're
- * in and lets you step to the next.
+ * Each room is three things and nothing else:
+ *   - the sentence (Tex's voice, serif italic, CLICKABLE — it is
+ *     the door to the room's interior)
+ *   - the dots at the bottom (position indicator + jump-to)
+ *   - the X at the top right (close)
  *
- * The result: each room feels like a place, not an entry. The same trick
- * a slideshow plays that a contact sheet can't.
- *
- * Movement: ← → arrow keys, click a mark, or click "next" on hover.
- * Exit: Escape, or the close gesture at the top-right.
+ * No eyebrow label. No "Walk in" pill. The sentence is the room
+ * name and the door at the same time. The user learns this once,
+ * via the first-visit cue below the first sentence they see, and
+ * the lesson applies to all four rooms thereafter.
  */
+const ROOMS_CUE_KEY = "tex.taught.rooms";
+
+const ROOMS = [
+  {
+    key: "watch",
+    line: "I'm watching eighty-three agents. All of them are who they say they are.",
+  },
+  {
+    key: "execution",
+    line: "I allowed four thousand eight hundred sixteen today. I stopped one.",
+  },
+  {
+    key: "evidence",
+    line: "Every decision sealed. Ready when you need them.",
+  },
+  {
+    key: "learning",
+    line: "I've learned two things this week. I'd like your sign-off before I use them.",
+  },
+];
+
 export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
-  // The four rooms. Each is one sentence in Tex's voice. The eyebrow is
-  // small and quiet — it tells you what *kind* of room without competing
-  // with what Tex is saying inside it.
-  //
-  // Order matters. Watch first — who's out there. Then Execution — what
-  // they did. Then Evidence — what's on file. Then Learning — the only
-  // room that asks something of you, which is why it lives last: it's
-  // the door that costs more to walk into than the others.
-  const rooms = [
-    {
-      key: "watch",
-      label: "Watch",
-      line: "I'm watching eighty-three agents.",
-      aside: "All of them are who they say they are.",
-    },
-    {
-      key: "execution",
-      label: "Execution",
-      line: "I allowed four thousand eight hundred sixteen today.",
-      aside: "I stopped one.",
-    },
-    {
-      key: "evidence",
-      label: "Evidence",
-      line: "Every decision sealed.",
-      aside: "Ready when you need them.",
-    },
-    {
-      key: "learning",
-      label: "Learning",
-      line: "I've learned two things this week.",
-      aside: "I'd like your sign-off before I use them.",
-    },
-  ];
-
   const [index, setIndex] = useState(0);
-  const room = rooms[index];
 
-  const goNext = useCallback(() => {
-    setIndex((i) => (i + 1) % rooms.length);
-  }, [rooms.length]);
+  // First-visit cue inside the rooms: teaches that the sentence is
+  // clickable. Fires once, on the first room the user lands on,
+  // never repeats per device.
+  const [cuePhase, setCuePhase] = useState("hidden");
 
-  const goPrev = useCallback(() => {
-    setIndex((i) => (i - 1 + rooms.length) % rooms.length);
-  }, [rooms.length]);
+  // Wheel/swipe debounce — without this, a single trackpad swipe
+  // fires dozens of wheel events and the user blows through all
+  // four rooms in one gesture. We accept one input per ~600ms.
+  const lockedUntil = useRef(0);
+  const touchStartY = useRef(null);
+  const touchStartX = useRef(null);
 
-  // Reset to the first room each time the overlay opens. You always
-  // walk in through the same door; the order is the order.
+  const advance = useCallback(
+    (delta) => {
+      const now = Date.now();
+      if (now < lockedUntil.current) return;
+      setIndex((i) => {
+        const next = Math.min(ROOMS.length - 1, Math.max(0, i + delta));
+        if (next !== i) lockedUntil.current = now + 600;
+        return next;
+      });
+    },
+    []
+  );
+
+  // Reset to room 0 each time the overlay opens — feels more like
+  // walking through a door than picking up where you left off.
   useEffect(() => {
-    if (open) setIndex(0);
+    if (open) {
+      setIndex(0);
+      lockedUntil.current = Date.now() + 400;
+    }
   }, [open]);
 
+  // First-visit cue for the rooms. Fires once, ~1.5s after the
+  // overlay opens on a brand-new device.
+  useEffect(() => {
+    if (!open) return;
+
+    let taught = "1";
+    try {
+      taught = window.localStorage.getItem(ROOMS_CUE_KEY);
+    } catch {
+      taught = "1";
+    }
+    if (taught) return;
+
+    const t1 = setTimeout(() => setCuePhase("showing"), 1500);
+    const t2 = setTimeout(() => setCuePhase("gone"), 3900);
+    const t3 = setTimeout(() => {
+      try {
+        window.localStorage.setItem(ROOMS_CUE_KEY, "1");
+      } catch {}
+    }, 4200);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      setCuePhase("hidden");
+    };
+  }, [open]);
+
+  // Keyboard navigation. We attach to window so the user can press
+  // keys without first clicking somewhere.
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight") goNext();
-      else if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(e.key)) {
+        e.preventDefault();
+        advance(+1);
+      } else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) {
+        e.preventDefault();
+        advance(-1);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, goNext, goPrev]);
+  }, [open, advance, onClose]);
 
   if (!open) return null;
 
+  // Wheel — both deltaY (vertical scroll) and deltaX (trackpad
+  // horizontal) advance one room. The debounce in advance() keeps
+  // a single gesture from skipping multiple rooms.
+  const handleWheel = (e) => {
+    const d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    if (Math.abs(d) < 12) return;
+    advance(d > 0 ? +1 : -1);
+  };
+
+  const handleTouchStart = (e) => {
+    const t = e.touches[0];
+    touchStartY.current = t.clientY;
+    touchStartX.current = t.clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current == null) return;
+    const t = e.changedTouches[0];
+    const dy = t.clientY - touchStartY.current;
+    const dx = t.clientX - touchStartX.current;
+    const useY = Math.abs(dy) > Math.abs(dx);
+    const d = useY ? dy : dx;
+    if (Math.abs(d) < 40) return;
+    // Natural direction: swipe up / left → next room.
+    advance(d < 0 ? +1 : -1);
+    touchStartY.current = null;
+    touchStartX.current = null;
+  };
+
+  const current = ROOMS[index];
+
   return (
     <div
-      className="tex-rooms"
+      className="tex-rooms-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Rooms"
-      onClick={onClose}
+      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* Top-right close — a single character, no chrome */}
+      {/* Close — top right. The T (top left) also returns home but
+          is owned by the parent's TopBar so it persists across all
+          states. This X is specific to the rooms overlay. */}
       <button
         type="button"
         className="tex-rooms-close"
+        onClick={onClose}
         aria-label="Close"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
       >
-        ×
+        <span aria-hidden="true">×</span>
       </button>
 
-      <div
-        className="tex-rooms-stage"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* The room itself — keyed so a fresh node animates in
-            whenever you step. Same fade-rise the home screen uses. */}
-        <article key={room.key} className="tex-rooms-room">
-          <p className="tex-rooms-eyebrow">{room.label.toLowerCase()}</p>
+      <div className="tex-rooms-stage">
+        {/* The sentence is the room. Clicking it opens the
+            interior (handled by onOpenRoom in the parent). */}
+        <button
+          type="button"
+          className="tex-rooms-sentence"
+          onClick={() => onOpenRoom(current.key)}
+          key={current.key} /* re-key so the arrival animation replays */
+        >
+          {current.line}
+        </button>
 
-          <p className="tex-rooms-line">
-            {room.line}{" "}
-            <em className="tex-rooms-aside">{room.aside}</em>
-          </p>
-
-          <button
-            type="button"
-            className="tex-rooms-enter"
-            onClick={() => {
-              onOpenRoom(room.key);
-              onClose();
-            }}
+        {/* First-visit cue: "tap to look closer" — fires once, on
+            whichever room the user lands on first. Never repeats. */}
+        {cuePhase !== "hidden" && index === 0 && (
+          <p
+            className="tex-rooms-cue"
+            data-phase={cuePhase}
+            aria-hidden="true"
           >
-            Walk in
-          </button>
-        </article>
+            tap to look closer
+          </p>
+        )}
+      </div>
 
-        {/* Four marks. Active one is a filled dot; others are a hairline.
-            Click jumps to that room. No "tab bar" — these don't pretend
-            to be navigation. They're a place indicator. */}
-        <nav className="tex-rooms-marks" aria-label="Rooms">
-          {rooms.map((r, i) => (
-            <button
-              key={r.key}
-              type="button"
-              className={
-                "tex-rooms-mark" + (i === index ? " is-active" : "")
-              }
-              aria-label={r.label}
-              aria-current={i === index ? "true" : undefined}
-              onClick={() => setIndex(i)}
-            />
-          ))}
-        </nav>
+      {/* Position dots — four, the current one filled, the others
+          outline. Clickable to jump. */}
+      <div className="tex-rooms-dots" role="tablist" aria-label="Rooms">
+        {ROOMS.map((r, i) => (
+          <button
+            key={r.key}
+            type="button"
+            role="tab"
+            aria-selected={i === index}
+            aria-label={r.key}
+            className={`tex-rooms-dot${i === index ? " is-current" : ""}`}
+            onClick={() => {
+              lockedUntil.current = Date.now() + 400;
+              setIndex(i);
+            }}
+          />
+        ))}
       </div>
     </div>
   );

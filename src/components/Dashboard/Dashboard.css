@@ -1,6 +1,8 @@
 /* ============================================================
-   Dashboard — the shell. Paper, body, footer.
-   No washes. The light comes from the type and the orb.
+   Dashboard — the shell. Paper + body.
+   The TopBar is fixed (so the T stays a way home from anywhere),
+   which means the body owns its own top padding equal to the bar.
+   No bottom-right pill. The orb is the door into the rooms.
    ============================================================ */
 
 .tex-shell {
@@ -19,39 +21,6 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-/* Rooms gesture — a small word at the bottom right. Honest
-   navigation, not a confession. Six rooms live one click away. */
-.tex-footer {
-  position: fixed;
-  bottom: 24px;
-  right: 28px;
-  z-index: 20;
-}
-
-.tex-footer-link {
-  font-family: var(--tex-sans);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--tex-ink-mute);
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--tex-ink-hair);
-  background: var(--tex-paper);
-  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.tex-footer-link:hover {
-  color: var(--tex-ink);
-  border-color: var(--tex-ink);
-  transform: translateY(-1px);
-}
-
-@media (max-width: 600px) {
-  .tex-footer {
-    bottom: 16px;
-    right: 16px;
-  }
+  /* leave room for the fixed topbar so content doesn't slide under it */
+  padding-top: 92px;
 }

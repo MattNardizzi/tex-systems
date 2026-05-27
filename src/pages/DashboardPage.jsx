@@ -15,15 +15,8 @@ import { useExecutionData } from "../hooks/useExecutionData";
  * that the product isn't finished. We don't ship the confession.
  */
 export default function DashboardPage() {
-  const {
-    decision,
-    pendingLearnings,
-    onShowMe,
-    onThanks,
-    onAsk,
-    dismiss,
-    restore,
-  } = useExecutionData();
+  const { decision, onShowMe, onThanks, onAsk, dismiss, restore } =
+    useExecutionData();
 
   const isDev = import.meta.env.DEV;
   const asking = !!decision;
@@ -54,7 +47,6 @@ export default function DashboardPage() {
     <>
       <Dashboard
         decision={decision}
-        pendingLearnings={pendingLearnings}
         initial="M"
         onShowMe={onShowMe}
         onThanks={handleThanks}

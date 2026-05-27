@@ -2,13 +2,22 @@
 
 The product surface for Tex. Pure white paper, one orb, three type sizes — exact parity with the marketing site. This is what the operator sees after they sign in.
 
-## Two states
+## The whole vocabulary, in two gestures
 
-The dashboard has two states, switched by whether a decision is currently the focus.
+There is no menu. There is no bottom-right pill. There is no settings cog. The product is navigated with two gestures, taught once, used forever:
+
+1. **Touch the orb** → walk into the rooms.
+2. **Press the T mark** (top-left, on every screen) → return home.
+
+The orb is the door. The T is the way out. That's it. Each gesture is taught with a single, one-time, never-repeats ambient cue on the first device visit.
+
+## Two states (the dashboard at rest)
 
 ### AllQuiet — at rest
 
-The orb breathes alone in the center. Beneath it, in serif italic, Tex states what it has been doing while the operator wasn't watching:
+The orb breathes alone in the center. It is a button. Hover changes the cursor, a faint outer halo brightens. Click it (or focus it and press Enter / Space) to walk into the rooms.
+
+Beneath the orb, in serif italic, Tex states what it's been doing while the operator wasn't watching:
 
 > _I let 4,827 through today._ None needed you.
 
@@ -18,7 +27,7 @@ Below that, a single small pulse — one dot, one number, the tick of a wristwat
 •  17s
 ```
 
-That's it. The earlier draft put three machine facts here (LAST DECISION · 17s AGO · EVIDENCE ON FILE). It was honest but it competed with the line above. The line is the point.
+**First-visit cue.** ~2 seconds after the orb settles in, a single soft ring releases outward from the orb and the words *touch tex* fade in below the sentence. The whole cue lasts about 3.5 seconds, then disappears. Stored in `localStorage` as `tex.taught.touch` — never returns on this device.
 
 ### AsksYou — the moment
 
@@ -27,29 +36,55 @@ When Tex stops something, the orb drifts left into a track at ~26% from the canv
 > _Kestrel asked to wire fifty thousand dollars in your CEO's name._
 > _I said no._
 
-Two actions in the colleague's vocabulary: a black **Show me** pill (opens the decision), and a quiet **Got it** plain link (closes the loop). "Got it" instead of "Thank you" — the operator is acknowledging Tex, not thanking it. Thank-you is the wrong direction of gratitude in a working relationship.
+Two actions in the colleague's vocabulary: a black **Show me** pill (opens the decision), and a quiet **Got it** plain link (closes the loop). The orb never panics — same blue-gray glass in both states. The composition tells the operator something changed, not the temperature of the room.
 
-The orb never panics — same blue-gray glass in both states. The composition tells the operator something changed, not the temperature of the room. The summary type is calmer than the earlier 60px draft — the orb drift is what alarms, the words just need to be readable.
+## The rooms (full canvas, one room per screen)
 
-## The rooms
+Touch the orb and the whole canvas becomes the rooms. The TopBar stays on (the T is always the way home). Each room is three things and nothing else:
 
-Four rooms live behind one gesture in the bottom-right of the canvas. Each is one sentence Tex says in the first person, never a label:
+- **The sentence.** Tex's voice in serif italic, ~52px. _It is a button._ Click it to walk into the room's interior.
+- **Dots** at the bottom — position indicator + jump-to.
+- **An X** at the top-right to close the rooms (the T mark in the top-left also returns home).
+
+No eyebrow label. No "Walk in" pill. The sentence is the room name and the door at the same time.
+
+### The four rooms
 
 ```
-WATCH      I'm watching eighty-three agents. All of them
-           are who they say they are.
-EXECUTION  I allowed four thousand eight hundred sixteen
-           today. I stopped one.
-EVIDENCE   Every decision sealed. Ready when you need them.
-LEARNING   I've learned two things this week. I'd like
-           your sign-off before I use them.
+WATCH       I'm watching eighty-three agents. All of them
+            are who they say they are.
+EXECUTION   I allowed four thousand eight hundred sixteen
+            today. I stopped one.
+EVIDENCE    Every decision sealed. Ready when you need them.
+LEARNING    I've learned two things this week. I'd like
+            your sign-off before I use them.
 ```
 
-Earlier drafts had six rooms (Discovery, Identity, Observability, Execution, Evidence, Evolution). Discovery and Identity are one thought — what's out there, and who they really are. Observability collapses into the same sentence ("nothing has drifted" is just Watch's quiet day). "Evolution" was reaching for grandeur; "Learning" is the plainer, harder, more honest word.
+Earlier drafts had six rooms (Discovery, Identity, Observability, Execution, Evidence, Evolution). Discovery and Identity are one thought — what's out there, and who they really are. Observability collapses into the same sentence ("nothing has drifted" is just Watch's quiet day). "Evolution" was reaching for grandeur; "Learning" is the plainer, harder, more honest word. Four sentences you can hold in your head. Six was a feature list dressed as poetry.
 
-Four sentences you can hold in your head. Six was a feature list dressed as poetry.
+### Navigating between rooms
 
-The overlay is a white scrim with backdrop blur. No cards. No grid. The list is the chapter index of Tex.
+The user advances by any natural input:
+
+- mouse wheel
+- two-finger trackpad swipe (horizontal or vertical)
+- arrow keys (←/→/↑/↓)
+- PageUp / PageDown
+- Space (forward)
+- swipe on touch (up/left = next, down/right = previous)
+- clicking a dot
+
+A ~600ms debounce prevents a single trackpad gesture from skipping multiple rooms. Each advance is one room. Each gesture snaps. The dots reflect position in real time.
+
+### First-visit cue inside the rooms
+
+~1.5 seconds after the overlay opens on a brand-new device, *tap to look closer* fades in below the first sentence, holds, fades out. Stored in `localStorage` as `tex.taught.rooms`. Fires once per device, on whichever room the user lands on first. The lesson is "sentences are doors" — applies to all four rooms after the user learns it once. We do not teach it four times.
+
+### Room interiors
+
+Clicking a sentence fires `onOpenRoom(key)` with the room key (`watch`, `execution`, `evidence`, `learning`). The interior view is not wired in this pass — that's the next layer of the product. The door exists; the room behind the door is the next thing to build.
+
+This is by design: the conversational surface (sentence) is one product, the interior (filtered decision log, agent list, evidence chain, learning proposals) is another. The CISO/tech buyer lives inside the rooms; the CRO/General Counsel reads the sentence and walks home satisfied. Same screen, two readings, no split product.
 
 ## Design system
 
@@ -57,12 +92,12 @@ Same as the marketing site.
 
 - **Canvas:** pure white (`#ffffff`). No ambient washes.
 - **Type:** three sizes only.
-  - Display serif italic (`Source Serif 4`, 28–44px) — the one sentence per state.
-  - Reading serif italic (18–22px) — asides and the rooms list.
-  - Proof mono (`SF Mono`, 10–11px) — machine identifiers, the pulse.
+  - Display serif italic (`Source Serif 4`, 28–52px) — the one sentence per state.
+  - Reading serif italic (18–22px) — asides.
+  - Proof mono (`SF Mono`, 10–11px) — machine identifiers, pulses, cues.
 - **Ink:** `#14110d` on paper, with two soft greys (`#5e564c`, `#9b9388`).
 - **Glass:** the orb is the only soft object. Everything else is hard-edged.
-- **Motion:** the orb breathes (presence). It drifts (attention). Arrivals at 0.9s, overlay rises at 0.35s — calm, not lazy. Nothing performs for its own sake.
+- **Motion:** the orb breathes (presence). It drifts (attention). Arrivals 0.55–0.9s, overlay 0.25s, cues 2.4s with hold. Nothing performs for its own sake.
 
 ## Wiring the live data
 
@@ -73,11 +108,20 @@ Two values in `AllQuiet.jsx` are currently mocked and should come from your hook
 | `actionsToday`     | `AllQuiet.jsx` constant `4827`       | `stats.decisionsThisHour`  |
 | `secondsAgo`       | `AllQuiet.jsx` ticker starting at 14 | seconds since last decision timestamp |
 
-Pass them in as props once the hook exposes them. The structure is set up to receive them.
+The four room sentences in `RoomsOverlay.jsx` are similarly static — they should eventually be templated from live counts (`watch`: `${agentCount}`, `execution`: `${allowed}` / `${stopped}`, `learning`: `${pendingProposals}`).
 
 ## Dev toggle
 
 The dev toggle does not exist in the production DOM. In dev mode it is summoned with `⌘.` (or `Ctrl+.`) and dismissed with Escape. A debug button living permanently in the corner of a shipping product is a confession that the product isn't finished. We don't ship the confession.
+
+## localStorage keys
+
+```
+tex.taught.touch     — first-visit cue on the orb has played
+tex.taught.rooms     — first-visit cue inside the rooms has played
+```
+
+Clearing the browser is equivalent to becoming a new user — both cues will play again on next visit. This is correct.
 
 ## Stack
 
@@ -112,15 +156,17 @@ src/
     texApi.js                      thin client for the FastAPI service
 
   components/Dashboard/
-    Dashboard.jsx                  the shell — TopBar + body + footer + rooms
+    Dashboard.jsx                  the shell — TopBar + body + rooms overlay
     Dashboard.css
-    TopBar.jsx                     three header objects: T mark, Tex is here, avatar
+    TopBar.jsx                     fixed header — T (home), presence, avatar
     TopBar.css
-    AllQuiet.jsx                   resting state — one sentence + one pulse
+    AllQuiet.jsx                   resting state — orb (clickable) + sentence
+                                   + pulse + first-visit cue
     AllQuiet.css
-    AsksYou.jsx                    event state — orb drift + serif italic message
+    AsksYou.jsx                    event state — orb drift + sentence + actions
     AsksYou.css
-    RoomsOverlay.jsx               four rooms in Tex's first-person voice
+    RoomsOverlay.jsx               four rooms, one per screen, snap-scrolling,
+                                   sentence-as-door, first-visit cue
     RoomsOverlay.css
     Orb.jsx                        the breathing presence (shared with homepage)
     Orb.css

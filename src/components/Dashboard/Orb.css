@@ -22,7 +22,7 @@
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
-  animation: tex-orb-halo 5.5s ease-in-out infinite;
+  animation: tex-orb-halo 4.2s ease-in-out infinite;
 }
 
 .tex-orb-halo-mid {
@@ -31,7 +31,7 @@
   height: 61.1%;
   border-radius: 50%;
   pointer-events: none;
-  animation: tex-orb-halo-mid 5.5s ease-in-out infinite;
+  animation: tex-orb-halo-mid 4.2s ease-in-out infinite;
 }
 
 .tex-orb-ring {
@@ -41,7 +41,7 @@
   border-radius: 50%;
   border: 1px solid rgba(120, 150, 195, 0.14);
   pointer-events: none;
-  animation: tex-orb-ring 5.5s ease-in-out infinite;
+  animation: tex-orb-ring 4.2s ease-in-out infinite;
 }
 
 .tex-orb-halo-inner {
@@ -50,7 +50,7 @@
   height: 17.8%;
   border-radius: 50%;
   pointer-events: none;
-  animation: tex-orb-halo-inner 5.5s ease-in-out infinite;
+  animation: tex-orb-halo-inner 4.2s ease-in-out infinite;
 }
 
 .tex-orb-core {
@@ -65,7 +65,7 @@
     var(--tex-glass-3) 70%,
     var(--tex-glass-4) 100%
   );
-  animation: tex-orb-core 5.5s ease-in-out infinite;
+  animation: tex-orb-core 4.2s ease-in-out infinite;
 }
 
 /* Smaller core for xs orb */
@@ -142,7 +142,7 @@
 .tex-orb--proof .tex-orb-ring,
 .tex-orb--proof .tex-orb-halo-inner,
 .tex-orb--proof .tex-orb-core {
-  animation-duration: 8.5s;
+  animation-duration: 7s;
 }
 .tex-orb--proof .tex-orb-halo-outer {
   background: radial-gradient(
