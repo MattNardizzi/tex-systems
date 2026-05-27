@@ -53,7 +53,7 @@
    thought. Slightly longer than the inter-vigil crossfade because
    the door was held longer; the dissolve should feel proportionate. */
 .tex-vigil-stage--door.is-leaving {
-  animation: tex-vigil-door-leave 1100ms ease-in both;
+  animation: tex-vigil-door-leave 900ms ease-in both;
 }
 
 @keyframes tex-vigil-door-leave {
