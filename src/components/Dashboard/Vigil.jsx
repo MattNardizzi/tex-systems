@@ -45,24 +45,24 @@ import "./Vigil.css";
    beneath it. Then the next. The pause between lines is the drama.
 
    Total door experience:
-     1.2s   — silence (page is empty)
-     +1.8s  — line 1 fades in       (line 1 finishes at 3.0s)
-     +2.0s  — silence
-     +1.8s  — line 2 fades in       (line 2 finishes at 6.8s)
-     +2.0s  — silence
-     +1.8s  — line 3 fades in       (line 3 finishes at 10.6s)
-     +2.0s  — silence
-     +1.8s  — line 4 fades in       (line 4 finishes at 14.4s)
-     +4.6s  — all four hold as one thought
-     = 19.0s before the door dissolves into the vigil */
-const DOOR_LINE_STAGGER_MS = 3800;  /* time between each line starting */
-const DOOR_LINE_FADE_MS = 1800;
-const DOOR_FIRST_DELAY_MS = 1200;
-const DOOR_HOLD_MS = 19000;
+     0.8s   — silence (page is empty)
+     +1.4s  — line 1 fades in       (line 1 finishes at 2.2s)
+     +1.4s  — silence
+     +1.4s  — line 2 fades in       (line 2 finishes at 5.0s)
+     +1.4s  — silence
+     +1.4s  — line 3 fades in       (line 3 finishes at 7.8s)
+     +1.4s  — silence
+     +1.4s  — line 4 fades in       (line 4 finishes at 10.6s)
+     +3.4s  — all four hold as one thought
+     = 14.0s before the door dissolves into the vigil */
+const DOOR_LINE_STAGGER_MS = 2800;  /* time between each line starting */
+const DOOR_LINE_FADE_MS = 1400;
+const DOOR_FIRST_DELAY_MS = 800;
+const DOOR_HOLD_MS = 14000;
 
 const VIGIL_HOLD_MS = 7400;
 const CROSSFADE_MS = 700;
-const DOOR_CROSSFADE_MS = 1400;  /* matches the slower door-leave CSS animation */
+const DOOR_CROSSFADE_MS = 1100;  /* matches the door-leave CSS animation */
 const PROOF_RETURN_MS = 14000;
 
 /* The six rooms. Each is a beat in Tex's day. The summary is

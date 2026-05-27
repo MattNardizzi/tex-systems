@@ -50,10 +50,10 @@
 
 /* The door leaves the way it arrived — purely. No upward drift,
    no settle, just the four lines fading out together as a single
-   thought. Longer than the inter-vigil crossfade because the door
-   was held longer; the dissolve should feel proportionate. */
+   thought. Slightly longer than the inter-vigil crossfade because
+   the door was held longer; the dissolve should feel proportionate. */
 .tex-vigil-stage--door.is-leaving {
-  animation: tex-vigil-door-leave 1400ms ease-in both;
+  animation: tex-vigil-door-leave 1100ms ease-in both;
 }
 
 @keyframes tex-vigil-door-leave {
