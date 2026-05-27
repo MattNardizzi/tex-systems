@@ -21,6 +21,7 @@ import "./Dashboard.css";
  */
 export default function Dashboard({
   decision,
+  pendingLearnings = 0,
   initial = "M",
   onShowMe = () => {},
   onThanks = () => {},
@@ -41,7 +42,7 @@ export default function Dashboard({
             onThanks={onThanks}
           />
         ) : (
-          <AllQuiet />
+          <AllQuiet pendingLearnings={pendingLearnings} />
         )}
       </main>
 

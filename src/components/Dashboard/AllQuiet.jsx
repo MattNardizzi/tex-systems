@@ -1,34 +1,32 @@
-import { useEffect, useState } from "react";
 import Orb from "./Orb";
 import "./AllQuiet.css";
 
 /**
  * AllQuiet — the resting state.
  *
- * The orb breathes. Below it, one serif italic sentence — Tex stating
- * what it's been doing while you weren't watching. Below that, a single
- * small pulse: a soft dot and "Ns" — the wristwatch tick of a system
- * you trust without checking.
+ * The orb breathes. Below it, one serif italic sentence.
  *
- * Earlier drafts had three machine facts here (LAST DECISION · Ns AGO ·
- * EVIDENCE ON FILE). They were honest but they competed with the line
- * above. The line is the point. The pulse is the proof of life. Anything
- * else is the dashboard sneaking back in.
+ * The sentence has two truths it can tell:
  *
- * In production the count and timestamp come from the API. The mock
- * values below keep the surface honest: a large count, a recent tick.
+ *   1. Nothing is waiting on you — "I let 4,827 through today.
+ *      None needed you."
+ *   2. Something is waiting on you — "I've learned two things this
+ *      week. I'd like your sign-off before I use them."
+ *
+ * Earlier this was a single hard-coded sentence. That was fine while
+ * the product had nothing to ask of you. The moment Tex needs the
+ * operator's sign-off, the home screen has to *say so*, not bury it
+ * four rooms deep. The sentence on the page must be true every time
+ * it appears; otherwise the calm becomes a lie.
+ *
+ * The seconds-since-last ticker that used to live here is gone. A
+ * number that increments every second turned the page into a news
+ * marquee. A single soft pulse below the line is the proof of life.
+ * That's enough.
  */
-export default function AllQuiet() {
-  // Live ticker so the seconds count up. The dashboard feels alive
-  // even when nothing else is happening.
-  const [secondsAgo, setSecondsAgo] = useState(14);
-
-  useEffect(() => {
-    const id = setInterval(() => setSecondsAgo((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
+export default function AllQuiet({ pendingLearnings = 0 }) {
   const actionsToday = 4827;
+  const asking = pendingLearnings > 0;
 
   return (
     <div className="tex-quiet">
@@ -37,19 +35,45 @@ export default function AllQuiet() {
           <Orb state="quiet" size="lg" />
         </div>
 
-        <p className="tex-quiet-line">
-          I let <span className="tex-quiet-count">{actionsToday.toLocaleString()}</span> through today.
-          <em> None needed you.</em>
-        </p>
+        {asking ? (
+          // Something is pending. This is the line that sells the
+          // company — promoted out of the Learning room and onto the
+          // first surface anyone sees.
+          <p className="tex-quiet-line">
+            I've learned{" "}
+            <span className="tex-quiet-count">
+              {numberWord(pendingLearnings)}
+            </span>{" "}
+            things this week.
+            <em> I'd like your sign-off before I use them.</em>
+          </p>
+        ) : (
+          <p className="tex-quiet-line">
+            I let{" "}
+            <span className="tex-quiet-count">
+              {actionsToday.toLocaleString()}
+            </span>{" "}
+            through today.
+            <em> None needed you.</em>
+          </p>
+        )}
 
-        {/* One pulse, not three facts. The orb is already saying alive;
-            the sentence is already saying working. This is just the
-            tick of a wristwatch you weren't watching but trust. */}
-        <p className="tex-quiet-pulse">
-          <span className="tex-quiet-pulse-dot" aria-hidden="true" />
-          {secondsAgo}s
-        </p>
+        {/* One soft pulse. No number, no second-count. The pulse is
+            the wristwatch tick of a system you trust without checking. */}
+        <span
+          className="tex-quiet-pulse-dot"
+          aria-hidden="true"
+        />
       </div>
     </div>
   );
+}
+
+// Small helper. Reads better than digits in a sentence at this size —
+// "I've learned two things" vs "I've learned 2 things". Falls back to
+// the digit form past a handful.
+function numberWord(n) {
+  const words = ["zero", "one", "two", "three", "four", "five",
+    "six", "seven", "eight", "nine"];
+  return words[n] ?? String(n);
 }

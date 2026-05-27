@@ -17,6 +17,11 @@ const MOCK_FOCUS = {
 
 const MOCK_STATS = { decisionsThisHour: 4827, needsYou: 1 };
 
+// Mock count of unsigned-off learnings. In production this comes from
+// the backend alongside the focus + stats. When > 0 and there's no
+// active decision, the home screen promotes the sign-off ask.
+const MOCK_PENDING_LEARNINGS = 2;
+
 /**
  * useExecutionData
  *
@@ -38,6 +43,9 @@ export function useExecutionData() {
   const [decision, setDecision] = useState(null);
   const [lastSeen, setLastSeen] = useState(MOCK_FOCUS);
   const [stats, setStats] = useState(MOCK_STATS);
+  const [pendingLearnings, setPendingLearnings] = useState(
+    MOCK_PENDING_LEARNINGS
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -109,6 +117,7 @@ export function useExecutionData() {
   return {
     decision,
     stats,
+    pendingLearnings,
     loading,
     onShowMe,
     onThanks,
