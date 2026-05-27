@@ -1,234 +1,223 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./Vigil.css";
+import { useSystemState } from "../../hooks/useSystemState";
+import { speak, VIGIL_LAYERS } from "../../lib/texVoice";
 
-/* ============================================================
+/* ==================================================================
    Vigil — the entire product surface.
 
    One screen. One voice. Three depths.
 
-   PHASE: door
-   The four lines, large serif, centered. Held long enough to
-   read. Then they dissolve, and Tex begins.
+   PHASE: manifesto (day one, ever)
+     Four lines arrive one at a time, slowly, on white. There is no
+     chrome — no T mark, no avatar. Tex is introducing itself, and
+     nothing else exists on the page. After the four hold together
+     for a long beat, they dissolve into a held empty moment, and
+     then the vigil begins. The first time the operator ever sees
+     the T mark and avatar is at that transition. This entire phase
+     happens once per account, ever. The server-side flag (or, for
+     now, localStorage) records that it happened.
+
+   PHASE: threshold (day two onward)
+     The door is shorter and specific. Three sentences derived from
+     last-night's state. No "I am Tex" — Tex's identity is performed
+     by voice, not announced. ~8 seconds. Then a 1.5s held pause
+     before the vigil begins. The T mark and avatar are visible
+     from the first frame of this phase.
 
    PHASE: vigil
-   Six summary sentences cycle. One at a time, in the same
-   place, in the same size, in the same voice. Tex paces the
-   rhythm. Each sentence holds, then dissolves, then the next
-   one arrives. After the sixth, Tex returns to the first.
-   The vigil does not end.
+     The six layer sentences cycle, one at a time, in the same
+     place, in the same size. Each holds 7.4s, then crossfades.
+     Sentences are derived from /v1/system/state. The vigil does
+     not end.
 
    PHASE: proof
-   The operator clicks a sentence. The summary dissolves. In
-   its place, Tex finishes the story of that one thing — three
-   short sentences in the same voice on the same canvas.
-   Underneath, in smaller italic, a quiet anchor line. If the
-   operator hovers the anchor, the cryptographic hash appears
-   in monospace.
+     Click a sentence. The summary dissolves. Tex finishes the
+     story of that one thing in the same voice. Below it, a small
+     italic anchor in Tex's voice with the sealed timestamp and
+     ledger position. Hover the anchor — the SHA-256 hash appears
+     in monospace, the only place in the product where typography
+     breaks register. After a beat of stillness, Tex returns to
+     the vigil at the next sentence in sequence.
 
-   After a beat of stillness, Tex returns to the vigil — not
-   to the same sentence, but to the next one in sequence. Tex
-   has moved on. The conversation continues.
+   The T mark resets to the vigil, never to the manifesto.
+   Hovering anywhere pauses pacing. There are no other controls.
+   ================================================================== */
 
-   Hovering pauses pacing. The operator can hold any sentence
-   as long as they want. When they leave, Tex resumes.
+/* Pacing constants — all in one place so the rhythm is easy to tune. */
 
-   Nothing in this surface is a modal. Nothing is a tab.
-   Nothing is a button that does not sound like Tex talking.
-   There is no back button. There is no "next." Tex is the
-   pacing.
-   ============================================================ */
+/* Manifesto pacing — once per account, ever. The patience is the point. */
+const MANIFESTO_FIRST_DELAY_MS = 500;
+const MANIFESTO_LINE_STAGGER_MS = 4_200;
+const MANIFESTO_LINE_FADE_MS = 1_400;
+const MANIFESTO_HOLD_MS = 8_000;
+const MANIFESTO_DISSOLVE_MS = 1_200;
+const MANIFESTO_BLACKOUT_MS = 1_800;
 
-/* Door pacing — each line owns its moment.
+/* Threshold pacing — day two onward. Faster. Past-tense reports. */
+const THRESHOLD_FIRST_DELAY_MS = 300;
+const THRESHOLD_LINE_STAGGER_MS = 2_500;
+const THRESHOLD_LINE_FADE_MS = 900;
+const THRESHOLD_HOLD_MS = 2_000;
+const THRESHOLD_PAUSE_MS = 1_500;
 
-   The first line arrives in silence. It sits alone long enough to
-   be a thought, not a label. Then the next line slowly materializes
-   beneath it. Then the next. The pause between lines is the drama.
-
-   Total door experience:
-     0.5s   — silence (page is empty)
-     +1.0s  — line 1 fades in       (line 1 finishes at 1.5s)
-     +1.0s  — silence
-     +1.0s  — line 2 fades in       (line 2 finishes at 3.5s)
-     +1.0s  — silence
-     +1.0s  — line 3 fades in       (line 3 finishes at 5.5s)
-     +1.0s  — silence
-     +1.0s  — line 4 fades in       (line 4 finishes at 7.5s)
-     +2.5s  — all four hold as one thought
-     = 10.0s before the door dissolves into the vigil */
-const DOOR_LINE_STAGGER_MS = 2000;  /* time between each line starting */
-const DOOR_LINE_FADE_MS = 1000;
-const DOOR_FIRST_DELAY_MS = 500;
-const DOOR_HOLD_MS = 10000;
-
-const VIGIL_HOLD_MS = 7400;
+/* Vigil pacing — the steady rhythm Tex lives in. */
+const VIGIL_HOLD_MS = 7_400;
 const CROSSFADE_MS = 700;
-const DOOR_CROSSFADE_MS = 900;  /* matches the door-leave CSS animation */
-const PROOF_RETURN_MS = 14000;
 
-/* The six rooms. Each is a beat in Tex's day. The summary is
-   what Tex says in the vigil. The proof is what Tex says when
-   the operator asks to see closer. The anchor is the small
-   italic line under the proof. The hash is the actual sealed
-   identifier — shown in monospace, only when the operator
-   hovers the anchor. */
-const ROOMS = [
-  {
-    key: "discovery",
-    summary: {
-      head: "I found eighty-three agents this week.",
-      tail: "Two were new. One had gone quiet.",
-    },
-    proof: {
-      head: "The two new ones started talking on Tuesday — one on your sales team, one on engineering.",
-      tail:
-        "The quiet one used to work for finance. It hasn't spoken in nine days.",
-    },
-    anchor: "sealed at 09:14 utc · ledger position 1,408",
-    hash: "a1f3b9e7c0d4f6a82e1b5d9c3e0a7f4b6d8c2e1a9f0b3d5c7e8a4b6f1c0d2e9a3",
-  },
-  {
-    key: "identity",
-    summary: {
-      head: "All of them are who they say they are.",
-      tail: "One asked for more than I'd given it. I held the line.",
-    },
-    proof: {
-      head: "The one was Kestrel.",
-      tail:
-        "It asked to read your finance documents. It is not allowed near finance. I told it no.",
-    },
-    anchor: "sealed at 11:02 utc · ledger position 1,517",
-    hash: "b2e4c0f8d1a5e7b93f2c6d0a4e1b8c5d7f9a3e0b1c4d6f8a2e5b7c9d1f3a6e8b4",
-  },
-  {
-    key: "monitoring",
-    summary: {
-      head: "I'm watching them all, right now. Nothing is drifting.",
-      tail: "I'll tell you the moment something does.",
-    },
-    proof: {
-      head: "Every one of the eighty-three is acting the way they did last week.",
-      tail:
-        "The last time one of them changed was eleven days ago. I am still watching.",
-    },
-    anchor: "watched continuously since 00:00 utc · 0 events",
-    hash: "c3d5e7f9b1a4c6d8e0f2b5a7c9d1e3f5b7a9c2d4e6f8b0a3c5d7e9f1b4a6c8d0e",
-  },
-  {
-    key: "execution",
-    summary: {
-      head: "I made 4,827 decisions today. I allowed 4,826.",
-      tail: "I stopped one.",
-    },
-    proof: {
-      head: "Kestrel tried to wire fifty thousand dollars in your CEO's name.",
-      tail:
-        "The rule has always been: no money leaves the firm without a human. I stopped it.",
-    },
-    anchor: "sealed at 14:43:08 utc · evidence chain position 4,827",
-    hash: "d4e6f8a0c2b5d7e9f1a3c6b8d0e2f4a7c9b1d3e5f7a9c0b2d4e6f8a1c3b5d7e9f",
-  },
-  {
-    key: "evidence",
-    summary: {
-      head: "I wrote it all down.",
-      tail: "If anyone ever asks, I can prove it.",
-    },
-    proof: {
-      head: "Every decision I made today is sealed to the one before it.",
-      tail: "Nothing can be removed without leaving a mark. Nothing has been removed.",
-    },
-    anchor: "chain intact · 38,402 records · root hash matches",
-    hash: "e5f7a9c1b3d6e8f0a2c4b7d9e1f3a5c8b0d2e4f6a8c1b3d5e7f9a2c4b6d8e0f1a",
-  },
-  {
-    key: "learning",
-    summary: {
-      head: "I've learned two things this week.",
-      tail: "I'd like your sign-off before I use them.",
-    },
-    proof: {
-      head: "I noticed two patterns I think we should turn into rules.",
-      tail: "I will not act on them until you say yes.",
-    },
-    anchor: "2 proposals pending · awaiting your review",
-    hash: "f6a8b0c2d4e7f9a1c3b6d8e0f2a4c7b9d1e3f5a8c0b2d4e6f8a1c3b5d7e9f0a2c",
-  },
-];
+/* Proof pacing. */
+const PROOF_RETURN_MS = 14_000;
 
-const DOOR_LINES = [
+const MANIFESTO_LINES = [
   "I am Tex.",
   "I see your agents.",
   "I decide what they can do.",
   "I keep the proof.",
 ];
 
-export default function Vigil({ onHomeRequested }) {
-  /* phase: 'door' | 'vigil' | 'proof'
-     index: which room (0..5) Tex is currently on
-     leaving: true while the current content is fading out */
-  const [phase, setPhase] = useState("door");
+/* Server-side flag stand-in. When the backend grows a user model with
+   a seen_manifesto_at field, this becomes a fetch. Until then we keep
+   the once-per-account contract locally. */
+const MANIFESTO_FLAG_KEY = "tex.seen_manifesto_at";
+
+function hasSeenManifesto() {
+  try {
+    return Boolean(window.localStorage.getItem(MANIFESTO_FLAG_KEY));
+  } catch {
+    /* If localStorage is unavailable, fail open to threshold. The
+       manifesto exists to be seen at most once; never showing it
+       again on a broken browser is the safer side of the contract. */
+    return true;
+  }
+}
+
+function markManifestoSeen() {
+  try {
+    window.localStorage.setItem(MANIFESTO_FLAG_KEY, new Date().toISOString());
+  } catch {
+    /* No-op. The next session will simply skip the manifesto too. */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Component                                                           */
+/* ------------------------------------------------------------------ */
+
+export default function Vigil({ onHomeRequested, onChromeReady }) {
+  /* The snapshot is what the voice speaks from. Null until the first
+     fetch resolves; the voice module renders honest no-knowledge
+     sentences while null. */
+  const snapshot = useSystemState();
+
+  /* Initial phase: the manifesto on day one, the threshold otherwise. */
+  const [phase, setPhase] = useState(() =>
+    hasSeenManifesto() ? "threshold" : "manifesto"
+  );
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [hashVisible, setHashVisible] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [blackout, setBlackout] = useState(false);
 
-  /* Timers — held in refs so we can cancel them when the operator
-     interrupts or when the component unmounts. */
   const advanceTimer = useRef(null);
   const fadeTimer = useRef(null);
   const proofReturnTimer = useRef(null);
+  const blackoutTimer = useRef(null);
 
-  /* The operator pressing the T mark returns to the door from
-     anywhere. This is the only universal home gesture in the
-     product, and it's owned by the parent. We listen for it via
-     prop callback registration. */
+  /* ---------------- Chrome visibility ----------------
+
+     The chrome (T mark + avatar) is hidden during the manifesto and
+     during the blackout. It first appears at the moment the vigil
+     begins on day one, and is always visible from then on. */
+  useEffect(() => {
+    if (!onChromeReady) return;
+    const showChrome = phase !== "manifesto" && !blackout;
+    onChromeReady(showChrome);
+  }, [phase, blackout, onChromeReady]);
+
+  /* ---------------- T mark home ----------------
+
+     T mark resets to the vigil, never to the manifesto. If the user
+     has somehow not yet seen the manifesto and presses T anyway, we
+     still send them to the vigil — pressing T is implicit consent
+     that they don't want the slow introduction. */
   useEffect(() => {
     if (!onHomeRequested) return;
     onHomeRequested(() => {
       clearAll();
-      setPhase("door");
+      if (!hasSeenManifesto()) markManifestoSeen();
+      setBlackout(false);
+      setPhase("vigil");
       setIndex(0);
       setLeaving(false);
       setHashVisible(false);
     });
   }, [onHomeRequested]);
 
-  /* --------------------------------------------------------------
-     Pacing
-     -------------------------------------------------------------- */
+  /* ---------------- Pacing ---------------- */
 
   const clearAll = () => {
-    if (advanceTimer.current) clearTimeout(advanceTimer.current);
-    if (fadeTimer.current) clearTimeout(fadeTimer.current);
-    if (proofReturnTimer.current) clearTimeout(proofReturnTimer.current);
-    advanceTimer.current = null;
-    fadeTimer.current = null;
-    proofReturnTimer.current = null;
+    [advanceTimer, fadeTimer, proofReturnTimer, blackoutTimer].forEach((r) => {
+      if (r.current) clearTimeout(r.current);
+      r.current = null;
+    });
   };
 
-  /* Door → Vigil. After DOOR_HOLD_MS, the four lines fade out
-     slowly (DOOR_CROSSFADE_MS), and the first vigil sentence
-     arrives. */
+  /* Manifesto → blackout → vigil. The blackout is the ma. */
   useEffect(() => {
-    if (phase !== "door") return;
+    if (phase !== "manifesto") return;
     if (paused) return;
+
+    const arriveTotal =
+      MANIFESTO_FIRST_DELAY_MS +
+      3 * MANIFESTO_LINE_STAGGER_MS +
+      MANIFESTO_LINE_FADE_MS;
+    const dissolveAt = arriveTotal + MANIFESTO_HOLD_MS;
 
     advanceTimer.current = setTimeout(() => {
       setLeaving(true);
       fadeTimer.current = setTimeout(() => {
-        setPhase("vigil");
-        setIndex(0);
+        /* Mark seen the instant the manifesto starts to dissolve. */
+        markManifestoSeen();
         setLeaving(false);
-      }, DOOR_CROSSFADE_MS);
-    }, DOOR_HOLD_MS);
+        setBlackout(true);
+        blackoutTimer.current = setTimeout(() => {
+          setBlackout(false);
+          setPhase("vigil");
+          setIndex(0);
+        }, MANIFESTO_BLACKOUT_MS);
+      }, MANIFESTO_DISSOLVE_MS);
+    }, dissolveAt);
 
     return clearAll;
   }, [phase, paused]);
 
-  /* Vigil pacing. Each sentence holds, then dissolves, then the
-     next one arrives. After the sixth, we loop back to the first.
-     Pausing freezes the cycle. */
+  /* Threshold → held pause → vigil. */
+  useEffect(() => {
+    if (phase !== "threshold") return;
+    if (paused) return;
+
+    const arriveTotal =
+      THRESHOLD_FIRST_DELAY_MS +
+      2 * THRESHOLD_LINE_STAGGER_MS +
+      THRESHOLD_LINE_FADE_MS;
+    const dissolveAt = arriveTotal + THRESHOLD_HOLD_MS;
+
+    advanceTimer.current = setTimeout(() => {
+      setLeaving(true);
+      fadeTimer.current = setTimeout(() => {
+        setLeaving(false);
+        blackoutTimer.current = setTimeout(() => {
+          setPhase("vigil");
+          setIndex(0);
+        }, THRESHOLD_PAUSE_MS);
+      }, CROSSFADE_MS);
+    }, dissolveAt);
+
+    return clearAll;
+  }, [phase, paused]);
+
+  /* Vigil pacing. */
   useEffect(() => {
     if (phase !== "vigil") return;
     if (paused) return;
@@ -236,7 +225,7 @@ export default function Vigil({ onHomeRequested }) {
     advanceTimer.current = setTimeout(() => {
       setLeaving(true);
       fadeTimer.current = setTimeout(() => {
-        setIndex((i) => (i + 1) % ROOMS.length);
+        setIndex((i) => (i + 1) % VIGIL_LAYERS.length);
         setLeaving(false);
       }, CROSSFADE_MS);
     }, VIGIL_HOLD_MS);
@@ -244,8 +233,7 @@ export default function Vigil({ onHomeRequested }) {
     return clearAll;
   }, [phase, index, paused]);
 
-  /* Proof → Vigil. After PROOF_RETURN_MS of stillness, Tex moves
-     on. Not to the same room. The conversation continues. */
+  /* Proof → vigil. */
   useEffect(() => {
     if (phase !== "proof") return;
     if (paused) return;
@@ -254,7 +242,7 @@ export default function Vigil({ onHomeRequested }) {
       setLeaving(true);
       fadeTimer.current = setTimeout(() => {
         setPhase("vigil");
-        setIndex((i) => (i + 1) % ROOMS.length);
+        setIndex((i) => (i + 1) % VIGIL_LAYERS.length);
         setLeaving(false);
         setHashVisible(false);
       }, CROSSFADE_MS);
@@ -263,19 +251,28 @@ export default function Vigil({ onHomeRequested }) {
     return clearAll;
   }, [phase, paused]);
 
-  /* --------------------------------------------------------------
-     Interaction
-     -------------------------------------------------------------- */
+  /* ---------------- Voice derivation ---------------- */
 
-  /* Hover anywhere on the body pauses pacing. The operator gets
-     to hold the sentence as long as they want. */
+  const vigilSentences = useMemo(() => speak(snapshot), [snapshot]);
+
+  const thresholdSentences = useMemo(() => {
+    const all = speak(snapshot ?? null);
+    const byKey = Object.fromEntries(all.map((x) => [x.key, x]));
+    return [byKey.discovery, byKey.monitoring, byKey.execution];
+  }, [snapshot]);
+
+  const current = vigilSentences[index] ?? vigilSentences[0];
+  const proofPlaceholder =
+    PROOF_PLACEHOLDERS[current?.key] ?? PROOF_PLACEHOLDERS.evidence;
+
+  /* ---------------- Interaction ---------------- */
+
   const handleEnter = () => setPaused(true);
   const handleLeave = () => {
     setPaused(false);
     setHashVisible(false);
   };
 
-  /* Click on the vigil sentence opens the proof for that room. */
   const handleSentenceClick = () => {
     if (phase !== "vigil") return;
     if (leaving) return;
@@ -287,14 +284,12 @@ export default function Vigil({ onHomeRequested }) {
     }, CROSSFADE_MS);
   };
 
-  /* --------------------------------------------------------------
-     Render
-     -------------------------------------------------------------- */
+  /* ---------------- Render ---------------- */
 
-  const room = ROOMS[index];
-  const stageClass = `tex-vigil-stage tex-vigil-stage--${phase}${
-    leaving ? " is-leaving" : ""
-  }`;
+  const stageClass = (extra = "") =>
+    `tex-vigil-stage tex-vigil-stage--${phase}${
+      leaving ? " is-leaving" : ""
+    }${extra ? ` ${extra}` : ""}`;
 
   return (
     <section
@@ -302,13 +297,14 @@ export default function Vigil({ onHomeRequested }) {
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
-      {phase === "door" && (
-        <div className={stageClass} key="door">
-          <div className="tex-vigil-door">
-            {DOOR_LINES.map((line, i) => {
+      {phase === "manifesto" && !blackout && (
+        <div className={stageClass()} key="manifesto">
+          <div className="tex-vigil-door tex-vigil-door--manifesto">
+            {MANIFESTO_LINES.map((line, i) => {
               const delaySec =
-                (DOOR_FIRST_DELAY_MS + i * DOOR_LINE_STAGGER_MS) / 1000;
-              const durationSec = DOOR_LINE_FADE_MS / 1000;
+                (MANIFESTO_FIRST_DELAY_MS + i * MANIFESTO_LINE_STAGGER_MS) /
+                1000;
+              const durationSec = MANIFESTO_LINE_FADE_MS / 1000;
               return (
                 <p
                   key={i}
@@ -326,26 +322,64 @@ export default function Vigil({ onHomeRequested }) {
         </div>
       )}
 
-      {phase === "vigil" && (
-        <div className={stageClass} key={`vigil-${index}`}>
+      {blackout && <div className="tex-vigil-blackout" aria-hidden="true" />}
+
+      {phase === "threshold" && (
+        <div className={stageClass()} key="threshold">
+          <div className="tex-vigil-door tex-vigil-door--threshold">
+            {thresholdSentences.map((s, i) => {
+              const delaySec =
+                (THRESHOLD_FIRST_DELAY_MS + i * THRESHOLD_LINE_STAGGER_MS) /
+                1000;
+              const durationSec = THRESHOLD_LINE_FADE_MS / 1000;
+              return (
+                <p
+                  key={s?.key ?? i}
+                  className="tex-vigil-door-line tex-vigil-door-line--threshold"
+                  style={{
+                    animationDelay: `${delaySec}s`,
+                    animationDuration: `${durationSec}s`,
+                  }}
+                >
+                  <span className="tex-vigil-head">{s?.head}</span>
+                  {s?.tail && (
+                    <>
+                      {" "}
+                      <em className="tex-vigil-tail">{s.tail}</em>
+                    </>
+                  )}
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {phase === "vigil" && current && (
+        <div className={stageClass()} key={`vigil-${index}`}>
           <button
             type="button"
             className="tex-vigil-sentence"
             onClick={handleSentenceClick}
             aria-label="Look closer at this"
           >
-            <span className="tex-vigil-head">{room.summary.head}</span>{" "}
-            <em className="tex-vigil-tail">{room.summary.tail}</em>
+            <span className="tex-vigil-head">{current.head}</span>
+            {current.tail && (
+              <>
+                {" "}
+                <em className="tex-vigil-tail">{current.tail}</em>
+              </>
+            )}
           </button>
         </div>
       )}
 
-      {phase === "proof" && (
-        <div className={stageClass} key={`proof-${index}`}>
+      {phase === "proof" && current && (
+        <div className={stageClass()} key={`proof-${index}`}>
           <div className="tex-vigil-proof">
             <p className="tex-vigil-proof-line">
-              <span className="tex-vigil-head">{room.proof.head}</span>{" "}
-              <em className="tex-vigil-tail">{room.proof.tail}</em>
+              <span className="tex-vigil-head">{proofPlaceholder.head}</span>{" "}
+              <em className="tex-vigil-tail">{proofPlaceholder.tail}</em>
             </p>
 
             <button
@@ -357,16 +391,14 @@ export default function Vigil({ onHomeRequested }) {
               onBlur={() => setHashVisible(false)}
               aria-label="Show cryptographic anchor"
             >
-              {room.anchor}
+              {proofPlaceholder.anchor}
             </button>
 
             <p
-              className={`tex-vigil-hash${
-                hashVisible ? " is-visible" : ""
-              }`}
+              className={`tex-vigil-hash${hashVisible ? " is-visible" : ""}`}
               aria-hidden={!hashVisible}
             >
-              {room.hash}
+              {proofPlaceholder.hash}
             </p>
           </div>
         </div>
@@ -374,3 +406,47 @@ export default function Vigil({ onHomeRequested }) {
     </section>
   );
 }
+
+/* Placeholder proof prose. These exist because the backend's evidence
+   chain is empty — there are no Decision records to replay yet. The
+   moment the first POST /evaluate runs, this object goes away and the
+   proof layer fetches real decisions by id. Until then, the shape
+   stays so the layer's UX is intact. */
+const PROOF_PLACEHOLDERS = {
+  discovery: {
+    head: "When I find one, I'll tell you who it is, where I found it, and what it can already reach.",
+    tail: "Until then, the ledger waits.",
+    anchor: "ledger empty · ready to record",
+    hash: "—",
+  },
+  identity: {
+    head: "When an agent asks for more than I've given it, I will name what it asked for and what I said back.",
+    tail: "I will not blur the line for any of them.",
+    anchor: "no identity holds yet",
+    hash: "—",
+  },
+  monitoring: {
+    head: "I'm watching for changes in how every agent behaves.",
+    tail: "When something moves, I will name what moved and when.",
+    anchor: "watching · 0 events",
+    hash: "—",
+  },
+  execution: {
+    head: "Every decision I make will be sealed to the one before it.",
+    tail: "Nothing I do will be missing from the chain.",
+    anchor: "chain ready · 0 decisions",
+    hash: "—",
+  },
+  evidence: {
+    head: "I'll write every decision down the moment I make it.",
+    tail: "Each one will be sealed to the one before. Nothing can be removed without a mark.",
+    anchor: "chain intact · 0 records",
+    hash: "—",
+  },
+  learning: {
+    head: "When I notice a pattern worth turning into a rule, I will bring it to you.",
+    tail: "I will not act on it until you say yes.",
+    anchor: "0 proposals · waiting on signal",
+    hash: "—",
+  },
+};

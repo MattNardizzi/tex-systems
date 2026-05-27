@@ -42,25 +42,50 @@
   animation: tex-vigil-arrive 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
-/* The door owns its own entrance — each line has its own fade-in
-   on its own delay. The stage-level arrival would fight that
-   timing, so we suppress it here. The stage just appears, and the
-   lines materialize inside it on their own schedule. */
-.tex-vigil-stage--door {
-  animation: none;
-}
+/* The threshold and manifesto stages own their own per-line entrance
+   animations. The stage-level arrival would fight those timings, so
+   we suppress it (done above for both). The vigil and proof phases
+   keep the default stage arrival. */
 
 .tex-vigil-stage.is-leaving {
   animation: tex-vigil-leave 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
-/* The door leaves the way it arrived — purely. No upward drift,
-   no settle, just the four lines fading out together as a single
-   thought. Slightly longer than the inter-vigil crossfade because
-   the door was held longer; the dissolve should feel proportionate. */
-.tex-vigil-stage--door.is-leaving {
+/* The blackout — the held empty moment between the manifesto and the
+   vigil. Pure paper, nothing on it. This is the ma. Tex finishes
+   introducing itself, and the room goes quiet for a beat before Tex
+   begins working. The chrome arrives at the same moment the vigil
+   begins — never during the blackout. */
+.tex-vigil-blackout {
+  position: absolute;
+  inset: 0;
+  background: var(--tex-paper);
+  pointer-events: none;
+  animation: tex-vigil-blackout-in 600ms ease-out both;
+}
+
+@keyframes tex-vigil-blackout-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* The threshold stage — day two onward. Renders three past-tense
+   reports stacked. Each line has its own fade-in on its own delay;
+   the stage-level arrival is suppressed the same way the manifesto's
+   is, so the line timings own the rhythm. */
+.tex-vigil-stage--threshold,
+.tex-vigil-stage--manifesto {
+  animation: none;
+}
+
+.tex-vigil-stage--threshold.is-leaving,
+.tex-vigil-stage--manifesto.is-leaving {
   animation: tex-vigil-door-leave 900ms ease-in both;
 }
+
+/* The threshold/manifesto leave animations are defined above in the
+   stage modifier rules. The keyframes themselves stay; they're shared
+   between manifesto and threshold leaving phases. */
 
 @keyframes tex-vigil-door-leave {
   from { opacity: 1; }
@@ -119,6 +144,20 @@
   /* animation-duration and animation-delay are set inline per line */
 }
 
+/* The threshold lines are smaller than the manifesto's. Day-two
+   onward the operator is not being introduced to Tex — they are
+   being caught up. Lighter weight in voice means lighter weight in
+   type. The head/tail rhythm matches the vigil itself, so the
+   transition into the vigil feels like one continuous thought. */
+.tex-vigil-door-line--threshold {
+  font-size: clamp(28px, 3.2vw, 44px);
+  line-height: 1.25;
+  letter-spacing: -0.016em;
+  max-width: 880px;
+  margin: 0 auto;
+  text-align: center;
+}
+
 @keyframes tex-vigil-door-line-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -146,7 +185,13 @@
   background: transparent;
   border: 0;
   padding: 12px 16px;
-  margin: 0;
+  /* Auto horizontal margin centers the button block inside the stage.
+     Without this the sentence biases left of optical center on lines
+     that wrap, because the stage's flex-align-items only centers the
+     element's bounding box — not the wrapped text within it. The
+     fix is: keep max-width as a content guard, and center the block
+     itself with auto margins. */
+  margin: 0 auto;
   cursor: pointer;
   max-width: 880px;
   text-align: center;
@@ -212,7 +257,8 @@
   line-height: 1.28;
   letter-spacing: -0.016em;
   color: var(--tex-ink);
-  margin: 0;
+  margin: 0 auto;
+  max-width: 880px;
   text-align: center;
 }
 

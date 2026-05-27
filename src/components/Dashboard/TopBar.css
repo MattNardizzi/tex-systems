@@ -20,6 +20,16 @@
   padding: 28px 40px;
   width: 100%;
   pointer-events: none;
+  /* The chrome's first appearance — at the manifesto-to-vigil
+     transition on day one — fades in. From then on the topbar
+     remounts only when navigating away and back, but the fade keeps
+     it from popping. */
+  animation: tex-topbar-arrive 1100ms ease-out both;
+}
+
+@keyframes tex-topbar-arrive {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .tex-topbar-left,

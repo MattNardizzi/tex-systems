@@ -8,16 +8,22 @@ Tex is a vigil. Not a dashboard, not a feed, not a set of rooms with a menu. Tex
 
 There is one screen. One voice. Three depths.
 
-### The door
+### The door, day one — the manifesto
 
-After sign-in, the operator sees four lines:
+After sign-in the first time, the operator sees four lines arrive one at a time, slowly, on white. No chrome, no T mark, no avatar — just the four lines.
 
 > *I am Tex.*
 > *I see your agents.*
 > *I decide what they can do.*
 > *I keep the proof.*
 
-The lines arrive in sequence. They hold long enough to be read at the pace of breath, then dissolve.
+The four hold together for a long beat, then dissolve into a held empty moment (the *ma*), and then the vigil begins. The T mark and the avatar appear *for the first time* at that moment — the chrome's arrival is itself the visible mark that Tex has shifted into working mode.
+
+This entire phase happens **once per account, ever**. A server-side flag (or, until the backend has a user model, a localStorage stand-in) records that it happened. The T mark resets to the vigil, never to the manifesto.
+
+### The door, day two onward — the threshold
+
+From the second visit on, the door is shorter and specific. Three sentences derived from `/v1/system/state` — last night's truth. Tex does not re-introduce itself; identity is performed by voice, not announced. ~8 seconds, then a 1.5 second held pause, then the vigil.
 
 ### The vigil
 
@@ -51,19 +57,23 @@ After a beat of stillness, Tex returns to the vigil — not to the same room, to
 
 | Beat | Duration |
 |---|---|
-| Each door line stagger | 180ms |
-| Door holds before dissolving | 6.2s |
+| Manifesto (day one) total | ~25s |
+| Manifesto line stagger | 4.2s |
+| Manifesto held blackout before vigil | 1.8s |
+| Threshold (day two onward) total | ~8s + 1.5s pause |
+| Threshold line stagger | 2.5s |
 | Each vigil sentence holds | 7.4s |
-| Crossfade between sentences | 700ms |
-| Proof returns to vigil | 14s |
+| Crossfade between vigil sentences | 700ms |
+| Proof returns to next vigil sentence | 14s |
+| Polling interval for system-state | 30s |
 
 Hover anywhere pauses the cycle. When the operator's mouse leaves, pacing resumes.
 
 ## The chrome
 
-Two objects only.
+Two objects only, both hidden during the manifesto, both visible from the vigil onward.
 
-- **T mark** (top-left) — the only home gesture. Press T from anywhere — vigil, proof, hash open — and Tex returns to the door.
+- **T mark** (top-left) — the only home gesture. Press T from anywhere — vigil, proof, hash open — and Tex returns to the start of the vigil. The T mark never replays the manifesto. That is by design.
 - **Initial** (top-right) — account.
 
 No menu. No cog. No notifications. No search. The T is the way home. The vigil is the product. The hash is the proof.
@@ -87,6 +97,22 @@ Production build:
 npm run build
 npm run preview
 ```
+
+## Backend
+
+The vigil's sentences are derived from `/v1/system/state` on the Tex backend (FastAPI, `github.com/MattNardizzi/tex`). The frontend's `src/lib/texApi.js` defaults to the live deployment at `https://tex-uh4j.onrender.com`. Override with the `VITE_TEX_API_BASE` env var for local dev or Vercel preview deploys.
+
+The voice module (`src/lib/texVoice.js`) is six pure functions, one per architectural layer (discovery, identity, monitoring, execution, evidence, learning). Each consumes the relevant slice of the system-state response and returns a `{ head, tail? }` pair. Empty state is honest state — the day-one operator sees true no-knowledge sentences, not placeholder copy.
+
+## Resetting the manifesto, for testing
+
+The manifesto is once-per-account by design. To replay it locally during development, clear the localStorage flag from the browser console:
+
+```js
+localStorage.removeItem("tex.seen_manifesto_at")
+```
+
+This is the *only* way to see the manifesto again on a given account. There is no "replay intro" button in the product, and there will never be.
 
 ## What this product is not
 
