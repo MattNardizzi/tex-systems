@@ -2,80 +2,94 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./RoomsOverlay.css";
 
 /**
- * RoomsOverlay — the four rooms, one screen each.
+ * RoomsOverlay — six rooms, one screen each.
+ *
+ * The six rooms are Tex's day, in the order Tex lives it. They map
+ * one-to-one onto the six layers of the backend:
+ *
+ *   1. discovery  — Tex finds the agents
+ *   2. identity   — Tex knows who they are
+ *   3. monitoring — Tex watches them
+ *   4. execution  — Tex makes the call
+ *   5. evidence   — Tex seals the proof
+ *   6. learning   — Tex asks permission to grow
+ *
+ * Each room has the same anatomy:
+ *
+ *   - one sentence (Tex's voice, serif italic, clickable — the door
+ *     to the room's interior)
+ *   - one small proof label below the sentence (upright sans, lowercase,
+ *     muted — the back of the fence)
+ *   - the position dots
+ *   - the exit line: "want me to do this for your agents?" — same
+ *     words, same weight, same position in every room
  *
  * Entered by touching the orb. Exited by the X (top-right) or by
- * pressing the T mark (handled by the parent). Inside, the user
- * moves between rooms with:
- *   - mouse wheel
- *   - two-finger trackpad swipe
- *   - left/right or up/down arrow keys
- *   - PageUp / PageDown / Space
- *   - touch swipe on mobile
- *   - clicking a dot at the bottom
- *
- * Each room is three things and nothing else:
- *   - the sentence (Tex's voice, serif italic, CLICKABLE — it is
- *     the door to the room's interior)
- *   - the dots at the bottom (position indicator + jump-to)
- *   - the X at the top right (close)
- *
- * No eyebrow label. No "Walk in" pill. The sentence is the room
- * name and the door at the same time. The user learns this once,
- * via the first-visit cue below the first sentence they see, and
- * the lesson applies to all four rooms thereafter.
+ * pressing the T mark (handled by the parent). Inside, the user moves
+ * between rooms with wheel, two-finger swipe, arrow keys, page keys,
+ * space, touch swipe, or by clicking a dot.
  */
 const ROOMS_CUE_KEY = "tex.taught.rooms";
 
 const ROOMS = [
   {
-    key: "watch",
-    line: "I'm watching eighty-three agents. All of them are who they say they are.",
+    key: "discovery",
+    line: "I found eighty-three agents in your environment this week. Two were new. One had gone quiet.",
+    proof: "discovery — 83 found · 2 new · 1 quiet",
+  },
+  {
+    key: "identity",
+    line: "All of them are who they say they are. One asked for more than I'd given it. I held the line.",
+    proof: "identity — 83 verified · 1 boundary held",
+  },
+  {
+    key: "monitoring",
+    line: "I'm watching them all, right now. Nothing is drifting. I'll tell you the moment something does.",
+    proof: "monitoring — 83 watched · 0 drifting",
   },
   {
     key: "execution",
-    line: "I allowed four thousand eight hundred sixteen today. I stopped one.",
+    line: "I made 4,827 decisions today. I allowed 4,826. I stopped one.",
+    proof: "execution — 4,827 evaluated · 1 stopped",
   },
   {
     key: "evidence",
-    line: "Every decision sealed. Ready when you need them.",
+    line: "I wrote it all down. If anyone ever asks, I can prove it.",
+    proof: "evidence — every decision sealed · chain intact",
   },
   {
     key: "learning",
     line: "I've learned two things this week. I'd like your sign-off before I use them.",
+    proof: "learning — 2 proposals pending your review",
   },
 ];
 
 export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
   const [index, setIndex] = useState(0);
 
-  // First-visit cue inside the rooms: teaches that the sentence is
-  // clickable. Fires once, on the first room the user lands on,
-  // never repeats per device.
+  // First-visit cue: teaches that the sentence is clickable. Fires
+  // once per device, then never again.
   const [cuePhase, setCuePhase] = useState("hidden");
 
-  // Wheel/swipe debounce — without this, a single trackpad swipe
-  // fires dozens of wheel events and the user blows through all
-  // four rooms in one gesture. We accept one input per ~600ms.
+  // Wheel/swipe debounce — without this a single trackpad swipe fires
+  // dozens of wheel events and the user blows through every room in
+  // one gesture. One input per ~600ms.
   const lockedUntil = useRef(0);
   const touchStartY = useRef(null);
   const touchStartX = useRef(null);
 
-  const advance = useCallback(
-    (delta) => {
-      const now = Date.now();
-      if (now < lockedUntil.current) return;
-      setIndex((i) => {
-        const next = Math.min(ROOMS.length - 1, Math.max(0, i + delta));
-        if (next !== i) lockedUntil.current = now + 600;
-        return next;
-      });
-    },
-    []
-  );
+  const advance = useCallback((delta) => {
+    const now = Date.now();
+    if (now < lockedUntil.current) return;
+    setIndex((i) => {
+      const next = Math.min(ROOMS.length - 1, Math.max(0, i + delta));
+      if (next !== i) lockedUntil.current = now + 600;
+      return next;
+    });
+  }, []);
 
-  // Reset to room 0 each time the overlay opens — feels more like
-  // walking through a door than picking up where you left off.
+  // Reset to room 0 each time the overlay opens — walking through a
+  // door, not resuming a tab.
   useEffect(() => {
     if (open) {
       setIndex(0);
@@ -83,7 +97,7 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
     }
   }, [open]);
 
-  // First-visit cue for the rooms. Fires once, ~1.5s after the
+  // First-visit cue inside the rooms. Fires once, ~1.5s after the
   // overlay opens on a brand-new device.
   useEffect(() => {
     if (!open) return;
@@ -112,8 +126,8 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
     };
   }, [open]);
 
-  // Keyboard navigation. We attach to window so the user can press
-  // keys without first clicking somewhere.
+  // Keyboard. Attached to window so the user can press keys without
+  // first clicking somewhere.
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -135,9 +149,9 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
 
   if (!open) return null;
 
-  // Wheel — both deltaY (vertical scroll) and deltaX (trackpad
-  // horizontal) advance one room. The debounce in advance() keeps
-  // a single gesture from skipping multiple rooms.
+  // Wheel — both vertical scroll and trackpad horizontal advance one
+  // room. The debounce in advance() keeps a single gesture from
+  // skipping multiple rooms.
   const handleWheel = (e) => {
     const d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
     if (Math.abs(d) < 12) return;
@@ -176,9 +190,9 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Close — top right. The T (top left) also returns home but
-          is owned by the parent's TopBar so it persists across all
-          states. This X is specific to the rooms overlay. */}
+      {/* Close — top right. The T (top left) also returns home but is
+          owned by the parent's TopBar so it persists across all states.
+          This X is specific to the rooms overlay. */}
       <button
         type="button"
         className="tex-rooms-close"
@@ -189,8 +203,8 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
       </button>
 
       <div className="tex-rooms-stage">
-        {/* The sentence is the room. Clicking it opens the
-            interior (handled by onOpenRoom in the parent). */}
+        {/* The sentence is the room. Clicking it opens the interior
+            (handled by onOpenRoom in the parent). */}
         <button
           type="button"
           className="tex-rooms-sentence"
@@ -200,8 +214,14 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
           {current.line}
         </button>
 
+        {/* Proof label — small upright sans, lowercase, muted. The
+            back of the fence. Confirmation, not declaration. */}
+        <p className="tex-rooms-proof" key={`${current.key}-proof`}>
+          {current.proof}
+        </p>
+
         {/* First-visit cue: "tap to look closer" — fires once, on
-            whichever room the user lands on first. Never repeats. */}
+            whichever room the user lands on first. */}
         {cuePhase !== "hidden" && index === 0 && (
           <p
             className="tex-rooms-cue"
@@ -212,9 +232,8 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
           </p>
         )}
 
-        {/* Position dots — four, the current one filled, the others
-            outline. Clickable to jump. Lives inside the stage so it
-            belongs to the sentence, not to the viewport floor. */}
+        {/* Position dots. Six now, one per layer. The current one
+            filled, the others outline. Clickable to jump. */}
         <div className="tex-rooms-dots" role="tablist" aria-label="Rooms">
           {ROOMS.map((r, i) => (
             <button
@@ -232,6 +251,19 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
           ))}
         </div>
       </div>
+
+      {/* The exit. Same words, same place, same weight in every room.
+          The visitor can leave the story at whichever room moved them.
+          The conversion mechanic is invisible because it's identical
+          everywhere — they only notice it when they're ready. */}
+      <a
+        className="tex-rooms-exit"
+        href="https://calendly.com/matthewnardizzi/tex"
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        want me to do this for your agents?
+      </a>
     </div>
   );
 }

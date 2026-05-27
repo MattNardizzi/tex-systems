@@ -40,27 +40,40 @@ Two actions in the colleague's vocabulary: a black **Show me** pill (opens the d
 
 ## The rooms (full canvas, one room per screen)
 
-Touch the orb and the whole canvas becomes the rooms. The TopBar stays on (the T is always the way home). Each room is three things and nothing else:
+Touch the orb and the whole canvas becomes the rooms. The TopBar stays on (the T is always the way home). Each room is four things and nothing else:
 
-- **The sentence.** Tex's voice in serif italic, ~52px. _It is a button._ Click it to walk into the room's interior.
-- **Dots** at the bottom — position indicator + jump-to.
+- **The sentence.** Tex's voice in serif italic, ~50px. _It is a button._ Click it to walk into the room's interior.
+- **The proof label** below the sentence. Small upright sans, lowercase, muted — `discovery — 83 found · 2 new · 1 quiet`. The back of the fence. Confirms what Tex just said in machine vocabulary, never re-stating it.
+- **Dots** below the proof — position indicator + jump-to.
 - **An X** at the top-right to close the rooms (the T mark in the top-left also returns home).
+
+Pinned to the bottom of the viewport, the same single line appears in every room: _want me to do this for your agents?_ — soft serif italic, no pill, no box. It's the only CTA on the marketing experience. Phrased as a question so it reads as continuation of Tex's voice, not as a sales button. The visitor can leave the story at whichever room moved them; the ask is identical everywhere so they only notice it when they're ready.
 
 No eyebrow label. No "Walk in" pill. The sentence is the room name and the door at the same time.
 
-### The four rooms
+### The six rooms
+
+The rooms are Tex's day, in the order Tex lives it. One room per backend layer. The visitor walks the whole arc — what's out there, who they are, what they're doing, what was decided, what was sealed, what to learn next.
 
 ```
-WATCH       I'm watching eighty-three agents. All of them
-            are who they say they are.
-EXECUTION   I allowed four thousand eight hundred sixteen
-            today. I stopped one.
-EVIDENCE    Every decision sealed. Ready when you need them.
-LEARNING    I've learned two things this week. I'd like
-            your sign-off before I use them.
+DISCOVERY   I found eighty-three agents in your environment
+            this week. Two were new. One had gone quiet.
+IDENTITY    All of them are who they say they are. One asked
+            for more than I'd given it. I held the line.
+MONITORING  I'm watching them all, right now. Nothing is
+            drifting. I'll tell you the moment something does.
+EXECUTION   I made four thousand eight hundred twenty-seven
+            decisions today. I allowed four thousand eight
+            hundred twenty-six. I stopped one.
+EVIDENCE    I wrote it all down. If anyone ever asks, I can
+            prove it.
+LEARNING    I've learned two things this week. I'd like your
+            sign-off before I use them.
 ```
 
-Earlier drafts had six rooms (Discovery, Identity, Observability, Execution, Evidence, Evolution). Discovery and Identity are one thought — what's out there, and who they really are. Observability collapses into the same sentence ("nothing has drifted" is just Watch's quiet day). "Evolution" was reaching for grandeur; "Learning" is the plainer, harder, more honest word. Four sentences you can hold in your head. Six was a feature list dressed as poetry.
+Below each sentence, a small upright-sans proof label confirms what was just said: `discovery — 83 found · 2 new · 1 quiet`. The back of the fence. The eye lands on the sentence first, the proof second, never the other way around.
+
+Earlier drafts collapsed the six layers into four rooms (merging Discovery+Identity, dropping Monitoring as redundant). That was wrong. The six rooms map one-to-one onto the six architectural layers in the backend (`docs/layers/LAYER_*.md`). The interface is the layer architecture, made audible — Tex narrating its own anatomy in the order the anatomy runs. Cutting any of the six broke the correspondence and made the page feel like marketing rather than truth.
 
 ### Navigating between rooms
 
@@ -78,13 +91,13 @@ A ~600ms debounce prevents a single trackpad gesture from skipping multiple room
 
 ### First-visit cue inside the rooms
 
-~1.5 seconds after the overlay opens on a brand-new device, *tap to look closer* fades in below the first sentence, holds, fades out. Stored in `localStorage` as `tex.taught.rooms`. Fires once per device, on whichever room the user lands on first. The lesson is "sentences are doors" — applies to all four rooms after the user learns it once. We do not teach it four times.
+~1.5 seconds after the overlay opens on a brand-new device, *tap to look closer* fades in below the first sentence, holds, fades out. Stored in `localStorage` as `tex.taught.rooms`. Fires once per device, on whichever room the user lands on first. The lesson is "sentences are doors" — applies to all six rooms after the user learns it once. We do not teach it six times.
 
 ### Room interiors
 
-Clicking a sentence fires `onOpenRoom(key)` with the room key (`watch`, `execution`, `evidence`, `learning`). The interior view is not wired in this pass — that's the next layer of the product. The door exists; the room behind the door is the next thing to build.
+Clicking a sentence fires `onOpenRoom(key)` with the room key (`discovery`, `identity`, `monitoring`, `execution`, `evidence`, `learning`). The interior view is not wired in this pass — that's the next layer of the product. The door exists; the room behind the door is the next thing to build.
 
-This is by design: the conversational surface (sentence) is one product, the interior (filtered decision log, agent list, evidence chain, learning proposals) is another. The CISO/tech buyer lives inside the rooms; the CRO/General Counsel reads the sentence and walks home satisfied. Same screen, two readings, no split product.
+This is by design: the conversational surface (sentence) is one product, the interior (agent inventory, identity records, monitoring stream, filtered decision log, evidence chain, learning proposals) is another. The CISO/tech buyer lives inside the rooms; the CRO/General Counsel reads the sentence and walks home satisfied. Same screen, two readings, no split product.
 
 ## Design system
 

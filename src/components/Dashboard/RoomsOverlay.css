@@ -1,9 +1,16 @@
 /* ============================================================
    RoomsOverlay — one room per screen.
+
    The overlay is the whole canvas. The TopBar (T mark, avatar)
    floats over it via its own fixed positioning + higher z-index
    so the user can always go home. The X is specific to the
    rooms; the T is universal.
+
+   Anatomy of every room:
+     1. the sentence  (serif italic, large, centered)  — Tex
+     2. the proof     (sans, tiny, muted, lowercase)   — back of fence
+     3. the dots      (six, one per layer)
+     4. the exit      (the single CTA, bottom of viewport)
    ============================================================ */
 
 .tex-rooms-overlay {
@@ -17,14 +24,12 @@
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   animation: tex-rooms-fade 0.25s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  /* allow wheel + touch to be captured at the root */
   touch-action: pan-y;
   overflow: hidden;
 }
 
-/* Close — top right. Sits inside the same fixed-header band as
-   the T (top left, owned by TopBar). Same z-tier as TopBar so it
-   isn't covered by anything. */
+/* Close — top right. Same fixed-header band as the T (top left,
+   owned by TopBar). Same z-tier as TopBar so nothing covers it. */
 .tex-rooms-close {
   position: fixed;
   top: 28px;
@@ -68,12 +73,12 @@
 
 /* The sentence — the entire room. Tex's voice in serif italic.
    This is a button. Clicking it walks into the room's interior.
-   Hover: a faint warming. Cursor: pointer. Focus: a ring. */
+   Hover: a faint warming. Focus: a ring. */
 .tex-rooms-sentence {
   font-family: var(--tex-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(32px, 3.6vw, 52px);
+  font-size: clamp(30px, 3.4vw, 50px);
   line-height: 1.25;
   letter-spacing: -0.018em;
   color: var(--tex-ink);
@@ -98,10 +103,29 @@
   outline-offset: 6px;
 }
 
-/* First-visit cue inside the rooms — "tap to look closer".
-   Lives below the sentence, same register as the AllQuiet cue. */
-.tex-rooms-cue {
+/* Proof label — the back of the fence. Tiny, upright sans,
+   lowercase, muted. Confirms what Tex just said without re-saying
+   it. The eye should land here second, never first.
+
+   Re-keyed by the parent so each room's proof arrives in step with
+   the sentence above it. */
+.tex-rooms-proof {
   margin: 28px 0 0 0;
+  font-family: var(--tex-sans);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--tex-ink-mute);
+  animation: tex-rooms-proof-arrive 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 0.15s;
+}
+
+/* First-visit cue inside the rooms — "tap to look closer".
+   Sits below the proof, same register but italic so it reads as
+   a guide and not as a label. */
+.tex-rooms-cue {
+  margin: 18px 0 0 0;
   font-family: var(--tex-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -121,24 +145,21 @@
   100% { opacity: 0; transform: translateY(-2px); }
 }
 
-/* Dots — four position indicators, the current one filled,
-   the others outline. Clickable to jump. Lives in the stage's
-   flow so it sits with the sentence as one composition; if the
-   sentence shifts height between rooms, the dots follow. That's
-   correct — the dots belong to the sentence, not to the
-   viewport floor. */
+/* Dots — six now, one per layer. The current one filled, the others
+   outline. Clickable to jump. Sits in the stage's flow so it belongs
+   to the sentence as one composition. */
 .tex-rooms-dots {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  margin-top: 80px;
+  gap: 12px;
+  margin-top: 56px;
   padding: 8px 4px;
 }
 
 .tex-rooms-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: transparent;
   border: 1px solid var(--tex-ink-mute);
@@ -149,7 +170,7 @@
 
 .tex-rooms-dot:hover {
   border-color: var(--tex-ink);
-  transform: scale(1.15);
+  transform: scale(1.2);
 }
 
 .tex-rooms-dot.is-current {
@@ -158,6 +179,41 @@
 }
 
 .tex-rooms-dot:focus-visible {
+  outline: 2px solid var(--tex-ink);
+  outline-offset: 4px;
+}
+
+/* The exit — same in every room. Bottom of viewport, soft and
+   small. The single ask. Phrased as a question, not a command, so
+   it reads as continuation of Tex's voice and not as a CTA button.
+   No box, no pill — those would shout. */
+.tex-rooms-exit {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 31;
+  font-family: var(--tex-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--tex-ink-soft);
+  letter-spacing: 0.005em;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  opacity: 0;
+  animation: tex-rooms-exit-arrive 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 0.6s;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+
+.tex-rooms-exit:hover {
+  color: var(--tex-ink);
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.tex-rooms-exit:focus-visible {
   outline: 2px solid var(--tex-ink);
   outline-offset: 4px;
 }
@@ -172,8 +228,19 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes tex-rooms-proof-arrive {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tex-rooms-exit-arrive {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 @media (max-width: 600px) {
   .tex-rooms-close { top: 20px; right: 24px; }
   .tex-rooms-stage { padding: 0 24px; }
-  .tex-rooms-dots  { margin-top: 56px; }
+  .tex-rooms-dots  { margin-top: 44px; gap: 10px; }
+  .tex-rooms-exit  { bottom: 22px; font-size: 13px; }
 }
