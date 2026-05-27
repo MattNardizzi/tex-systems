@@ -38,9 +38,31 @@ import "./Vigil.css";
    pacing.
    ============================================================ */
 
-const DOOR_HOLD_MS = 6200;
+/* Door pacing — each line owns its moment.
+
+   The first line arrives in silence. It sits alone long enough to
+   be a thought, not a label. Then the next line slowly materializes
+   beneath it. Then the next. The pause between lines is the drama.
+
+   Total door experience:
+     1.2s   — silence (page is empty)
+     +1.8s  — line 1 fades in       (line 1 finishes at 3.0s)
+     +2.0s  — silence
+     +1.8s  — line 2 fades in       (line 2 finishes at 6.8s)
+     +2.0s  — silence
+     +1.8s  — line 3 fades in       (line 3 finishes at 10.6s)
+     +2.0s  — silence
+     +1.8s  — line 4 fades in       (line 4 finishes at 14.4s)
+     +4.6s  — all four hold as one thought
+     = 19.0s before the door dissolves into the vigil */
+const DOOR_LINE_STAGGER_MS = 3800;  /* time between each line starting */
+const DOOR_LINE_FADE_MS = 1800;
+const DOOR_FIRST_DELAY_MS = 1200;
+const DOOR_HOLD_MS = 19000;
+
 const VIGIL_HOLD_MS = 7400;
 const CROSSFADE_MS = 700;
+const DOOR_CROSSFADE_MS = 1400;  /* matches the slower door-leave CSS animation */
 const PROOF_RETURN_MS = 14000;
 
 /* The six rooms. Each is a beat in Tex's day. The summary is
@@ -184,7 +206,8 @@ export default function Vigil({ onHomeRequested }) {
   };
 
   /* Door → Vigil. After DOOR_HOLD_MS, the four lines fade out
-     and the first vigil sentence fades in. */
+     slowly (DOOR_CROSSFADE_MS), and the first vigil sentence
+     arrives. */
   useEffect(() => {
     if (phase !== "door") return;
     if (paused) return;
@@ -195,7 +218,7 @@ export default function Vigil({ onHomeRequested }) {
         setPhase("vigil");
         setIndex(0);
         setLeaving(false);
-      }, CROSSFADE_MS);
+      }, DOOR_CROSSFADE_MS);
     }, DOOR_HOLD_MS);
 
     return clearAll;
@@ -267,7 +290,9 @@ export default function Vigil({ onHomeRequested }) {
      -------------------------------------------------------------- */
 
   const room = ROOMS[index];
-  const stageClass = `tex-vigil-stage${leaving ? " is-leaving" : ""}`;
+  const stageClass = `tex-vigil-stage tex-vigil-stage--${phase}${
+    leaving ? " is-leaving" : ""
+  }`;
 
   return (
     <section
@@ -278,15 +303,23 @@ export default function Vigil({ onHomeRequested }) {
       {phase === "door" && (
         <div className={stageClass} key="door">
           <div className="tex-vigil-door">
-            {DOOR_LINES.map((line, i) => (
-              <p
-                key={i}
-                className="tex-vigil-door-line"
-                style={{ animationDelay: `${0.15 + i * 0.18}s` }}
-              >
-                {line}
-              </p>
-            ))}
+            {DOOR_LINES.map((line, i) => {
+              const delaySec =
+                (DOOR_FIRST_DELAY_MS + i * DOOR_LINE_STAGGER_MS) / 1000;
+              const durationSec = DOOR_LINE_FADE_MS / 1000;
+              return (
+                <p
+                  key={i}
+                  className="tex-vigil-door-line"
+                  style={{
+                    animationDelay: `${delaySec}s`,
+                    animationDuration: `${durationSec}s`,
+                  }}
+                >
+                  {line}
+                </p>
+              );
+            })}
           </div>
         </div>
       )}

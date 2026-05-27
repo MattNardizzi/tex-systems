@@ -36,29 +36,68 @@
   animation: tex-vigil-arrive 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
+/* The door owns its own entrance — each line has its own fade-in
+   on its own delay. The stage-level arrival would fight that
+   timing, so we suppress it here. The stage just appears, and the
+   lines materialize inside it on their own schedule. */
+.tex-vigil-stage--door {
+  animation: none;
+}
+
 .tex-vigil-stage.is-leaving {
   animation: tex-vigil-leave 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* The door leaves the way it arrived — purely. No upward drift,
+   no settle, just the four lines fading out together as a single
+   thought. Longer than the inter-vigil crossfade because the door
+   was held longer; the dissolve should feel proportionate. */
+.tex-vigil-stage--door.is-leaving {
+  animation: tex-vigil-door-leave 1400ms ease-in both;
+}
+
+@keyframes tex-vigil-door-leave {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 /* ----------------------------------------------------------------
    Phase 1 — the door.
 
    Four lines. Each is its own paragraph, full ink, large serif.
-   They arrive in sequence — staggered animation-delay set
-   inline so the operator reads them in the order Tex says them.
+   They arrive one at a time, slowly, with long pauses between
+   them. The first appears in silence. It sits alone long enough
+   to be a thought, not a label. Then the next slowly materializes
+   beneath it. Then the next.
 
-   The size has to be large enough that the visitor's first
-   physical reaction is to lean back, not lean in. Jobs would
-   make the type so large that the reader has to take it
-   seriously before they've finished reading.
+   The drama is the pause between lines, not motion. There is no
+   translation, no zoom — each line just fades from invisible to
+   visible in place. The eye should almost miss the *starting* of
+   the fade and only notice the line is, somehow, already there.
+
+   Total door experience runs ~19 seconds. By the time the operator
+   has read all four lines, they have spent more time on the door
+   than they spend on most full landing pages. The patience is the
+   product. The patience is what makes the operator feel that
+   someone has been thinking about this longer than they have.
    ---------------------------------------------------------------- */
 
 .tex-vigil-door {
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 1vh, 18px);
+  gap: clamp(10px, 1.4vh, 22px);
 }
 
+/* The door lines.
+
+   Each line fades in slowly, in place, with no translation. The
+   eye should almost miss the *starting* of the fade — only notice
+   the line is, somehow, already there. Animation timing and delay
+   are set inline from JS so the pacing constants stay in one place.
+
+   The curve is ease-out (not the sharper cubic-bezier used for the
+   crossfades) — slow start, gentle finish. The line settles in
+   rather than appearing. */
 .tex-vigil-door-line {
   font-family: var(--tex-serif);
   font-weight: 400;
@@ -68,12 +107,15 @@
   color: var(--tex-ink);
   margin: 0;
   opacity: 0;
-  animation: tex-vigil-line-in 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-name: tex-vigil-door-line-in;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+  /* animation-duration and animation-delay are set inline per line */
 }
 
-@keyframes tex-vigil-line-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes tex-vigil-door-line-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ----------------------------------------------------------------
