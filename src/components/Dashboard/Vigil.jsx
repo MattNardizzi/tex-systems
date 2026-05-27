@@ -163,10 +163,14 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     });
   };
 
-  /* Manifesto → blackout → vigil. The blackout is the ma. */
+  /* Manifesto → blackout → vigil. The blackout is the ma.
+
+     Note: the manifesto deliberately does NOT respect the paused flag.
+     A once-in-a-lifetime introduction does not get interrupted by the
+     operator's cursor happening to be on the page. Tex finishes
+     introducing itself; only the vigil itself pauses on hover. */
   useEffect(() => {
     if (phase !== "manifesto") return;
-    if (paused) return;
 
     const arriveTotal =
       MANIFESTO_FIRST_DELAY_MS +
@@ -190,12 +194,17 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     }, dissolveAt);
 
     return clearAll;
-  }, [phase, paused]);
+  }, [phase]);
 
-  /* Threshold → held pause → vigil. */
+  /* Threshold → held pause → vigil.
+
+     The threshold, like the manifesto, plays to completion regardless
+     of hover state. It is a delivered report — Tex catching the
+     operator up on what happened overnight. You don't interrupt
+     someone delivering a report by leaning in to listen. Only the
+     vigil itself pauses on hover. */
   useEffect(() => {
     if (phase !== "threshold") return;
-    if (paused) return;
 
     const arriveTotal =
       THRESHOLD_FIRST_DELAY_MS +
@@ -215,7 +224,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     }, dissolveAt);
 
     return clearAll;
-  }, [phase, paused]);
+  }, [phase]);
 
   /* Vigil pacing. */
   useEffect(() => {
