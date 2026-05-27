@@ -14,52 +14,60 @@ import "./RoomsOverlay.css";
  *   5. evidence   — Tex seals the proof
  *   6. learning   — Tex asks permission to grow
  *
- * Each room has the same anatomy:
+ * Each room is two beats, matching the AllQuiet rhythm of
+ * "I let 4,827 through today." (upright) + "None needed you." (italic muted):
  *
- *   - one sentence (Tex's voice, serif italic, clickable — the door
- *     to the room's interior)
- *   - one small proof label below the sentence (upright sans, lowercase,
- *     muted — the back of the fence)
- *   - the position dots
- *   - the exit line: "want me to do this for your agents?" — same
- *     words, same weight, same position in every room
+ *   - setup       — Tex states what it did. Upright serif, full ink.
+ *   - reflection  — the closing thought. Italic serif, ink-soft.
+ *   - proof       — back of the fence. Tiny sans, lowercase, muted.
+ *   - exit        — the same single ask pinned to the bottom of viewport.
+ *
+ * There used to be position dots. Removed. Dots are the slideshow
+ * tell. A house doesn't have dots on the floor telling you which
+ * room you're in. The room itself does the work.
  *
  * Entered by touching the orb. Exited by the X (top-right) or by
  * pressing the T mark (handled by the parent). Inside, the user moves
  * between rooms with wheel, two-finger swipe, arrow keys, page keys,
- * space, touch swipe, or by clicking a dot.
+ * space, or touch swipe.
  */
 const ROOMS_CUE_KEY = "tex.taught.rooms";
 
 const ROOMS = [
   {
     key: "discovery",
-    line: "I found eighty-three agents in your environment this week. Two were new. One had gone quiet.",
+    setup: "I found eighty-three agents in your environment this week.",
+    reflection: "Two were new. One had gone quiet.",
     proof: "discovery — 83 found · 2 new · 1 quiet",
   },
   {
     key: "identity",
-    line: "All of them are who they say they are. One asked for more than I'd given it. I held the line.",
+    setup: "All of them are who they say they are.",
+    reflection: "One asked for more than I'd given it. I held the line.",
     proof: "identity — 83 verified · 1 boundary held",
   },
   {
     key: "monitoring",
-    line: "I'm watching them all, right now. Nothing is drifting. I'll tell you the moment something does.",
+    setup: "I'm watching them all, right now. Nothing is drifting.",
+    reflection: "I'll tell you the moment something does.",
     proof: "monitoring — 83 watched · 0 drifting",
   },
   {
     key: "execution",
-    line: "I made 4,827 decisions today. I allowed 4,826. I stopped one.",
+    setup: "I made 4,827 decisions today. I allowed 4,826.",
+    reflection: "I stopped one.",
     proof: "execution — 4,827 evaluated · 1 stopped",
   },
   {
     key: "evidence",
-    line: "I wrote it all down. If anyone ever asks, I can prove it.",
+    setup: "I wrote it all down.",
+    reflection: "If anyone ever asks, I can prove it.",
     proof: "evidence — every decision sealed · chain intact",
   },
   {
     key: "learning",
-    line: "I've learned two things this week. I'd like your sign-off before I use them.",
+    setup: "I've learned two things this week.",
+    reflection: "I'd like your sign-off before I use them.",
     proof: "learning — 2 proposals pending your review",
   },
 ];
@@ -203,15 +211,17 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
       </button>
 
       <div className="tex-rooms-stage">
-        {/* The sentence is the room. Clicking it opens the interior
-            (handled by onOpenRoom in the parent). */}
+        {/* The sentence is the room. Two beats: setup (upright) then
+            reflection (italic muted). Matches the AllQuiet rhythm
+            "I let 4,827 through today." + "None needed you." */}
         <button
           type="button"
           className="tex-rooms-sentence"
           onClick={() => onOpenRoom(current.key)}
           key={current.key} /* re-key so the arrival animation replays */
         >
-          {current.line}
+          {current.setup}{" "}
+          <em className="tex-rooms-reflection">{current.reflection}</em>
         </button>
 
         {/* Proof label — small upright sans, lowercase, muted. The
@@ -231,25 +241,6 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
             tap to look closer
           </p>
         )}
-
-        {/* Position dots. Six now, one per layer. The current one
-            filled, the others outline. Clickable to jump. */}
-        <div className="tex-rooms-dots" role="tablist" aria-label="Rooms">
-          {ROOMS.map((r, i) => (
-            <button
-              key={r.key}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              aria-label={r.key}
-              className={`tex-rooms-dot${i === index ? " is-current" : ""}`}
-              onClick={() => {
-                lockedUntil.current = Date.now() + 400;
-                setIndex(i);
-              }}
-            />
-          ))}
-        </div>
       </div>
 
       {/* The exit. Same words, same place, same weight in every room.

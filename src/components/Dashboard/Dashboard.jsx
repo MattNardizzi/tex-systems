@@ -43,7 +43,6 @@ export default function Dashboard({
     <div className="tex-shell">
       <TopBar
         initial={initial}
-        hidePresence={asking || roomsOpen}
         onHome={handleHome}
       />
 
