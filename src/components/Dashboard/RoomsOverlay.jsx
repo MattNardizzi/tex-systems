@@ -20,35 +20,30 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
 
   if (!open) return null;
 
+  // Four rooms, not six. Discovery and Identity are one thought — what's
+  // out there, and who they really are. Observability is folded into the
+  // single sentence that matters, "nothing has drifted." The result is
+  // four sentences you can hold in your head at once, the way you'd hold
+  // four chapters of a book — not six tabs on a screen.
   const rooms = [
     {
-      key: "discovery",
-      label: "Discovery",
-      line: "I'm watching eighty-three agents across your stack.",
-    },
-    {
-      key: "identity",
-      label: "Identity",
-      line: "All eighty-three are who they say they are.",
-    },
-    {
-      key: "observability",
-      label: "Observability",
-      line: "Nothing has drifted this week.",
+      key: "watch",
+      label: "Watch",
+      line: "I'm watching eighty-three agents. All of them are who they say they are.",
     },
     {
       key: "execution",
       label: "Execution",
-      line: "I allowed four thousand eight hundred sixteen, held ten, stopped one.",
+      line: "I allowed four thousand eight hundred sixteen today. I stopped one.",
     },
     {
       key: "evidence",
       label: "Evidence",
-      line: "Every decision sealed and chained. Ready when you need them.",
+      line: "Every decision sealed. Ready when you need them.",
     },
     {
-      key: "evolution",
-      label: "Evolution",
+      key: "learning",
+      label: "Learning",
       line: "I've learned two things this week. I'd like your sign-off before I use them.",
     },
   ];
@@ -65,7 +60,7 @@ export default function RoomsOverlay({ open, onClose, onOpenRoom = () => {} }) {
         className="tex-rooms-panel"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="tex-rooms-eyebrow">The rooms</p>
+        <p className="tex-rooms-eyebrow">the rooms</p>
 
         <ul className="tex-rooms-list">
           {rooms.map((r) => (

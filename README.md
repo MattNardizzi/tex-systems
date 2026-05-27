@@ -12,13 +12,13 @@ The orb breathes alone in the center. Beneath it, in serif italic, Tex states wh
 
 > _I let 4,827 through today._ None needed you.
 
-Below that, in small monospace, a live heartbeat:
+Below that, a single small pulse — one dot, one number, the tick of a wristwatch you weren't watching but trust:
 
 ```
-LAST DECISION · 17s AGO · EVIDENCE ON FILE
+•  17s
 ```
 
-The seconds tick up. The screen at rest is not "blank waiting for something to happen" — it is _the receipt for the silence._ The dashboard equivalent of a clock on a lock screen.
+That's it. The earlier draft put three machine facts here (LAST DECISION · 17s AGO · EVIDENCE ON FILE). It was honest but it competed with the line above. The line is the point.
 
 ### AsksYou — the moment
 
@@ -27,23 +27,27 @@ When Tex stops something, the orb drifts left into a track at ~26% from the canv
 > _Kestrel asked to wire fifty thousand dollars in your CEO's name._
 > _I said no._
 
-Two actions in the colleague's vocabulary: a black **Show me** pill (opens the decision), and a quiet **Thank you** plain link (dismisses). The orb never panics — same blue-gray glass in both states. The composition tells the operator something changed, not the temperature of the room.
+Two actions in the colleague's vocabulary: a black **Show me** pill (opens the decision), and a quiet **Got it** plain link (closes the loop). "Got it" instead of "Thank you" — the operator is acknowledging Tex, not thanking it. Thank-you is the wrong direction of gratitude in a working relationship.
+
+The orb never panics — same blue-gray glass in both states. The composition tells the operator something changed, not the temperature of the room. The summary type is calmer than the earlier 60px draft — the orb drift is what alarms, the words just need to be readable.
 
 ## The rooms
 
-The six rooms live one click away in the bottom-right of the canvas. Each is one sentence Tex says in the first person, never a label:
+Four rooms live behind one gesture in the bottom-right of the canvas. Each is one sentence Tex says in the first person, never a label:
 
 ```
-DISCOVERY     I'm watching eighty-three agents across your stack.
-IDENTITY      All eighty-three are who they say they are.
-OBSERVABILITY Nothing has drifted this week.
-EXECUTION     I allowed four thousand eight hundred sixteen,
-              held ten, stopped one.
-EVIDENCE      Every decision sealed and chained.
-              Ready when you need them.
-EVOLUTION     I've learned two things this week.
-              I'd like your sign-off before I use them.
+WATCH      I'm watching eighty-three agents. All of them
+           are who they say they are.
+EXECUTION  I allowed four thousand eight hundred sixteen
+           today. I stopped one.
+EVIDENCE   Every decision sealed. Ready when you need them.
+LEARNING   I've learned two things this week. I'd like
+           your sign-off before I use them.
 ```
+
+Earlier drafts had six rooms (Discovery, Identity, Observability, Execution, Evidence, Evolution). Discovery and Identity are one thought — what's out there, and who they really are. Observability collapses into the same sentence ("nothing has drifted" is just Watch's quiet day). "Evolution" was reaching for grandeur; "Learning" is the plainer, harder, more honest word.
+
+Four sentences you can hold in your head. Six was a feature list dressed as poetry.
 
 The overlay is a white scrim with backdrop blur. No cards. No grid. The list is the chapter index of Tex.
 
@@ -53,12 +57,12 @@ Same as the marketing site.
 
 - **Canvas:** pure white (`#ffffff`). No ambient washes.
 - **Type:** three sizes only.
-  - Display serif italic (`Source Serif 4`, 36–60px) — the one sentence per state.
-  - Reading serif italic (20–26px) — asides and captions.
-  - Proof mono (`SF Mono`, 10–11px, uppercase, tracked) — machine identifiers, timestamps, real counts.
+  - Display serif italic (`Source Serif 4`, 28–44px) — the one sentence per state.
+  - Reading serif italic (18–22px) — asides and the rooms list.
+  - Proof mono (`SF Mono`, 10–11px) — machine identifiers, the pulse.
 - **Ink:** `#14110d` on paper, with two soft greys (`#5e564c`, `#9b9388`).
 - **Glass:** the orb is the only soft object. Everything else is hard-edged.
-- **Motion:** the orb breathes (presence). It drifts (attention). Nothing performs for its own sake.
+- **Motion:** the orb breathes (presence). It drifts (attention). Arrivals at 0.9s, overlay rises at 0.35s — calm, not lazy. Nothing performs for its own sake.
 
 ## Wiring the live data
 
@@ -71,6 +75,10 @@ Two values in `AllQuiet.jsx` are currently mocked and should come from your hook
 
 Pass them in as props once the hook exposes them. The structure is set up to receive them.
 
+## Dev toggle
+
+The dev toggle does not exist in the production DOM. In dev mode it is summoned with `⌘.` (or `Ctrl+.`) and dismissed with Escape. A debug button living permanently in the corner of a shipping product is a confession that the product isn't finished. We don't ship the confession.
+
 ## Stack
 
 - Vite + React 18
@@ -81,9 +89,9 @@ Pass them in as props once the hook exposes them. The structure is set up to rec
 
 ```bash
 npm install
-npm run dev       # http://localhost:5173 — with the dev toggle visible
+npm run dev       # http://localhost:5173 — press ⌘. for dev toggle
 npm run build     # produces dist/
-npm run preview   # serves dist/ — dev toggle hidden
+npm run preview   # serves dist/
 ```
 
 ## File map
@@ -108,11 +116,11 @@ src/
     Dashboard.css
     TopBar.jsx                     three header objects: T mark, Tex is here, avatar
     TopBar.css
-    AllQuiet.jsx                   resting state — receipt + live heartbeat
+    AllQuiet.jsx                   resting state — one sentence + one pulse
     AllQuiet.css
     AsksYou.jsx                    event state — orb drift + serif italic message
     AsksYou.css
-    RoomsOverlay.jsx               six rooms in Tex's first-person voice
+    RoomsOverlay.jsx               four rooms in Tex's first-person voice
     RoomsOverlay.css
     Orb.jsx                        the breathing presence (shared with homepage)
     Orb.css

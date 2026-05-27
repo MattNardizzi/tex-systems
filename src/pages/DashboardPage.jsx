@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Dashboard from "../components/Dashboard/Dashboard";
 import { useExecutionData } from "../hooks/useExecutionData";
 
@@ -8,8 +9,10 @@ import { useExecutionData } from "../hooks/useExecutionData";
  * VITE_TEX_API_BASE set, it returns a mock decision so the AsksYou
  * state renders out of the box.
  *
- * A tiny dev toggle in the bottom-left lets you flip between the two
- * states without backend wiring. Hidden in production.
+ * The dev toggle does not exist in the DOM at rest. It is summoned
+ * with ⌘. or Ctrl+. and dismissed with Escape. A button living
+ * permanently in the corner of a shipping product is a confession
+ * that the product isn't finished. We don't ship the confession.
  */
 export default function DashboardPage() {
   const { decision, onShowMe, onThanks, onAsk, dismiss, restore } =
@@ -17,6 +20,23 @@ export default function DashboardPage() {
 
   const isDev = import.meta.env.DEV;
   const asking = !!decision;
+
+  // Hidden dev panel — summon with ⌘./Ctrl+., dismiss with Escape.
+  const [devOpen, setDevOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isDev) return;
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ".") {
+        e.preventDefault();
+        setDevOpen((v) => !v);
+      } else if (e.key === "Escape" && devOpen) {
+        setDevOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isDev, devOpen]);
 
   const handleThanks = () => {
     onThanks();
@@ -33,8 +53,8 @@ export default function DashboardPage() {
         onOpenRoom={(key) => console.log("[dev] open room:", key)}
       />
 
-      {isDev && (
-        <div className="tex-dev-toggle">
+      {isDev && devOpen && (
+        <div className="tex-dev-toggle" role="dialog" aria-label="Dev">
           <button
             type="button"
             onClick={() => (asking ? dismiss() : restore())}

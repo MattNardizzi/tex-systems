@@ -9,8 +9,12 @@ import "./AsksYou.css";
  * says one thing — the summary and a quiet aside.
  *
  * Two actions, in the colleague's vocabulary:
- *   - "Show me"   — primary, ink-black pill (opens the decision)
- *   - "Thank you" — secondary, plain text (dismisses)
+ *   - "Show me"  — primary, ink-black pill (opens the decision)
+ *   - "Got it"   — secondary, plain text (closes the loop)
+ *
+ * "Got it" instead of "Thank you" — the user is acknowledging Tex,
+ * not thanking it. Thank-you is the wrong direction of gratitude in
+ * a working relationship.
  *
  * Color never panics. The orb stays blue-gray in both states; the
  * composition is what tells the operator something changed, not the
@@ -49,7 +53,7 @@ export default function AsksYou({
               className="tex-btn tex-btn--plain"
               onClick={onThanks}
             >
-              Thank you
+              Got it
             </button>
           </div>
         </div>

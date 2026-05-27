@@ -6,18 +6,17 @@ import "./AllQuiet.css";
  * AllQuiet — the resting state.
  *
  * The orb breathes. Below it, one serif italic sentence — Tex stating
- * what it's been doing while you weren't watching. Below that, a small
- * Inter heartbeat line: live action count and how long since the last
- * one. The heartbeat is the dashboard equivalent of a clock on a lock
- * screen — the thing that tells the operator the system is alive at
- * 8:47am on a Tuesday.
+ * what it's been doing while you weren't watching. Below that, a single
+ * small pulse: a soft dot and "Ns" — the wristwatch tick of a system
+ * you trust without checking.
  *
- * No "All Quiet" word. That's a poster word, not a working sentence.
- * The dashboard at rest must demonstrate Tex is working — not label
- * the absence of an alarm.
+ * Earlier drafts had three machine facts here (LAST DECISION · Ns AGO ·
+ * EVIDENCE ON FILE). They were honest but they competed with the line
+ * above. The line is the point. The pulse is the proof of life. Anything
+ * else is the dashboard sneaking back in.
  *
- * In production these numbers come from the API. The mock values below
- * keep the surface honest: a large count, a recent timestamp.
+ * In production the count and timestamp come from the API. The mock
+ * values below keep the surface honest: a large count, a recent tick.
  */
 export default function AllQuiet() {
   // Live ticker so the seconds count up. The dashboard feels alive
@@ -43,8 +42,12 @@ export default function AllQuiet() {
           <em> None needed you.</em>
         </p>
 
-        <p className="tex-quiet-heartbeat">
-          LAST DECISION · {secondsAgo}s AGO · EVIDENCE ON FILE
+        {/* One pulse, not three facts. The orb is already saying alive;
+            the sentence is already saying working. This is just the
+            tick of a wristwatch you weren't watching but trust. */}
+        <p className="tex-quiet-pulse">
+          <span className="tex-quiet-pulse-dot" aria-hidden="true" />
+          {secondsAgo}s
         </p>
       </div>
     </div>

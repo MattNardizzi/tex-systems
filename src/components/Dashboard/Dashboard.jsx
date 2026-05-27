@@ -51,7 +51,7 @@ export default function Dashboard({
           className="tex-footer-link"
           onClick={() => setRoomsOpen(true)}
         >
-          The rooms
+          the rooms
         </button>
       </footer>
 

@@ -91,16 +91,15 @@ a {
   }
 }
 
-/* Dev toggle — kept invisible enough not to dominate */
+/* Dev toggle — summoned only by ⌘. (or Ctrl+.). Top-left so it's
+   obviously a debug intrusion, not a piece of the product. */
 .tex-dev-toggle {
   position: fixed;
-  bottom: 14px;
+  top: 14px;
   left: 14px;
   z-index: 50;
-  opacity: 0.4;
-  transition: opacity 0.2s ease;
+  animation: tex-dev-arrive 0.2s ease both;
 }
-.tex-dev-toggle:hover { opacity: 1; }
 .tex-dev-toggle button {
   font-family: var(--tex-mono);
   font-size: 10px;
@@ -111,4 +110,8 @@ a {
   border-radius: 999px;
   border: 1px solid var(--tex-ink-hair);
   background: var(--tex-paper);
+}
+@keyframes tex-dev-arrive {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

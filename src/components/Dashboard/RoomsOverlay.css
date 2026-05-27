@@ -13,23 +13,22 @@
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  animation: tex-rooms-fade 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-rooms-fade 0.25s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 .tex-rooms-panel {
   width: 100%;
   max-width: 720px;
   padding: 48px 40px;
-  animation: tex-rooms-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-rooms-rise 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 .tex-rooms-eyebrow {
   font-family: var(--tex-mono);
   font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  letter-spacing: 0.14em;
   color: var(--tex-ink-mute);
-  margin: 0 0 32px;
+  margin: 0 0 40px;
   font-weight: 400;
 }
 
