@@ -1,11 +1,11 @@
 /* ============================================================
    TopBar — minimal chrome. Two objects only.
-   Z-index sits above the rooms overlay so the T mark stays the
-   way home from any state. The avatar stays too.
+   Z-index sits above the stage so the T mark stays the way home
+   from any state. The avatar stays too.
 
    The center "Tex is here" presence label that used to live here
-   was removed. The orb breathes; the orb is the presence. Saying
-   it in a corner repeated what the orb already said.
+   was removed. Tex's presence is carried by the voice on the stage,
+   not announced a second time in the corner.
    ============================================================ */
 
 .tex-topbar {
@@ -42,7 +42,10 @@
   width: 36px;
   height: 36px;
   border-radius: 9px;
-  background: linear-gradient(180deg, #2a2520 0%, #14110d 100%);
+  /* Solid ink. No gradient. The inset highlight below is enough to
+     make the mark read as a physical chip rather than a flat sticker —
+     that is craft on a real surface, not decoration. */
+  background: var(--tex-ink);
   color: #ffffff;
   font-family: var(--tex-serif);
   font-size: 19px;

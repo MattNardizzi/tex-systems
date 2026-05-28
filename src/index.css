@@ -24,11 +24,9 @@
   --tex-paper-2: #fafaf8;
   --tex-paper-3: #f4f3ef;
 
-  /* Glass — the orb. The only soft object on the page. */
-  --tex-glass-1: #F4F6FA;
-  --tex-glass-2: #C8D2DE;
-  --tex-glass-3: #5B6E84;
-  --tex-glass-4: #1D2733;
+  /* There is no glass. There is no orb. The page is paper, ink, and
+     one monospace hash. If a soft glowing object ever feels necessary,
+     the page has lost its nerve — add a sentence, not a sphere. */
 
   /* Rhythm — 4px base, 8px standard. */
   --tex-unit: 4px;

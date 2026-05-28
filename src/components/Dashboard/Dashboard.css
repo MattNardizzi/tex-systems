@@ -2,7 +2,8 @@
    Dashboard — the shell. Paper + body.
    The TopBar is fixed (so the T stays a way home from anywhere),
    which means the body owns its own top padding equal to the bar.
-   No bottom-right pill. The orb is the door into the rooms.
+   One stage. No rooms, no pill, no door into anything. The vigil
+   is the whole surface.
    ============================================================ */
 
 .tex-shell {
