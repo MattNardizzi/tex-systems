@@ -348,10 +348,72 @@ export function learning(state) {
 }
 
 /* ------------------------------------------------------------------ */
+/* The standing word — Absolute / Open                                 */
+/*                                                                     */
+/* The top of the vigil stage is one word, in a serif glass treatment. */
+/* It does not cycle. It does not change with the rotating sentences   */
+/* beneath it. It is Tex's standing posture, and it is binary:         */
+/*                                                                     */
+/*   Absolute. — Tex has the night. Nothing is unresolved.             */
+/*   Open.     — Something is unresolved. The word changes the moment  */
+/*               Tex cannot stand fully behind the calm.               */
+/*                                                                     */
+/* There is no middle. The whole point of the word is that it does     */
+/* not bend. When Tex cannot say Absolute, Tex says the other word.    */
+/* ------------------------------------------------------------------ */
+
+export function absoluteState(state) {
+  /* Empty state — Tex is set up and posted. Readiness is a state    */
+  /* Tex stands behind, so empty state is still Absolute.             */
+  if (!state) return { word: "Absolute" };
+
+  const chain = state.chain ?? {};
+
+  /* The chain breaking is the one thing Tex cannot stand silently  */
+  /* behind. It dislodges the standing posture immediately.          */
+  const chainIntact =
+    (chain.discovery_chain_intact ?? true) &&
+    (chain.snapshot_chain_intact ?? true);
+  if (!chainIntact) {
+    return { word: "Open", reason: "chain" };
+  }
+
+  /* A pending learning proposal is also Open — Tex wants the        */
+  /* operator to look at something and will not act until it hears   */
+  /* back. The vigil reads as Open until the operator decides.       */
+  const proposals = state.learning_proposals;
+  if (Array.isArray(proposals)) {
+    const pending = proposals.filter(
+      (p) => String(p.status || "").toUpperCase() === "PENDING"
+    ).length;
+    if (pending > 0) {
+      return { word: "Open", reason: "proposal" };
+    }
+  }
+
+  /* Identity holds and decisions stopped are Absolute — Tex stood   */
+  /* behind the holding. They land in the rotating sentences below.  */
+  return { word: "Absolute" };
+}
+
+/* ------------------------------------------------------------------ */
 /* Composition                                                         */
+/*                                                                     */
+/* The rotating sentences underneath the standing word are the         */
+/* Jobs cut: three sentences, not six. Discovery, monitoring, and      */
+/* evidence become silent foundation. The three that speak are the     */
+/* three a being would actually mention: bounds, gate, growth.         */
 /* ------------------------------------------------------------------ */
 
 export const VIGIL_LAYERS = [
+  { key: "identity", speak: identity },
+  { key: "execution", speak: execution },
+  { key: "learning", speak: learning },
+];
+
+/* The full six remain exported so the threshold door and any future
+   surface (proof layer, evidence drill-in) can still reach them. */
+export const ALL_LAYERS = [
   { key: "discovery", speak: discovery },
   { key: "identity", speak: identity },
   { key: "monitoring", speak: monitoring },
@@ -361,16 +423,19 @@ export const VIGIL_LAYERS = [
 ];
 
 /**
- * Take a snapshot, return all six sentences in vigil order.
- * Returns [{ key, head, tail? }, ...] of length 6.
+ * Take a snapshot, return the sentences for the given layer list.
+ * Defaults to VIGIL_LAYERS (the three vigil sentences). Pass ALL_LAYERS
+ * (or any subset) to get a different set — used by the threshold door
+ * to fetch discovery/monitoring/execution for the day-two opener.
+ *
+ * Returns [{ key, head, tail? }, ...] of the same length as `layers`.
  *
  * If `state` is null (first load before the API has returned), every
  * sentence renders as the ready/posted variant — Tex is still standing
- * behind something. No skeletons, no spinners, no "I haven't done
- * anything yet".
+ * behind something. No skeletons, no spinners.
  */
-export function speak(state) {
-  return VIGIL_LAYERS.map(({ key, speak }) => {
+export function speak(state, layers = VIGIL_LAYERS) {
+  return layers.map(({ key, speak }) => {
     const sentence = speak(state ?? null);
     return { key, ...sentence };
   });

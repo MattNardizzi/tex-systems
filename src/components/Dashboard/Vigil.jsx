@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./Vigil.css";
 import { useSystemState } from "../../hooks/useSystemState";
-import { speak, VIGIL_LAYERS } from "../../lib/texVoice";
+import { speak, VIGIL_LAYERS, ALL_LAYERS, absoluteState } from "../../lib/texVoice";
 
 /* ==================================================================
    Vigil — the entire product surface.
@@ -264,8 +264,10 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
 
   const vigilSentences = useMemo(() => speak(snapshot), [snapshot]);
 
+  const standing = useMemo(() => absoluteState(snapshot ?? null), [snapshot]);
+
   const thresholdSentences = useMemo(() => {
-    const all = speak(snapshot ?? null);
+    const all = speak(snapshot ?? null, ALL_LAYERS);
     const byKey = Object.fromEntries(all.map((x) => [x.key, x]));
     return [byKey.discovery, byKey.monitoring, byKey.execution];
   }, [snapshot]);
@@ -366,20 +368,114 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
 
       {phase === "vigil" && current && (
         <div className={stageClass()} key={`vigil-${index}`}>
-          <button
-            type="button"
-            className="tex-vigil-sentence"
-            onClick={handleSentenceClick}
-            aria-label="Look closer at this"
-          >
-            <span className="tex-vigil-head">{current.head}</span>
-            {current.tail && (
-              <>
-                {" "}
-                <em className="tex-vigil-tail">{current.tail}</em>
-              </>
-            )}
-          </button>
+          <div className="tex-vigil-stack">
+            <h1
+              className={`tex-vigil-word tex-vigil-word--${standing.word.toLowerCase()}`}
+              aria-label={`${standing.word}.`}
+            >
+              <svg
+                className="tex-vigil-glass"
+                viewBox="0 0 900 240"
+                preserveAspectRatio="xMidYMid meet"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient id="tex-vigil-glass-body" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%"   stopColor="#F4F6FA" stopOpacity="0.98" />
+                    <stop offset="28%"  stopColor="#C8D2DE" stopOpacity="0.92" />
+                    <stop offset="58%"  stopColor="#5B6E84" stopOpacity="0.95" />
+                    <stop offset="100%" stopColor="#1D2733" stopOpacity="1"    />
+                  </linearGradient>
+
+                  <linearGradient id="tex-vigil-glass-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%"  stopColor="#FFFFFF" stopOpacity="0.85" />
+                    <stop offset="14%" stopColor="#FFFFFF" stopOpacity="0"    />
+                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"   />
+                  </linearGradient>
+
+                  <radialGradient id="tex-vigil-word-floor" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor="#0E1620" stopOpacity="0.10" />
+                    <stop offset="60%"  stopColor="#0E1620" stopOpacity="0.04" />
+                    <stop offset="100%" stopColor="#0E1620" stopOpacity="0"    />
+                  </radialGradient>
+
+                  <mask id="tex-vigil-glass-mask">
+                    <text
+                      x="450" y="178"
+                      textAnchor="middle"
+                      fontFamily="var(--tex-serif)"
+                      fontSize="186"
+                      fontWeight="400"
+                      letterSpacing="-11"
+                      fill="#FFFFFF"
+                    >{standing.word}.</text>
+                  </mask>
+                </defs>
+
+                <ellipse cx="450" cy="210" rx="320" ry="14" fill="url(#tex-vigil-word-floor)" />
+
+                <text
+                  x="450" y="178"
+                  textAnchor="middle"
+                  fontFamily="var(--tex-serif)"
+                  fontSize="186"
+                  fontWeight="400"
+                  letterSpacing="-11"
+                  fill="url(#tex-vigil-glass-body)"
+                >{standing.word}.</text>
+
+                <text
+                  x="450" y="178"
+                  textAnchor="middle"
+                  fontFamily="var(--tex-serif)"
+                  fontSize="186"
+                  fontWeight="400"
+                  letterSpacing="-11"
+                  fill="url(#tex-vigil-glass-rim)"
+                >{standing.word}.</text>
+
+                <text
+                  x="450" y="178"
+                  textAnchor="middle"
+                  fontFamily="var(--tex-serif)"
+                  fontSize="186"
+                  fontWeight="400"
+                  letterSpacing="-11"
+                  fill="none"
+                  stroke="#5B6E84"
+                  strokeOpacity="0.32"
+                  strokeWidth="0.6"
+                >{standing.word}.</text>
+
+                <g mask="url(#tex-vigil-glass-mask)">
+                  <rect
+                    className="tex-vigil-glass-sweep"
+                    x="-200" y="0"
+                    width="280" height="240"
+                    fill="#E6F0FF"
+                    opacity="0.85"
+                  />
+                </g>
+              </svg>
+            </h1>
+
+            <button
+              type="button"
+              className="tex-vigil-sentence tex-vigil-sentence--under"
+              onClick={handleSentenceClick}
+              aria-label="Look closer at this"
+            >
+              <em className="tex-vigil-undertext">
+                <span className="tex-vigil-head">{current.head}</span>
+                {current.tail && (
+                  <>
+                    {" "}
+                    <span className="tex-vigil-tail">{current.tail}</span>
+                  </>
+                )}
+              </em>
+            </button>
+          </div>
         </div>
       )}
 

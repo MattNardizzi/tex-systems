@@ -369,3 +369,134 @@
 /* Reduced motion — the system-wide rule in index.css already
    neutralizes animations. We keep the structure intact so
    layout is identical with or without motion. */
+
+/* ================================================================
+   The standing word — Absolute / Open
+   ================================================================
+   The top of the vigil stage. One serif word, in a glass
+   treatment lifted exactly from the marketing site's Hero so the
+   product and the brand sit in the same typographic universe.
+
+   The word is binary. Absolute when Tex has the night. Open when
+   something is unresolved. There is no third state.
+
+   Below it, the rotating sentence sits smaller and in italic
+   soft ink — receipt to the word's claim.
+   ================================================================ */
+
+.tex-vigil-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.tex-vigil-word {
+  margin: 0 0 44px 0;
+  width: 100%;
+  max-width: 880px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1.6s ease 0.2s, transform 1.6s ease 0.2s;
+}
+
+/* When the vigil phase is active, the word arrives. */
+.tex-vigil-stage--vigil .tex-vigil-word {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tex-vigil-glass {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* The light sweep across the glass — same recipe as the Hero. */
+.tex-vigil-glass-sweep {
+  animation: tex-vigil-sweep 7s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+@keyframes tex-vigil-sweep {
+  0%   { transform: translateX(0);     opacity: 0;   }
+  8%   { opacity: 0.5; }
+  35%  { transform: translateX(1100px); opacity: 0.5; }
+  42%  { opacity: 0;   }
+  100% { transform: translateX(1100px); opacity: 0;   }
+}
+
+/* ---- The rotating sentence under the word --------------------- */
+
+/* Override the prior tex-vigil-sentence sizing for the vigil-phase
+   "under" variant. Smaller, italic, soft ink — a quiet receipt to
+   the glass word above it, not a headline of its own. */
+.tex-vigil-sentence--under {
+  font-family: var(--tex-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(18px, 1.55vw, 22px);
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  color: var(--tex-ink-soft);
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  max-width: 640px;
+  text-align: center;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: color 0.6s ease;
+}
+
+.tex-vigil-sentence--under:hover {
+  color: var(--tex-ink);
+}
+
+.tex-vigil-undertext {
+  font-style: italic;
+  display: block;
+}
+
+/* Inside the italic undertext, both head and tail are the same
+   soft italic register — no two-tone, no bolding. The receipt
+   reads as one quiet sentence. */
+.tex-vigil-sentence--under .tex-vigil-head {
+  font-style: italic;
+  font-weight: 400;
+  color: inherit;
+}
+
+.tex-vigil-sentence--under .tex-vigil-tail {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--tex-ink-mute);
+}
+
+/* ---- Responsive: phone ---------------------------------------- */
+
+@media (max-width: 720px) {
+  .tex-vigil-word {
+    max-width: 86vw;
+    margin-bottom: 32px;
+  }
+  .tex-vigil-sentence--under {
+    font-size: clamp(15px, 4vw, 18px);
+    line-height: 1.5;
+    padding: 0 14px;
+    max-width: 88vw;
+  }
+}
+
+@media (max-width: 420px) {
+  .tex-vigil-word {
+    max-width: 90vw;
+    margin-bottom: 28px;
+  }
+  .tex-vigil-sentence--under {
+    font-size: 14px;
+  }
+}
