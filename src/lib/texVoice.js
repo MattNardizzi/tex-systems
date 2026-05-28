@@ -9,24 +9,30 @@
  * in soft ink. When the tail isn't earned, the function returns
  * { head } and the vigil renders without a tail.
  *
- * Three rules that govern every function in this file:
+ * Four rules that govern every function in this file:
  *
  *   1. Tex always says "I". Never "the system", "agents are", or any
- *      passive-voice variant. If the sentence cannot be said by a being
- *      who also says "I held the line", rewrite it until it can.
+ *      passive-voice variant. Subject is Tex, every sentence.
  *
- *   2. The head plants a fact. The tail leans in and says what it means.
- *      The head must be true at every load. The tail only appears when
- *      there is something to lean in about. "Coverage is at 71%" is a
- *      tail. "It is steady" is not a tail; it is decoration.
+ *   2. Every sentence is something Tex DID, not something Tex is
+ *      observing. Past tense, perfect tense — never present-tense
+ *      status reporting. "I watched all night" not "I'm watching".
+ *      "All of them stayed in the bounds I gave them" not "all of
+ *      them are who they say they are". A warden recounts the night.
+ *      A camera reports current readings. Tex is the warden.
  *
- *   3. Empty state is honest state. An operator on day one sees an
- *      honest empty product. "I haven't met any of your agents yet" is
- *      a true Tex sentence. It changes the instant a scan runs.
+ *   3. The head plants an action. The tail leans in and names a
+ *      specific thing. The head must be true at every load. The tail
+ *      only appears when there is a specific thing to name.
+ *
+ *   4. Empty state is honest state — and in B, empty state is still
+ *      something Tex stands behind. Not "I haven't done anything yet"
+ *      (passive, absence) but "I'm ready" / "I'm set up to" / "the
+ *      moment they appear, I'll have them". Tex is never waiting in
+ *      a default sense; Tex is ready, posture forward.
  *
  * These functions are pure: same input → same output, no side effects,
- * no clocks beyond what the input carries. That's deliberate. The voice
- * has to be testable in isolation so it cannot drift quietly.
+ * no clocks beyond what the input carries.
  */
 
 /* ------------------------------------------------------------------ */
@@ -35,8 +41,7 @@
 
 /* For small counts Tex spells the word. "Eighty-three agents" reads
    as a being talking; "83 agents" reads as a dashboard cell. Past 100
-   we let the digits stand — Tex would say "four thousand eight hundred
-   and twenty-seven" only in a country song. */
+   we let the digits stand. */
 const SMALL_NUMBER_WORDS = [
   "zero",
   "one",
@@ -80,33 +85,33 @@ function spell(n) {
     const o = n % 10;
     return o === 0 ? tens[t] : `${tens[t]}-${SMALL_NUMBER_WORDS[o]}`;
   }
-  /* 100+: render as digits with thousands separator. */
   return n.toLocaleString("en-US");
 }
 
-/* "1 agent" vs "two agents". The pluralization is intentional. Tex is
-   careful with grammar because a being is. */
 function pluralize(count, singular, plural) {
   return count === 1 ? singular : plural || `${singular}s`;
 }
 
+function capitalize(s) {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 /* ------------------------------------------------------------------ */
-/* Layer 1 — Discovery                                                */
+/* Layer 1 — Discovery                                                 */
 /*                                                                     */
-/* The discovery sentence speaks from last_scan.candidates_seen,       */
-/* last_scan.registered_count, and the count of CONFIRMED_DISAPPEARED  */
-/* events in latest_drift. Coverage moves get folded into the tail     */
-/* when they shift, per the principle that the same number a Splunk   */
-/* dashboard would chart, Tex says in a sentence.                     */
+/* B voice: Tex meets and seals in the same breath. The sealing is     */
+/* the act, not a footnote. Empty state is "I'm set up to meet them";  */
+/* steady state is "I met N and sealed each one"; change in tail.      */
 /* ------------------------------------------------------------------ */
 
 export function discovery(state) {
   const lastScan = state?.last_scan ?? {};
   const drift = state?.latest_drift ?? [];
 
-  /* No scan has ever run. Honest empty state. */
+  /* No scan has ever run. Posture forward: Tex is ready, not absent. */
   if (!lastScan.has_run) {
-    return { head: "I haven't met any of your agents yet." };
+    return { head: "The moment your agents appear, I'll meet them and seal each one." };
   }
 
   const seen = lastScan.candidates_seen ?? 0;
@@ -115,24 +120,24 @@ export function discovery(state) {
     String(e.kind || "").toUpperCase().includes("DISAPPEAR")
   ).length;
 
-  /* Some scans have happened but found nothing this round. */
+  /* Scans happened, none found this round. Still B — Tex looked. */
   if (seen === 0) {
-    return { head: "I looked, and didn't find any of your agents this time." };
+    return { head: "I looked tonight. None of your agents were in the room." };
   }
 
-  const head = `I found ${spell(seen)} ${pluralize(seen, "agent")} this week.`;
+  const head = `I met ${spell(seen)} of your agents. I sealed each one as I found them.`;
 
   const tailParts = [];
   if (registered > 0) {
     tailParts.push(
       registered === 1
-        ? "One was new."
-        : `${capitalize(spell(registered))} were new.`
+        ? "One came in this week."
+        : `${capitalize(spell(registered))} came in this week.`
     );
   }
   if (quiet > 0) {
     tailParts.push(
-      quiet === 1 ? "One had gone quiet." : `${capitalize(spell(quiet))} had gone quiet.`
+      quiet === 1 ? "I noticed one go quiet." : `I noticed ${spell(quiet)} go quiet.`
     );
   }
 
@@ -145,11 +150,8 @@ export function discovery(state) {
 /* ------------------------------------------------------------------ */
 /* Layer 2 — Identity                                                  */
 /*                                                                     */
-/* "All of them are who they say they are" is the steady-state head    */
-/* once there are agents and no identity findings. When agents have    */
-/* asked for capabilities beyond what they're allowed, the tail names  */
-/* the holding action. With zero agents, this layer stays silent       */
-/* about identity and pivots to a quieter truth.                       */
+/* B voice: Tex gave the bounds, Tex watches them, Tex holds the line  */
+/* when one is crossed. Subject is Tex, not the agents. Past tense.    */
 /* ------------------------------------------------------------------ */
 
 export function identity(state) {
@@ -157,7 +159,7 @@ export function identity(state) {
   const drift = state?.latest_drift ?? [];
 
   if (totalAgents === 0) {
-    return { head: "When I meet your agents, I'll know who each one is." };
+    return { head: "I'll give each one its bounds the moment I meet it." };
   }
 
   const identityHolds = drift.filter((e) => {
@@ -172,27 +174,26 @@ export function identity(state) {
     );
   }).length;
 
-  const head = "All of them are who they say they are.";
+  const head = "All of them stayed in the bounds I gave them.";
 
   if (identityHolds === 0) {
     return { head };
   }
   if (identityHolds === 1) {
-    return { head, tail: "One asked for more than I'd given it. I held the line." };
+    return { head: "All but one stayed in the bounds I gave them.", tail: "One reached for more. I held the line." };
   }
   return {
-    head,
-    tail: `${capitalize(spell(identityHolds))} asked for more than I'd given them. I held the line each time.`,
+    head: `All but ${spell(identityHolds)} stayed in the bounds I gave them.`,
+    tail: `${capitalize(spell(identityHolds))} reached for more. I held the line each time.`,
   };
 }
 
 /* ------------------------------------------------------------------ */
 /* Layer 3 — Monitoring                                                */
 /*                                                                     */
-/* The monitoring sentence speaks from scheduler.presence_tracker_     */
-/* enabled and the count of drift events in the rolling window. When  */
-/* nothing is drifting, Tex says so plainly. When something is, the   */
-/* tail names the most recent.                                        */
+/* B voice: the biggest flip in the file. "I watched" not              */
+/* "I'm watching". A warden closes the loop — the watching is done,    */
+/* the report is the result. No open-ended "I'll tell you the moment". */
 /* ------------------------------------------------------------------ */
 
 export function monitoring(state) {
@@ -202,74 +203,80 @@ export function monitoring(state) {
 
   if (totalAgents === 0) {
     if (presenceOn) {
-      return { head: "I'm watching for them. Nothing yet." };
+      return { head: "I'm posted. The moment one appears, I have it." };
     }
-    return { head: "I'm not watching anything yet." };
+    return { head: "I'm posted and ready to watch the room." };
   }
 
   if (drift.length === 0) {
-    return {
-      head: "I'm watching them all, right now. Nothing is drifting.",
-      tail: "I'll tell you the moment something does.",
-    };
+    return { head: "I watched them all night. Nothing moved." };
   }
 
   const mostRecent = drift[0];
   const summary = mostRecent?.summary;
-  const head = "I'm watching them all, right now.";
   if (summary) {
-    return { head, tail: summary };
+    return { head: "I watched them all night. Something shifted.", tail: `${summary} I have it.` };
   }
-  return { head, tail: `${drift.length} ${pluralize(drift.length, "thing")} ${drift.length === 1 ? "is moving" : "are moving"}. I'm holding the line.` };
+  if (drift.length === 1) {
+    return { head: "I watched them all night.", tail: "Something shifted. I have it." };
+  }
+  return {
+    head: "I watched them all night.",
+    tail: `${capitalize(spell(drift.length))} things shifted. I have them.`,
+  };
 }
 
 /* ------------------------------------------------------------------ */
 /* Layer 4 — Execution Governance                                      */
 /*                                                                     */
-/* This sentence speaks from the decision counts. The current          */
-/* /v1/system/state payload does not yet expose a daily decision       */
-/* summary; until it does, this function renders an honest empty state */
-/* when there's no governance activity, and is shaped to swap in real  */
-/* counts the moment the backend surfaces them on the response.        */
+/* B voice: Tex owns the verdict. Lead with the act (let through,      */
+/* stopped), not the count. The count moves into the tail. When        */
+/* there's been a block, "I stopped one" is the owned sentence the     */
+/* whole industry is afraid to say.                                    */
 /* ------------------------------------------------------------------ */
 
 export function execution(state) {
-  /* When the backend grows a decisions block, plug it in here. The
-     contract: state.decisions = { total, permits, abstains, forbids,
-     window_label }. Until then we read from governance + chain to
-     produce an honest sentence. */
   const decisions = state?.decisions;
   if (decisions && typeof decisions.total === "number") {
     const { total, permits = 0, forbids = 0 } = decisions;
-    const head = `I made ${total.toLocaleString("en-US")} ${pluralize(total, "decision")} today.`;
+    if (total === 0) {
+      return { head: "Nothing crossed my desk yet. I'm ready when it does." };
+    }
     if (forbids === 0 && permits === total) {
-      return { head, tail: "I let every one of them through." };
+      return { head: "I let through everything that should pass.", tail: total <= 20 ? `${capitalize(spell(total))} ${pluralize(total, "decision")}, all clean.` : `${total.toLocaleString("en-US")} decisions, all clean.` };
     }
     if (forbids === 0) {
-      return { head, tail: `I allowed ${permits.toLocaleString("en-US")} of them.` };
+      return {
+        head: "I let through everything that should pass.",
+        tail: `I allowed ${permits.toLocaleString("en-US")} today.`,
+      };
+    }
+    if (forbids === 1) {
+      return {
+        head: "I let through what should pass. I stopped one.",
+        tail: `${permits.toLocaleString("en-US")} allowed, one held.`,
+      };
     }
     return {
-      head: `I made ${total.toLocaleString("en-US")} ${pluralize(total, "decision")} today. I allowed ${permits.toLocaleString("en-US")}.`,
-      tail:
-        forbids === 1
-          ? "I stopped one."
-          : `I stopped ${spell(forbids)}.`,
+      head: `I let through what should pass. I stopped ${spell(forbids)}.`,
+      tail: `${permits.toLocaleString("en-US")} allowed, ${spell(forbids)} held.`,
     };
   }
 
   const ledgerLen = state?.chain?.discovery_ledger_length ?? 0;
   if (ledgerLen === 0) {
-    return { head: "I haven't had to decide anything yet." };
+    return { head: "Nothing's needed me to decide yet. I'm ready when it does." };
   }
-  return { head: "I'm ready to decide. Nothing has asked yet." };
+  return { head: "I'm posted at the gate. Nothing's asked yet." };
 }
 
 /* ------------------------------------------------------------------ */
 /* Layer 5 — Evidence                                                  */
 /*                                                                     */
-/* The evidence sentence speaks from state.chain. It is the only       */
-/* sentence in the vigil where Tex is allowed to almost-boast,         */
-/* because evidence integrity is what Tex is built around.             */
+/* B voice: no hedge. "I can prove all of it" replaces "if anyone      */
+/* ever asks, I can prove every one." A warden stands behind the       */
+/* proof unconditionally. "As it happened" claims the moment of        */
+/* sealing — the gap competitors leave open.                           */
 /* ------------------------------------------------------------------ */
 
 export function evidence(state) {
@@ -281,37 +288,35 @@ export function evidence(state) {
   const durable = chain.durable_persistence ?? false;
 
   if (ledgerLen === 0) {
-    /* Tex is set up to write things down. There's just nothing to
-       write down yet. Honest. */
     if (durable) {
       return {
-        head: "I'm ready to write everything down.",
-        tail: "When something happens, I'll have the proof.",
+        head: "I'm ready to write everything down as it happens.",
+        tail: "The proof will be there from the first moment.",
       };
     }
-    return { head: "I'll be ready to write everything down once I'm fully set up." };
+    return { head: "I'm setting up the place where I'll write everything down." };
   }
 
-  const head = "I wrote it all down.";
   if (!intact) {
     return {
-      head,
+      head: "I wrote everything down as it happened.",
       tail: "Something in the chain doesn't add up. You should see this.",
     };
   }
   return {
-    head,
-    tail: `If anyone ever asks, I can prove every one of the ${ledgerLen.toLocaleString("en-US")}.`,
+    head: "I wrote everything down as it happened.",
+    tail: `I can prove all ${ledgerLen.toLocaleString("en-US")} of them.`,
   };
 }
 
 /* ------------------------------------------------------------------ */
 /* Layer 6 — Learning                                                  */
 /*                                                                     */
-/* The learning sentence speaks from pending calibration proposals.    */
-/* The current /v1/system/state payload does not include proposals;    */
-/* the hook is allowed to pass them in as a sibling field once the     */
-/* learning_proposals fetch is wired. Until then, honest empty state.  */
+/* B voice: this is the one sentence where Tex defers. The five other  */
+/* layers own actions Tex took; this one names an action Tex didn't    */
+/* take yet, on purpose. Changing Tex's own behavior is the one thing  */
+/* a warden shouldn't do unilaterally. "Use it" → "act on it" makes    */
+/* the deferral active rather than passive.                            */
 /* ------------------------------------------------------------------ */
 
 export function learning(state) {
@@ -323,31 +328,27 @@ export function learning(state) {
     if (pending === 0) {
       return {
         head: "I've been learning, quietly.",
-        tail: "Nothing to bring you yet.",
+        tail: "Nothing I'd ask you to sign off on yet.",
       };
     }
     if (pending === 1) {
       return {
         head: "I learned something this week.",
-        tail: "I'd like your sign-off before I use it.",
+        tail: "I'd like your sign-off before I act on it.",
       };
     }
     return {
       head: `I learned ${spell(pending)} ${pluralize(pending, "thing")} this week.`,
-      tail: "I'd like your sign-off before I use them.",
+      tail: "I'd like your sign-off before I act on them.",
     };
   }
 
   /* No proposals data fetched yet (or none exist). */
-  return { head: "I'm still learning your shop." };
+  return { head: "I've been learning your shop, quietly." };
 }
 
 /* ------------------------------------------------------------------ */
 /* Composition                                                         */
-/*                                                                     */
-/* The vigil cycles in this order. Each entry pairs the layer key      */
-/* (used by the proof layer to know which detail fetch to run) with    */
-/* the function that produces the sentence from the snapshot.          */
 /* ------------------------------------------------------------------ */
 
 export const VIGIL_LAYERS = [
@@ -364,19 +365,13 @@ export const VIGIL_LAYERS = [
  * Returns [{ key, head, tail? }, ...] of length 6.
  *
  * If `state` is null (first load before the API has returned), every
- * sentence renders as the no-knowledge variant — Tex is still being
- * truthful. No skeletons, no spinners.
+ * sentence renders as the ready/posted variant — Tex is still standing
+ * behind something. No skeletons, no spinners, no "I haven't done
+ * anything yet".
  */
 export function speak(state) {
   return VIGIL_LAYERS.map(({ key, speak }) => {
     const sentence = speak(state ?? null);
     return { key, ...sentence };
   });
-}
-
-/* ------------------------------------------------------------------ */
-
-function capitalize(s) {
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
