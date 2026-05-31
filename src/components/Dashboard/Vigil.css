@@ -1,282 +1,286 @@
 /* ============================================================
    Vigil — the entire product surface.
 
-   One mark. One voice. The T breathes, and the breath makes two
-   promises: nothing here is yours, and you can trust the silence.
-   There are exactly two ways those promises break, so the breath
-   has exactly three states — rest, held, faltering.
+   There is no T. There is no mark. At rest the surface is silence —
+   empty paper with a single faint pulse at center: proof Tex is
+   awake, not a logo. Tex speaks only when it has something for you.
+   The whole surface is the ask gesture: press and hold anywhere.
 
-   Color appears once or never: the only hue the T ever shows that
-   isn't its resting ink is the sickness of a faltering breath. It
-   is not a severity ramp. It is a binary — trusted, or not.
+   Color appears once or never. The only hue the surface ever shows
+   that isn't resting ink is the sickness of a faltering breath. It
+   is not a severity ramp. Held is ink. Silence is ink. Only the
+   break has a color.
    ============================================================ */
 
-.tex-vigil {
+.tex-field {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 100vh;
   background: var(--tex-paper);
   overflow: hidden;
+  cursor: pointer;
+  outline: none;
   -webkit-user-select: none;
   user-select: none;
-}
-
-/* The stage: the T sits a little above center; beneath it, a region
-   reserved for Tex's voice. That region stays EMPTY at rest — the
-   breath below the mark is sacred and is not filled with chrome. */
-.tex-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 920px;
-  padding: 0 6vw;
-  /* nudge the whole composition up so there is more breath below */
-  transform: translateY(-4vh);
-}
-
-/* ------------------------------------------------------------------ */
-/* The first sentence — read once per browser, ever, then gone.        */
-/* It teaches the mark its meaning. Present tense, no proof offered,    */
-/* authority + invitation, name first.                                 */
-/* ------------------------------------------------------------------ */
-
-.tex-first-sentence {
-  margin: 0;
-  max-width: 17em;
-  text-align: center;
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  font-size: clamp(22px, 3.4vw, 38px);
-  line-height: 1.42;
-  letter-spacing: -0.01em;
-  color: var(--tex-ink);
-  opacity: 0;
-  transform: translateY(6px);
-  animation-name: tex-first-rise;
-  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
-  animation-fill-mode: both;
-}
-.tex-first-sentence.is-leaving {
-  animation: none;
-  opacity: 0;
-  transform: translateY(0);
-  transition: opacity 1200ms ease, transform 1200ms ease;
-}
-@keyframes tex-first-rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ------------------------------------------------------------------ */
-/* The mark — one living T. Never a logo, never static. The button     */
-/* is the ask gesture (press and hold); the glyph is the breath.       */
-/* ------------------------------------------------------------------ */
-
-.tex-mark-glyph {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: clamp(216px, 36vh, 432px);
-  height: clamp(216px, 36vh, 432px);
-  border: 0;
-  background: none;
-  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
+}
+.tex-field:focus-visible {
   outline: none;
-}
-.tex-mark-glyph > span {
-  font-family: var(--tex-mark);
-  font-weight: 500;
-  font-size: clamp(180px, 32.4vh, 384px);
-  line-height: 1;
-  color: var(--tex-ink);
-  /* default visible opacity for reduced-motion / pre-animation */
-  opacity: 0.82;
-  will-change: opacity, color, transform;
-}
-/* The mark is now a drawn glyph, not a font character: an exact
-   hairline T with square-cut terminals and a sliver of light at the
-   joint. It inherits the span's color via currentColor, so every
-   breath state (rest / held / faltering / listening) animates it
-   exactly as before. Height tracks the same responsive font-size. */
-.tex-mark-glyph > span > svg {
-  display: block;
-  height: 1em;
-  width: auto;
 }
 
-/* Keyboard focus — a quiet ring, only for keyboard users. */
-.tex-mark-glyph:focus-visible {
-  outline: none;
-}
-.tex-mark-glyph:focus-visible > span {
-  text-shadow: 0 0 0 transparent;
-}
-.tex-mark-glyph:focus-visible::before {
-  content: "";
-  position: absolute;
-  inset: 14%;
+/* ------------------------------------------------------------------ */
+/* The pulse — proof of life. The faintest possible sign Tex is awake. */
+/* Not a glyph, not a letter. A breath you only notice if you look.    */
+/* Visible at rest only; held and faltering replace it with words.     */
+/* ------------------------------------------------------------------ */
+
+.tex-pulse {
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  border: 1px solid var(--tex-ink-hair);
+  background: var(--tex-ink);
+  opacity: 0.12;
+  animation: tex-pulse-breath 5600ms ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes tex-pulse-breath {
+  0%   { opacity: 0.05; transform: scale(0.9); }
+  50%  { opacity: 0.18; transform: scale(1.15); }
+  100% { opacity: 0.05; transform: scale(0.9); }
 }
 
-/* ---------------- REST — slow tidal swell, ink hue ----------------
-   In and out, forever. Nothing is yours; trust the silence. */
-.tex-mark-glyph--rest > span {
-  color: var(--tex-ink);
-  animation: tex-breath-rest 5200ms ease-in-out infinite;
-}
-@keyframes tex-breath-rest {
-  0%   { opacity: 0.26; }
-  50%  { opacity: 0.96; }
-  100% { opacity: 0.26; }
-}
-
-/* ---------------- HELD — the inhale, suspended ----------------
-   Rises once and is held at the top with only the faintest tremor,
-   same hue. The breath does literally what the verdict did: it froze
-   something and is holding it. It never falls back to rest on its own. */
-.tex-mark-glyph--held > span {
-  color: var(--tex-ink);
-  animation:
-    tex-held-inhale 1100ms cubic-bezier(0.4, 0, 0.2, 1) both,
-    tex-held-strain 5000ms ease-in-out 1100ms infinite;
-}
-@keyframes tex-held-inhale {
-  from { opacity: 0.30; }
-  to   { opacity: 0.93; }
-}
-@keyframes tex-held-strain {
-  0%   { opacity: 0.930; }
-  50%  { opacity: 0.965; }
-  100% { opacity: 0.930; }
-}
-
-/* ---------------- FALTERING — the rhythm fails, the hue goes pale ----
-   The only deviation the T ever shows about itself. Arrhythmic, uneven
-   opacity on one period; the trusted ink desaturating to a sick taupe
-   on a different period — so the two never resolve into a clean loop.
-   A tile flashes red. A face goes pale and unsteady. */
-.tex-mark-glyph--faltering > span {
-  animation:
-    tex-breath-falter 2600ms linear infinite,
-    tex-falter-pallor 3100ms ease-in-out infinite;
-}
-@keyframes tex-breath-falter {
-  0%   { opacity: 0.55; }
-  9%   { opacity: 0.30; }
-  14%  { opacity: 0.63; }
-  23%  { opacity: 0.41; }
-  31%  { opacity: 0.71; }
-  37%  { opacity: 0.37; }
-  46%  { opacity: 0.58; }
-  55%  { opacity: 0.33; }
-  63%  { opacity: 0.67; }
-  72%  { opacity: 0.40; }
-  80%  { opacity: 0.60; }
-  88%  { opacity: 0.34; }
-  100% { opacity: 0.55; }
-}
-@keyframes tex-falter-pallor {
-  0%   { color: #6f6a63; }
-  50%  { color: #9a958d; }
-  100% { color: #6f6a63; }
-}
-
-/* ---------------- LISTENING — Tex is being addressed ----------------
-   While the T is held, the breath stills and holds near full ink —
-   Tex is attending to you, not breathing at you. A single ring lifts
-   outward to say the mic is open. No hot mic: this only exists while
-   the gesture is held. */
-.tex-mark-glyph.is-listening > span {
+/* While the surface is held (you're addressing Tex), the pulse steadies
+   and a single ring lifts outward — the mic is open. No hot mic: this
+   only exists while the gesture is held. */
+.tex-field.is-listening .tex-pulse {
   animation: none;
-  opacity: 0.97;
-  color: var(--tex-ink);
-  transition: opacity 180ms ease, color 180ms ease;
+  opacity: 0.3;
+  transform: scale(1.2);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
-.tex-mark-glyph.is-listening::after {
+.tex-field.is-listening::after {
   content: "";
   position: absolute;
-  inset: 20%;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
   border-radius: 50%;
   border: 1px solid var(--tex-ink);
   opacity: 0;
-  animation: tex-listen-ring 1700ms ease-out infinite;
+  animation: tex-listen-ring 1900ms ease-out infinite;
   pointer-events: none;
 }
 @keyframes tex-listen-ring {
-  0%   { transform: scale(0.7); opacity: 0.32; }
-  100% { transform: scale(1.75); opacity: 0; }
+  0%   { transform: scale(0.35); opacity: 0.18; }
+  100% { transform: scale(1); opacity: 0; }
 }
 
-/* ---------------- THINKING — released, composing a grounded answer --
-   Brief, between your release and Tex's voice. A slow even pulse, ink. */
-.tex-mark-glyph.is-thinking > span {
-  animation: tex-think 1400ms ease-in-out infinite;
-  color: var(--tex-ink);
+/* Thinking — released, composing a grounded answer. The pulse pulses
+   a touch more present, evenly. */
+.tex-field.is-thinking .tex-pulse {
+  animation: tex-pulse-think 1400ms ease-in-out infinite;
+  opacity: 0.22;
 }
-@keyframes tex-think {
-  0%   { opacity: 0.5; }
-  50%  { opacity: 0.86; }
-  100% { opacity: 0.5; }
+@keyframes tex-pulse-think {
+  0%   { opacity: 0.10; }
+  50%  { opacity: 0.30; }
+  100% { opacity: 0.10; }
 }
 
 /* ------------------------------------------------------------------ */
-/* The voice — Tex's words. Held in the breath below the mark; empty   */
-/* at rest. A line fades in, lingers, dissolves; the breath reclaims    */
-/* the screen. One voice, whether answering you or telling you it broke.*/
+/* The held decision — Tex froze something and surfaces it. Tex's      */
+/* voice, the facts that ground it, and the resolved acts that seal    */
+/* it. A wire transfer is sealed by a named human act, not a spoken    */
+/* maybe — so the acts are deliberate, recorded, signable.             */
+/* ------------------------------------------------------------------ */
+
+.tex-held {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 30em;
+  padding: 0 7vw;
+  text-align: center;
+  transform: translateY(-2vh);
+  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tex-held-sentence {
+  margin: 0;
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(24px, 3.4vw, 40px);
+  line-height: 1.32;
+  letter-spacing: -0.012em;
+  color: var(--tex-ink);
+}
+.tex-held-detail {
+  margin: 1.4em 0 0;
+  max-width: 26em;
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(16px, 1.7vw, 20px);
+  line-height: 1.6;
+  letter-spacing: -0.004em;
+  color: var(--tex-ink-soft);
+  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 240ms both;
+}
+
+/* The resolved acts. Quiet, deliberate. No alarm color — held is ink.
+   Approve carries the only weight; refuse is the same family, never
+   red (this is a decision, not an emergency). */
+.tex-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 2.6em;
+  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 460ms both;
+}
+.tex-act {
+  font-family: var(--tex-sans);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 11px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--tex-ink-hair);
+  color: var(--tex-ink-soft);
+  background: var(--tex-paper);
+  transition: border-color 160ms ease, color 160ms ease,
+    background 160ms ease;
+}
+.tex-act:hover {
+  border-color: var(--tex-ink);
+  color: var(--tex-ink);
+}
+.tex-act--approve {
+  color: var(--tex-paper);
+  background: var(--tex-ink);
+  border-color: var(--tex-ink);
+}
+.tex-act--approve:hover {
+  background: #000;
+  color: var(--tex-paper);
+}
+.tex-act--refuse:hover {
+  border-color: var(--tex-ink);
+  color: var(--tex-ink);
+}
+
+.tex-held-ask {
+  margin: 3.4em 0 0;
+  font-family: var(--tex-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--tex-ink-mute);
+  opacity: 0.7;
+  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 900ms both;
+}
+
+/* ------------------------------------------------------------------ */
+/* The seal — a resolved decision, shown briefly, then silence.        */
+/* The hash is the proof the human acted; chrome, not decoration.      */
+/* ------------------------------------------------------------------ */
+
+.tex-seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tex-seal-line {
+  margin: 0;
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(20px, 2.4vw, 28px);
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+  color: var(--tex-ink);
+}
+.tex-seal-hash {
+  margin: 1.1em 0 0;
+  font-family: var(--tex-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--tex-ink-mute);
+}
+
+/* ------------------------------------------------------------------ */
+/* The voice — answers and faltering lines, held in the center.        */
 /* ------------------------------------------------------------------ */
 
 .tex-voice {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   width: 100%;
-  /* reserve the breath below the mark without ever filling it at rest */
-  min-height: 22vh;
-  margin-top: 2.2vh;
-  padding: 0 4vw;
+  max-width: 26em;
+  padding: 0 6vw;
   pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 .tex-voice-line {
   margin: 0;
-  max-width: 22em;
   text-align: center;
   font-family: var(--tex-serif);
   font-weight: 400;
-  font-size: clamp(18px, 2.1vw, 25px);
-  line-height: 1.5;
-  letter-spacing: -0.005em;
-  color: var(--tex-ink-soft);
-  opacity: 0;
-  animation: tex-voice-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  font-size: clamp(20px, 2.6vw, 30px);
+  line-height: 1.45;
+  letter-spacing: -0.008em;
+  color: var(--tex-ink);
+  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-/* The faltering line is still Tex's voice — the words stay legible.
-   The sickness is carried by the breath, not by making the text hard
-   to read. A hair darker so the warning is not soft-pedalled. */
+.tex-voice-line--answer {
+  color: var(--tex-ink-soft);
+}
+/* Faltering — the words stay fully legible; the sickness is carried by
+   the field tint, not by making the warning hard to read. */
 .tex-voice-line--falter {
   color: var(--tex-ink);
 }
-.tex-voice-line--thinking {
-  opacity: 0;
+
+/* Faltering tints the whole field a hair toward the sick taupe, on an
+   uneven period so it never resolves into a calm loop. */
+.tex-field--faltering {
+  animation: tex-field-pallor 3100ms ease-in-out infinite;
+}
+@keyframes tex-field-pallor {
+  0%   { background: #ffffff; }
+  50%  { background: #f7f5f2; }
+  100% { background: #ffffff; }
+}
+
+@keyframes tex-rise {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* The voice line is centered with a translate, so its rise can't also
+   use translateY without fighting the centering. Give it its own. */
+.tex-voice .tex-voice-line {
+  animation: tex-voice-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 @keyframes tex-voice-rise {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ------------------------------------------------------------------ */
-/* Dev panel — scaffolding. Lets the three breath states and the       */
-/* speak-back surface be reviewed without a live voice gateway.        */
-/* Remove before ship. Deliberately utilitarian so it never reads as   */
-/* part of the product.                                                */
+/* Dev panel — scaffolding. Summon with ⌘. / Ctrl+. Lets the abstain   */
+/* and the faltering state be reviewed on demand. Remove before ship.  */
 /* ------------------------------------------------------------------ */
 
 .tex-dev-panel {
@@ -294,6 +298,7 @@
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: saturate(180%) blur(8px);
   -webkit-backdrop-filter: saturate(180%) blur(8px);
+  cursor: default;
 }
 .tex-dev-panel-label {
   font-family: var(--tex-mono);
@@ -329,9 +334,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* The breath stills to a single legible state. The mark stays present;
-     the meaning then rests on the word Tex speaks rather than the motion. */
-  .tex-mark-glyph > span { opacity: 0.84 !important; }
-  .tex-mark-glyph--faltering > span { color: #8a857d !important; }
-  .tex-mark-glyph.is-listening::after { animation: none; opacity: 0.2; }
+  .tex-pulse {
+    animation: none !important;
+    opacity: 0.14 !important;
+  }
+  .tex-field.is-listening::after { animation: none; opacity: 0.12; }
+  .tex-field--faltering { animation: none; background: #f7f5f2; }
 }
