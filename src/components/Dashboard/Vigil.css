@@ -566,17 +566,17 @@
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -7%;
-  width: 44%;
-  height: 14px;
+  bottom: 3%;
+  width: 64%;
+  height: 18px;
   transform: translateX(-50%);
   background: radial-gradient(
     50% 100% at 50% 50%,
-    rgba(29, 39, 51, 0.18),
-    rgba(29, 39, 51, 0) 72%
+    rgba(29, 39, 51, 0.22),
+    rgba(29, 39, 51, 0) 70%
   );
-  filter: blur(7px);
-  opacity: 0.5;
+  filter: blur(9px);
+  opacity: 0.55;
   pointer-events: none;
   animation: tex-rest-shadow 11s ease-in-out infinite;
 }
@@ -589,64 +589,70 @@
 .tex-vigil-rest-mark {
   font-family: var(--tex-mark);
   font-style: italic;
-  font-weight: 400;
-  font-size: clamp(150px, 23vw, 320px);
-  letter-spacing: -0.02em;
-  /* Lean a hair further than the italic already does — the letter is
-     a body already in motion, holding the breath it's about to take. */
+  font-weight: 500;
+  font-size: clamp(160px, 24vw, 320px);
+  /* Padding gives the clip box room. Cormorant's italic capital T
+     overhangs its advance width on the upper right; without this the
+     background-clip:text box shears that flare off. Also lets the
+     grounding shadow sit under the real width of the letter. */
+  padding: 0.06em 0.2em;
   display: inline-block;
-  transform: translateY(0);
 
+  /* Ink, not vapour. The letter must read confidently on white from
+     crossbar to foot — a slate that goes nearly to black at the base,
+     with one brighter band that travels as it breathes. The old pale
+     top belonged to the standing word, against dark text; alone on
+     paper it simply disappeared. */
   background: linear-gradient(
     180deg,
-    #f4f6fa 0%,
-    #dce3ec 16%,
-    #c8d2de 32%,
-    #8a99ac 54%,
-    #5b6e84 76%,
-    #1d2733 100%
+    #6f8096 0%,
+    #93a3b8 13%,
+    #5f7187 37%,
+    #3a4a5e 64%,
+    #18222e 100%
   );
-  background-size: 100% 230%;
-  background-position: 50% 16%;
+  background-size: 100% 200%;
+  background-position: 50% 14%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
 
-  /* The bloom — a faint halo that swells on the inhale. The nearest a
-     fixed-weight face gets to breathing heavier. */
-  filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+  filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   animation: tex-rest-breath 11s ease-in-out infinite;
   will-change: opacity, transform, background-position, filter;
 }
 
-/* Primary breath. The peak lands at 42%, not 50% — the asymmetry
-   (quicker rise, longer settle) is what keeps it off the sine wave
-   and makes it feel drawn rather than generated. */
+/* Primary breath. The peak lands at 44%, not 50% — the asymmetry
+   (quicker rise, longer settle) is what keeps it off the sine wave.
+   The light band sweeps a long way down the letter and the bloom
+   swells at the top of the breath: that travelling light is the
+   strongest "living surface" cue and, unlike opacity alone, never
+   reads as a blink. Visible within a second of looking, still calm. */
 @keyframes tex-rest-breath {
   0% {
-    opacity: 0.86;
-    transform: translateY(2px);
-    background-position: 50% 12%;
-    filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+    opacity: 0.9;
+    transform: translateY(4px);
+    background-position: 50% 4%;
+    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   }
-  42% {
+  44% {
     opacity: 1;
-    transform: translateY(-2.5px);
-    background-position: 50% 30%;
-    filter: drop-shadow(0 0 11px rgba(150, 170, 195, 0.24));
+    transform: translateY(-4px);
+    background-position: 50% 82%;
+    filter: drop-shadow(0 0 18px rgba(120, 150, 185, 0.32));
   }
-  62% {
-    opacity: 0.98;
-    transform: translateY(-1.5px);
-    background-position: 50% 33%;
-    filter: drop-shadow(0 0 6px rgba(150, 170, 195, 0.14));
+  64% {
+    opacity: 0.99;
+    transform: translateY(-2.5px);
+    background-position: 50% 92%;
+    filter: drop-shadow(0 0 10px rgba(120, 150, 185, 0.18));
   }
   100% {
-    opacity: 0.86;
-    transform: translateY(2px);
-    background-position: 50% 12%;
-    filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+    opacity: 0.9;
+    transform: translateY(4px);
+    background-position: 50% 4%;
+    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   }
 }
 
@@ -682,11 +688,11 @@
   .tex-vigil-rest-mark {
     opacity: 1;
     transform: translateY(0);
-    background-position: 50% 24%;
-    filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+    background-position: 50% 44%;
+    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   }
   .tex-vigil-rest::after {
-    opacity: 0.5;
+    opacity: 0.55;
     transform: translateX(-50%) scaleX(1) scaleY(1);
   }
 }
