@@ -502,6 +502,76 @@
 }
 
 /* ================================================================
+   The opening — the black T, deepening.
+
+   Every visit opens here. A single capital T in Cormorant Garamond,
+   solid black, arriving as faded ink and deepening to full black over
+   2.5 seconds. No breath loop, no migrating light, no chrome — one
+   letter gaining weight, the way ink soaks into paper. When it reaches
+   full black, Tex speaks: the opening hands off to the vigil. This is
+   the inhale before the first sentence, and it is not a summon —
+   nothing the operator does triggers it.
+   ================================================================ */
+
+.tex-vigil-stage--open {
+  max-width: none;
+  /* The stage itself does not fade — the letter carries the deepen,
+     so the ink visibly soaks in rather than the whole layer dissolving
+     up from nothing. */
+}
+
+.tex-vigil-open {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.tex-vigil-open-mark {
+  font-family: var(--tex-mark);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(160px, 24vw, 320px);
+  line-height: 1;
+  /* Solid black. Not a gradient, not slate — ink. */
+  color: #000000;
+  padding: 0.06em 0.2em;
+  display: inline-block;
+  /* Faded black → full black over 2.5s. The ease keeps most of the
+     deepen in the back half, so it reads as settling into ink, not
+     snapping on. Holds at full black on the last frame (both). */
+  animation: tex-open-ink 2500ms cubic-bezier(0.33, 0, 0.2, 1) both;
+  will-change: opacity;
+}
+
+@keyframes tex-open-ink {
+  from {
+    /* Light, faded black — present, but not yet committed. */
+    opacity: 0.14;
+  }
+  to {
+    /* Full black. */
+    opacity: 1;
+  }
+}
+
+/* Reduced motion — the letter is simply present, full black, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .tex-vigil-open-mark {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* Phone — the letter stays the hero, sized to the viewport. */
+@media (max-width: 720px) {
+  .tex-vigil-open-mark {
+    font-size: clamp(120px, 42vw, 240px);
+  }
+}
+
+/* ================================================================
    The witness at rest — the breathing T.
 
    When Tex has nothing true to report, the screen is one letter.

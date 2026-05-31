@@ -10,61 +10,53 @@ import { speak, ALL_LAYERS } from "../../lib/texVoice";
 
    One screen. One voice. Three depths.
 
-   PHASE: manifesto (day one, ever)
-     Four lines arrive one at a time, slowly, on white. There is no
-     chrome — no T mark, no avatar. Tex is introducing itself, and
-     nothing else exists on the page. After the four hold together
-     for a long beat, they dissolve into a held empty moment, and
-     then the vigil begins. The first time the operator ever sees
-     the T mark and avatar is at that transition. This entire phase
-     happens once per account, ever. The server-side flag (or, for
-     now, localStorage) records that it happened.
+   PHASE: intro (the first time this person ever opens tex.systems)
+     Three sentences arrive one at a time, slowly, on white. No chrome
+     — no T mark, no avatar. Tex stating its posture before it has a
+     night to report. This happens once per browser, ever. The
+     server-side flag (localStorage for now) records that it happened.
+     After the first visit, this screen never shows again.
 
-   PHASE: threshold (day two onward)
-     The door is shorter and specific. Three sentences derived from
-     last-night's state. No "I am Tex" — Tex's identity is performed
-     by voice, not announced. ~8 seconds. Then a 1.5s held pause
-     before the vigil begins. The T mark and avatar are visible
-     from the first frame of this phase.
+   OPENING (every visit):
+     The page opens on a single black T in Cormorant Garamond. It
+     arrives faded — light black — and deepens to full black over
+     2.5 seconds. No chrome. The deepen is the inhale. The instant it
+     reaches full ink, Tex speaks: the T gives way to the vigil. This
+     is not a summon. No click, no hover. Tex speaks because it has
+     something to say and you are here.
 
    PHASE: vigil
-     The sentences Tex chose cycle, one at a time, in the same
-     place, in the same size. Each holds 7.4s, then crossfades.
-     The sentences and the standing word come from GET /v1/vigil —
-     Tex decides what to say on the backend (Bayesian surprise
-     across the six dimensions, sealed-filled forms); the frontend
-     renders the choice and computes nothing about it. The vigil
-     does not end.
+     The sentences Tex chose cycle, one at a time, in the same place,
+     in the same size. Each holds 7.4s, then crossfades. The sentences
+     and the standing word come from GET /v1/vigil — Tex decides what
+     to say on the backend; the frontend renders the choice and
+     computes nothing about it. The vigil does not end.
 
    PHASE: proof
-     Click a sentence. The summary dissolves. Tex finishes the
-     story of that one thing in the same voice — POST /v1/vigil/explain
+     Click a sentence. The summary dissolves. Tex finishes the story
+     of that one thing in the same voice — POST /v1/vigil/explain
      returns prose grounded in the sealed facts for that dimension.
-     Below it, a small italic anchor in Tex's voice. Hover the
-     anchor — the SHA-256 hash appears in monospace, the only place
-     in the product where typography breaks register. After a beat
-     of stillness, Tex returns to the vigil at the next sentence.
+     Below it, a small italic anchor. Hover the anchor — the SHA-256
+     hash appears in monospace, the only place the type breaks
+     register. After a beat, Tex returns to the vigil.
 
-   The T mark resets to the vigil, never to the manifesto.
-   Hovering anywhere pauses pacing. There are no other controls.
+   The T mark resets to the vigil, never replays the intro or the
+   opening. Hovering anywhere pauses pacing. There are no other
+   controls.
    ================================================================== */
 
 /* Pacing constants — all in one place so the rhythm is easy to tune. */
 
-/* Manifesto pacing — once per account, ever. The patience is the point. */
-const MANIFESTO_FIRST_DELAY_MS = 500;
-const MANIFESTO_LINE_STAGGER_MS = 4_200;
-const MANIFESTO_LINE_FADE_MS = 1_400;
-const MANIFESTO_HOLD_MS = 8_000;
-const MANIFESTO_DISSOLVE_MS = 1_200;
-const MANIFESTO_BLACKOUT_MS = 1_800;
+/* Intro pacing — once per browser, ever. Three sentences. */
+const INTRO_FIRST_DELAY_MS = 400;
+const INTRO_LINE_STAGGER_MS = 2_600;
+const INTRO_LINE_FADE_MS = 1_000;
+const INTRO_HOLD_MS = 2_400;
+const INTRO_PAUSE_MS = 1_400;
 
-/* Threshold pacing — day two onward. Faster. Past-tense reports. */
-const THRESHOLD_FIRST_DELAY_MS = 300;
-const THRESHOLD_LINE_STAGGER_MS = 2_500;
-const THRESHOLD_LINE_FADE_MS = 900;
-const THRESHOLD_HOLD_MS = 2_000;
-const THRESHOLD_PAUSE_MS = 1_500;
+/* Opening pacing — the black T deepening from faded to full ink, then
+   Tex speaks. This is the inhale before the first sentence, every load. */
+const OPEN_INK_MS = 2_500;
 
 /* Vigil pacing — the steady rhythm Tex lives in. */
 const VIGIL_HOLD_MS = 7_400;
@@ -73,34 +65,27 @@ const CROSSFADE_MS = 700;
 /* Proof pacing. */
 const PROOF_RETURN_MS = 14_000;
 
-const MANIFESTO_LINES = [
-  "I am Tex.",
-  "I see your agents.",
-  "I decide what they can do.",
-  "I keep the proof.",
-];
-
 /* Server-side flag stand-in. When the backend grows a user model with
-   a seen_manifesto_at field, this becomes a fetch. Until then we keep
-   the once-per-account contract locally. */
-const MANIFESTO_FLAG_KEY = "tex.seen_manifesto_at";
+   a seen_intro_at field, this becomes a fetch. Until then we keep the
+   once-per-browser contract locally. */
+const INTRO_FLAG_KEY = "tex.seen_intro_at";
 
-function hasSeenManifesto() {
+function hasSeenIntro() {
   try {
-    return Boolean(window.localStorage.getItem(MANIFESTO_FLAG_KEY));
+    return Boolean(window.localStorage.getItem(INTRO_FLAG_KEY));
   } catch {
-    /* If localStorage is unavailable, fail open to threshold. The
-       manifesto exists to be seen at most once; never showing it
-       again on a broken browser is the safer side of the contract. */
+    /* If localStorage is unavailable, fail closed — skip the intro.
+       It exists to be seen at most once; never showing it again on a
+       broken browser is the safer side of the contract. */
     return true;
   }
 }
 
-function markManifestoSeen() {
+function markIntroSeen() {
   try {
-    window.localStorage.setItem(MANIFESTO_FLAG_KEY, new Date().toISOString());
+    window.localStorage.setItem(INTRO_FLAG_KEY, new Date().toISOString());
   } catch {
-    /* No-op. The next session will simply skip the manifesto too. */
+    /* No-op. The next session will simply skip the intro too. */
   }
 }
 
@@ -114,37 +99,38 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
      to a posture-forward ready line while null, never a blank stage. */
   const vigil = useVigil();
 
-  /* System state still feeds the day-two threshold door (the overnight
-     catch-up), which has no dedicated backend endpoint yet. The live
-     vigil no longer derives from this. */
+  /* System state feeds the once-only intro door (the three posture
+     sentences). The live vigil no longer derives from this. */
   const snapshot = useSystemState();
 
-  /* Initial phase: the manifesto on day one, the threshold otherwise. */
+  /* Initial phase: the intro the first time ever, the vigil otherwise. */
   const [phase, setPhase] = useState(() =>
-    hasSeenManifesto() ? "threshold" : "manifesto"
+    hasSeenIntro() ? "vigil" : "intro"
   );
+
+  /* The opening deepen plays once, on the first entry into the vigil
+     this load. Pressing the T or returning from proof never replays it. */
+  const [opening, setOpening] = useState(true);
+  const openedRef = useRef(false);
+
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [hashVisible, setHashVisible] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [blackout, setBlackout] = useState(false);
-  /* The explanation Tex returns when a line is opened. Null until the
-     explain call resolves; the proof layer shows a posture-forward
-     fallback while null or if the call fails. */
+  /* The explanation Tex returns when a line is opened. */
   const [proof, setProof] = useState(null);
 
   const advanceTimer = useRef(null);
   const fadeTimer = useRef(null);
   const proofReturnTimer = useRef(null);
-  const blackoutTimer = useRef(null);
+  const openTimer = useRef(null);
 
   /* ---------------- The chosen voice ----------------
 
      The vigil renders whatever Tex chose this cycle, in surprise order.
      The frontend authors and ranks nothing. When the backend hasn't
-     answered yet, or returned nothing, one posture-forward line keeps
-     the stage speaking instead of blank. Declared here, above the pacing
-     effects, because the rotation cycles over its length. */
+     answered yet, one posture-forward line keeps the stage speaking
+     instead of blank — Tex without a response yet is still Tex. */
   const READY_FALLBACK = {
     text: "I'm posted. The moment your agents appear, I'll have them.",
     dimension: "discovery",
@@ -159,47 +145,39 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
 
   /* ---------------- The witness at rest ----------------
 
-     When Tex has nothing true to report — no agents yet, or the vigil
-     hasn't answered this session — there is nothing to say, so Tex says
-     nothing. The screen is one breathing letter and nothing else. A
-     witness at rest does not narrate its own waiting; patience does not
-     announce itself. The instant a real utterance arrives, this goes
-     false and Tex speaks. The signal is read straight off the wire:
-     an empty (or not-yet-loaded) utterance list. */
-  const nothingToReport = !vigil || (vigil.utterances?.length ?? 0) === 0;
+     True silence is a state Tex has EARNED, not a state of not having
+     answered. Tex is at rest only when the wire HAS answered this
+     session and chose to say nothing (warm and empty). A wire that
+     hasn't answered yet is not silence — Tex speaks the posted line.
+     This is the difference between "nothing to report" and "no report
+     yet," and it is what lets the opening hand off to speech. */
+  const nothingToReport =
+    !!vigil && (vigil.utterances?.length ?? 0) === 0;
 
   /* ---------------- Chrome visibility ----------------
 
-     The chrome (T mark + avatar) is hidden during the manifesto and
-     during the blackout. It first appears at the moment the vigil
-     begins on day one, and is always visible from then on — EXCEPT
-     when Tex is at rest. With nothing to report, the screen is one
-     breathing T and nothing else; a second T in the corner and an
-     avatar would contradict that stillness. The chrome returns the
-     instant Tex speaks, because then navigating and looking closer
-     become meaningful again. The threshold door keeps its chrome from
-     the first frame (the rest-gate only applies inside the vigil). */
+     The chrome (T mark + avatar) is hidden during the intro and during
+     the opening deepen — nothing exists on the page but the letter. It
+     appears the moment Tex speaks, because then navigating and looking
+     closer become meaningful. It hides again only in earned rest. */
   useEffect(() => {
     if (!onChromeReady) return;
     const showChrome =
-      phase !== "manifesto" &&
-      !blackout &&
-      !(phase === "vigil" && nothingToReport);
+      phase !== "intro" && !opening && !nothingToReport;
     onChromeReady(showChrome);
-  }, [phase, blackout, nothingToReport, onChromeReady]);
+  }, [phase, opening, nothingToReport, onChromeReady]);
 
   /* ---------------- T mark home ----------------
 
-     T mark resets to the vigil, never to the manifesto. If the user
-     has somehow not yet seen the manifesto and presses T anyway, we
-     still send them to the vigil — pressing T is implicit consent
-     that they don't want the slow introduction. */
+     T mark resets to the vigil. It never replays the intro or the
+     opening deepen — those are unrepeatable, by design. */
   useEffect(() => {
     if (!onHomeRequested) return;
     onHomeRequested(() => {
       clearAll();
-      if (!hasSeenManifesto()) markManifestoSeen();
-      setBlackout(false);
+      if (!hasSeenIntro()) markIntroSeen();
+      setOpening(false);
+      openedRef.current = true;
       setPhase("vigil");
       setIndex(0);
       setLeaving(false);
@@ -210,78 +188,59 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
   /* ---------------- Pacing ---------------- */
 
   const clearAll = () => {
-    [advanceTimer, fadeTimer, proofReturnTimer, blackoutTimer].forEach((r) => {
+    [advanceTimer, fadeTimer, proofReturnTimer, openTimer].forEach((r) => {
       if (r.current) clearTimeout(r.current);
       r.current = null;
     });
   };
 
-  /* Manifesto → blackout → vigil. The blackout is the ma.
-
-     Note: the manifesto deliberately does NOT respect the paused flag.
-     A once-in-a-lifetime introduction does not get interrupted by the
-     operator's cursor happening to be on the page. Tex finishes
-     introducing itself; only the vigil itself pauses on hover. */
+  /* Intro → held pause → vigil. Plays to completion regardless of hover
+     — it is a delivered statement, once, and you don't interrupt it. */
   useEffect(() => {
-    if (phase !== "manifesto") return;
+    if (phase !== "intro") return;
 
     const arriveTotal =
-      MANIFESTO_FIRST_DELAY_MS +
-      3 * MANIFESTO_LINE_STAGGER_MS +
-      MANIFESTO_LINE_FADE_MS;
-    const dissolveAt = arriveTotal + MANIFESTO_HOLD_MS;
+      INTRO_FIRST_DELAY_MS +
+      2 * INTRO_LINE_STAGGER_MS +
+      INTRO_LINE_FADE_MS;
+    const dissolveAt = arriveTotal + INTRO_HOLD_MS;
 
     advanceTimer.current = setTimeout(() => {
       setLeaving(true);
       fadeTimer.current = setTimeout(() => {
-        /* Mark seen the instant the manifesto starts to dissolve. */
-        markManifestoSeen();
+        markIntroSeen();
         setLeaving(false);
-        setBlackout(true);
-        blackoutTimer.current = setTimeout(() => {
-          setBlackout(false);
+        proofReturnTimer.current = setTimeout(() => {
           setPhase("vigil");
           setIndex(0);
-        }, MANIFESTO_BLACKOUT_MS);
-      }, MANIFESTO_DISSOLVE_MS);
-    }, dissolveAt);
-
-    return clearAll;
-  }, [phase]);
-
-  /* Threshold → held pause → vigil.
-
-     The threshold, like the manifesto, plays to completion regardless
-     of hover state. It is a delivered report — Tex catching the
-     operator up on what happened overnight. You don't interrupt
-     someone delivering a report by leaning in to listen. Only the
-     vigil itself pauses on hover. */
-  useEffect(() => {
-    if (phase !== "threshold") return;
-
-    const arriveTotal =
-      THRESHOLD_FIRST_DELAY_MS +
-      2 * THRESHOLD_LINE_STAGGER_MS +
-      THRESHOLD_LINE_FADE_MS;
-    const dissolveAt = arriveTotal + THRESHOLD_HOLD_MS;
-
-    advanceTimer.current = setTimeout(() => {
-      setLeaving(true);
-      fadeTimer.current = setTimeout(() => {
-        setLeaving(false);
-        blackoutTimer.current = setTimeout(() => {
-          setPhase("vigil");
-          setIndex(0);
-        }, THRESHOLD_PAUSE_MS);
+        }, INTRO_PAUSE_MS);
       }, CROSSFADE_MS);
     }, dissolveAt);
 
     return clearAll;
   }, [phase]);
 
+  /* Opening deepen → speech. The first time the vigil is entered this
+     load, the black T deepens from faded to full ink over 2.5s, then
+     Tex speaks. Runs exactly once; the ref guards against re-entry. */
+  useEffect(() => {
+    if (phase !== "vigil") return;
+    if (openedRef.current) return;
+    openedRef.current = true;
+
+    openTimer.current = setTimeout(() => {
+      setOpening(false);
+    }, OPEN_INK_MS);
+
+    return () => {
+      if (openTimer.current) clearTimeout(openTimer.current);
+    };
+  }, [phase]);
+
   /* Vigil pacing. */
   useEffect(() => {
     if (phase !== "vigil") return;
+    if (opening) return;
     if (paused) return;
 
     advanceTimer.current = setTimeout(() => {
@@ -293,7 +252,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     }, VIGIL_HOLD_MS);
 
     return clearAll;
-  }, [phase, index, paused, utterances.length]);
+  }, [phase, index, opening, paused, utterances.length]);
 
   /* Proof → vigil. */
   useEffect(() => {
@@ -314,18 +273,12 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     return clearAll;
   }, [phase, paused, utterances.length]);
 
-  /* ---------------- Voice derivation ----------------
+  /* ---------------- Voice derivation ---------------- */
 
-     utterances (the chosen voice) is derived above, where the rotation
-     can read it. Here we resolve the standing word, the threshold-door
-     sentences, and the current line. */
-
-  /* The standing word is Tex's posture, owned by the backend: "Absolute"
-     when nothing is unresolved, "Open" the moment it cannot stand fully
-     behind the calm. Default to Absolute before the first response. */
+  /* The standing word is Tex's posture, owned by the backend. */
   const standingWord = vigil?.standing ?? "Absolute";
 
-  const thresholdSentences = useMemo(() => {
+  const introSentences = useMemo(() => {
     const all = speak(snapshot ?? null, ALL_LAYERS);
     const byKey = Object.fromEntries(all.map((x) => [x.key, x]));
     return [byKey.discovery, byKey.monitoring, byKey.execution];
@@ -337,11 +290,6 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
   const proofFallback =
     PROOF_PLACEHOLDERS[current?.dimension] ?? PROOF_PLACEHOLDERS.evidence;
 
-  /* The proof view-model. When Tex has returned an explanation for the
-     opened line, the prose and the sealed anchor are real; the hash is
-     the sha256 of the first sealed anchor (or the line's own proof_ref).
-     Until then — or if the explain call fails — the posture-forward
-     fallback keeps the layer's shape intact, never a blank or a spinner. */
   const proofAnchorSha =
     proof?.facts?.anchors?.find((a) => a.sha256)?.sha256 ??
     current?.proof_ref?.sha256 ??
@@ -353,7 +301,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
         hash: proofAnchorSha || "—",
       }
     : {
-        prose: null, // render the fallback head/tail pair below
+        prose: null,
         anchorLabel: proofFallback.anchor,
         hash: proofAnchorSha || proofFallback.hash,
       };
@@ -368,18 +316,16 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
 
   const handleSentenceClick = () => {
     if (phase !== "vigil") return;
+    if (opening) return;
     if (leaving) return;
     clearAll();
 
-    /* Ask Tex to finish the story behind this exact line. Fire now so the
-       prose is likely ready by the time the proof stage renders. The line
-       being opened is the claim; the dimension routes the sealed facts. */
     const line = current;
     setProof(null);
     if (line?.dimension) {
       explainLine(line.dimension, line.text)
         .then((res) => setProof(res))
-        .catch(() => setProof(null)); // fall back to the posture line
+        .catch(() => setProof(null));
     }
 
     setLeaving(true);
@@ -396,47 +342,24 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
       leaving ? " is-leaving" : ""
     }${extra ? ` ${extra}` : ""}`;
 
+  /* The opening deepen owns the screen until the ink reaches full black,
+     for every visit. It renders over the vigil phase before the first
+     sentence. */
+  const showOpening = phase === "vigil" && opening;
+
   return (
     <section
       className="tex-vigil"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
-      {phase === "manifesto" && !blackout && (
-        <div className={stageClass()} key="manifesto">
-          <div className="tex-vigil-door tex-vigil-door--manifesto">
-            {MANIFESTO_LINES.map((line, i) => {
-              const delaySec =
-                (MANIFESTO_FIRST_DELAY_MS + i * MANIFESTO_LINE_STAGGER_MS) /
-                1000;
-              const durationSec = MANIFESTO_LINE_FADE_MS / 1000;
-              return (
-                <p
-                  key={i}
-                  className="tex-vigil-door-line"
-                  style={{
-                    animationDelay: `${delaySec}s`,
-                    animationDuration: `${durationSec}s`,
-                  }}
-                >
-                  {line}
-                </p>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {blackout && <div className="tex-vigil-blackout" aria-hidden="true" />}
-
-      {phase === "threshold" && (
-        <div className={stageClass()} key="threshold">
+      {phase === "intro" && (
+        <div className={stageClass()} key="intro">
           <div className="tex-vigil-door tex-vigil-door--threshold">
-            {thresholdSentences.map((s, i) => {
+            {introSentences.map((s, i) => {
               const delaySec =
-                (THRESHOLD_FIRST_DELAY_MS + i * THRESHOLD_LINE_STAGGER_MS) /
-                1000;
-              const durationSec = THRESHOLD_LINE_FADE_MS / 1000;
+                (INTRO_FIRST_DELAY_MS + i * INTRO_LINE_STAGGER_MS) / 1000;
+              const durationSec = INTRO_LINE_FADE_MS / 1000;
               return (
                 <p
                   key={s?.key ?? i}
@@ -460,15 +383,30 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
         </div>
       )}
 
-      {phase === "vigil" && nothingToReport && (
-        <div className="tex-vigil-stage tex-vigil-stage--idle" key="vigil-rest">
-          <div className="tex-vigil-rest" aria-label="Tex, at rest. Nothing to report.">
-            <span className="tex-vigil-rest-mark" aria-hidden="true">T</span>
+      {showOpening && (
+        <div className="tex-vigil-stage tex-vigil-stage--open" key="open">
+          <div className="tex-vigil-open">
+            <span className="tex-vigil-open-mark" aria-hidden="true">
+              T
+            </span>
           </div>
         </div>
       )}
 
-      {phase === "vigil" && !nothingToReport && current && (
+      {phase === "vigil" && !opening && nothingToReport && (
+        <div className="tex-vigil-stage tex-vigil-stage--idle" key="vigil-rest">
+          <div
+            className="tex-vigil-rest"
+            aria-label="Tex, at rest. Nothing to report."
+          >
+            <span className="tex-vigil-rest-mark" aria-hidden="true">
+              T
+            </span>
+          </div>
+        </div>
+      )}
+
+      {phase === "vigil" && !opening && !nothingToReport && current && (
         <div className={stageClass()} key={`vigil-${index}`}>
           <div className="tex-vigil-stack">
             <h1
@@ -580,10 +518,8 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
           <div className="tex-vigil-proof">
             <p className="tex-vigil-proof-line">
               {proofView.prose ? (
-                /* Tex finished the story — grounded in sealed facts. */
                 <span className="tex-vigil-head">{proofView.prose}</span>
               ) : (
-                /* No explanation yet (or the call failed): posture prose. */
                 <>
                   <span className="tex-vigil-head">{proofFallback.head}</span>{" "}
                   <em className="tex-vigil-tail">{proofFallback.tail}</em>
@@ -619,8 +555,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
 /* Placeholder proof prose. These exist because the backend's evidence
    chain is empty — there are no Decision records to replay yet. The
    moment the first POST /evaluate runs, this object goes away and the
-   proof layer fetches real decisions by id. Until then, the shape
-   stays so the layer's UX is intact. */
+   proof layer fetches real decisions by id. */
 const PROOF_PLACEHOLDERS = {
   discovery: {
     head: "When I find one, I'll tell you who it is, where I found it, and what it can already reach.",

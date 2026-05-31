@@ -19,7 +19,7 @@
      italic carries the trace of a hand — thick where the pen bore
      down, thin where it lifted — which is what makes a letter read as
      alive rather than placed. Used for nothing but the breathing T. */
-  --tex-mark: "Cormorant", "Source Serif 4", Georgia, serif;
+  --tex-mark: "Cormorant Garamond", "Cormorant", "Source Serif 4", Georgia, serif;
 
   /* Ink — black on paper, two soft greys for asides and proof. */
   --tex-ink: #14110d;
