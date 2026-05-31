@@ -15,11 +15,18 @@
 
   /* The mark — Tex's identity at rest. One glyph, and the one place
      the type system is allowed to break, because the T is not body
-     text: it is the witness itself. A high-contrast calligraphic
-     italic carries the trace of a hand — thick where the pen bore
-     down, thin where it lifted — which is what makes a letter read as
-     alive rather than placed. Used for nothing but the breathing T. */
-  --tex-mark: "Cormorant Garamond", "Cormorant", "Source Serif 4", Georgia, serif;
+     text: it is the witness itself. The letterform is chosen for ONE
+     property: it breathes as a single mass. An even, low-contrast
+     slab — heavy serifs that fade WITH the stem as opacity swells,
+     not before it. A high-contrast calligraphic letter looks finer
+     frozen but disintegrates at the bottom of the breath (hairline
+     serifs vanish first, so the letter stutters apart and reassembles
+     every cycle). The plain even letter is less precious still, and
+     more honest in motion — and when it desaturates in the faltering
+     state, a solid letter going pale reads as the trusted thing
+     sickening, not as a rendering glitch. Used for nothing but the
+     breathing T. */
+  --tex-mark: "Roboto Slab", "Zilla Slab", "Bitter", "Source Serif 4", Georgia, serif;
 
   /* Ink — black on paper, two soft greys for asides and proof. */
   --tex-ink: #14110d;

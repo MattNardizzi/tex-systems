@@ -93,7 +93,7 @@
 }
 .tex-mark-glyph > span {
   font-family: var(--tex-mark);
-  font-weight: 400;
+  font-weight: 500;
   font-size: clamp(150px, 27vh, 320px);
   line-height: 1;
   color: var(--tex-ink);
