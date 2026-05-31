@@ -586,93 +586,73 @@
    vertically so its bright band can travel down the stem as
    background-position animates — light moving across a living
    surface. */
-/* The lean layer. Carries the awareness tilt — a fraction of a degree
-   toward the cursor — on its own transform so it composes cleanly with
-   the breath (on the mark) and the wander (on the wrapper). The long
-   ease is deliberate: attention turns slowly, it doesn't track. */
-.tex-vigil-rest-lean {
-  display: inline-block;
-  transform:
-    translateX(calc(var(--tex-rest-tilt, 0) * 7px))
-    rotate(calc(var(--tex-rest-tilt, 0) * 0.9deg));
-  transition: transform 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
-  will-change: transform;
-}
-
-/* The letter itself. Steady slate ink — confident from crossbar to
-   foot. The light no longer migrates on a timer (that read as a polished
-   surface being lit, which a presence is not); instead a soft highlight
-   lives at 0 opacity until the cursor arrives, then it brightens and
-   follows the cursor's bearing across the letter. Light moves only in
-   response to you. */
 .tex-vigil-rest-mark {
   font-family: var(--tex-mark);
   font-style: italic;
   font-weight: 500;
   font-size: clamp(160px, 24vw, 320px);
-  /* Room so Cormorant Garamond's italic overhang isn't sheared by the
-     background-clip box, and the grounding shadow sits under the glyph. */
+  /* Padding gives the clip box room. Cormorant's italic capital T
+     overhangs its advance width on the upper right; without this the
+     background-clip:text box shears that flare off. Also lets the
+     grounding shadow sit under the real width of the letter. */
   padding: 0.06em 0.2em;
   display: inline-block;
 
-  background:
-    radial-gradient(
-      42% 46% at var(--tex-rest-mx, 50%) var(--tex-rest-my, 32%),
-      rgba(178, 200, 228, calc(var(--tex-rest-glow, 0) * 0.6)) 0%,
-      rgba(178, 200, 228, 0) 62%
-    ),
-    linear-gradient(
-      180deg,
-      #6f8096 0%,
-      #93a3b8 13%,
-      #5f7187 37%,
-      #3a4a5e 64%,
-      #18222e 100%
-    );
-  background-size: 100% 100%, 100% 200%;
-  background-position: 0% 0%, 50% 42%;
+  /* Ink, not vapour. The letter must read confidently on white from
+     crossbar to foot — a slate that goes nearly to black at the base,
+     with one brighter band that travels as it breathes. The old pale
+     top belonged to the standing word, against dark text; alone on
+     paper it simply disappeared. */
+  background: linear-gradient(
+    180deg,
+    #6f8096 0%,
+    #93a3b8 13%,
+    #5f7187 37%,
+    #3a4a5e 64%,
+    #18222e 100%
+  );
+  background-size: 100% 200%;
+  background-position: 50% 14%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
 
-  /* A bloom that deepens as awareness rises — the breath drawing a
-     little heavier when something is in front of it. Driven by the same
-     glow variable, eased so it swells and fades rather than snapping. */
-  filter:
-    drop-shadow(0 0 calc(var(--tex-rest-glow, 0) * 16px) rgba(150, 175, 205, calc(var(--tex-rest-glow, 0) * 0.32)))
-    drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
-  transition: filter 900ms ease;
+  filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   animation: tex-rest-breath 11s ease-in-out infinite;
-  will-change: opacity, transform, background-position;
+  will-change: opacity, transform, background-position, filter;
 }
 
-/* Primary breath — the light migrates down the letter and the fade
-   swings gently, the version that reads as alive. It animates only the
-   base layer's position (the second background) plus opacity and a
-   sub-pixel rise; the filter is left untouched so the cursor-driven
-   awareness glow can own it independently. Peak at 44% keeps the
-   asymmetry off a sine wave. */
+/* Primary breath. The peak lands at 44%, not 50% — the asymmetry
+   (quicker rise, longer settle) is what keeps it off the sine wave.
+   The light band sweeps a long way down the letter and the bloom
+   swells at the top of the breath: that travelling light is the
+   strongest "living surface" cue and, unlike opacity alone, never
+   reads as a blink. Visible within a second of looking, still calm. */
 @keyframes tex-rest-breath {
   0% {
     opacity: 0.9;
     transform: translateY(4px);
-    background-position: 0% 0%, 50% 4%;
+    background-position: 50% 4%;
+    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   }
   44% {
     opacity: 1;
     transform: translateY(-4px);
-    background-position: 0% 0%, 50% 82%;
+    background-position: 50% 82%;
+    filter: drop-shadow(0 0 18px rgba(120, 150, 185, 0.32));
   }
   64% {
     opacity: 0.99;
     transform: translateY(-2.5px);
-    background-position: 0% 0%, 50% 92%;
+    background-position: 50% 92%;
+    filter: drop-shadow(0 0 10px rgba(120, 150, 185, 0.18));
   }
   100% {
     opacity: 0.9;
     transform: translateY(4px);
-    background-position: 0% 0%, 50% 4%;
+    background-position: 50% 4%;
+    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   }
 }
 
@@ -708,10 +688,8 @@
   .tex-vigil-rest-mark {
     opacity: 1;
     transform: translateY(0);
-    background-position: 0% 0%, 50% 44%;
-  }
-  .tex-vigil-rest-lean {
-    transform: none;
+    background-position: 50% 44%;
+    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
   }
   .tex-vigil-rest::after {
     opacity: 0.55;
