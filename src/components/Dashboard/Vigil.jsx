@@ -389,7 +389,17 @@ export default function Vigil() {
           onKeyDown={onKeyDown}
           onKeyUp={onKeyUp}
         >
-          <span aria-hidden="true">T</span>
+          <span aria-hidden="true">
+            <svg
+              className="tex-mark-svg"
+              viewBox="0 0 716 736"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <rect x="10" y="10" width="696" height="16" />
+              <rect x="350" y="74" width="16" height="652" />
+            </svg>
+          </span>
         </button>
 
         <div className="tex-voice" aria-live="polite">

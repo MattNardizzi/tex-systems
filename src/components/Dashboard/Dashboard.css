@@ -1,7 +1,7 @@
 /* ============================================================
    Dashboard — the shell. Paper + body.
-   The TopBar is fixed (so the T stays a way home from anywhere),
-   which means the body owns its own top padding equal to the bar.
+   No TopBar, no chrome: the body owns the whole surface and the T
+   lives at center as the breathing mark, never parked in a corner.
    One stage. No rooms, no pill, no door into anything. The vigil
    is the whole surface.
    ============================================================ */

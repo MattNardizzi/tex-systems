@@ -101,6 +101,16 @@
   opacity: 0.82;
   will-change: opacity, color, transform;
 }
+/* The mark is now a drawn glyph, not a font character: an exact
+   hairline T with square-cut terminals and a sliver of light at the
+   joint. It inherits the span's color via currentColor, so every
+   breath state (rest / held / faltering / listening) animates it
+   exactly as before. Height tracks the same responsive font-size. */
+.tex-mark-glyph > span > svg {
+  display: block;
+  height: 1em;
+  width: auto;
+}
 
 /* Keyboard focus — a quiet ring, only for keyboard users. */
 .tex-mark-glyph:focus-visible {
