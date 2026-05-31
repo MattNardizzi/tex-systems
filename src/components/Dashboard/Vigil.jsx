@@ -89,6 +89,18 @@ function markIntroSeen() {
   }
 }
 
+/* Per-page-load guard. The localStorage flag is the *permanent* record
+   — "this browser has met Tex." This is the *transient* one — "the
+   intro has begun during THIS load." It lives at module scope so it
+   survives a component remount within the same load (React 18 mounts
+   every component twice on first paint in development; a fast refresh
+   or a parent re-key would do the same). The intro is a delivered,
+   once-only statement: it must not restart just because the tree was
+   torn down and rebuilt under it. The instant the intro effect runs we
+   claim the load here, and any later mount that still finds phase at
+   "intro" hands straight to the opening T instead of replaying. */
+let introPlayedThisLoad = false;
+
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
@@ -103,9 +115,11 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
      sentences). The live vigil no longer derives from this. */
   const snapshot = useSystemState();
 
-  /* Initial phase: the intro the first time ever, the vigil otherwise. */
+  /* Initial phase: the intro the first time ever, the vigil otherwise.
+     If the intro already began this load (a remount), open on the vigil
+     so the lines never start over. */
   const [phase, setPhase] = useState(() =>
-    hasSeenIntro() ? "vigil" : "intro"
+    hasSeenIntro() || introPlayedThisLoad ? "vigil" : "intro"
   );
 
   /* The opening deepen plays once, on the first entry into the vigil
@@ -198,6 +212,18 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
      — it is a delivered statement, once, and you don't interrupt it. */
   useEffect(() => {
     if (phase !== "intro") return;
+
+    /* A remount within this same load found us still in "intro" (React
+       18's development double-mount, a fast refresh, a parent re-key).
+       The lines already played their entrance once — do not replay
+       them. Hand straight to the opening T. No markIntroSeen here: the
+       permanent flag belongs to the genuine completion path below, so a
+       dev reload can still show the intro again. */
+    if (introPlayedThisLoad) {
+      setPhase("vigil");
+      return;
+    }
+    introPlayedThisLoad = true;
 
     const arriveTotal =
       INTRO_FIRST_DELAY_MS +

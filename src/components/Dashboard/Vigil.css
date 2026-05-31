@@ -73,11 +73,13 @@
    reports stacked. Each line has its own fade-in on its own delay;
    the stage-level arrival is suppressed the same way the manifesto's
    is, so the line timings own the rhythm. */
+.tex-vigil-stage--intro,
 .tex-vigil-stage--threshold,
 .tex-vigil-stage--manifesto {
   animation: none;
 }
 
+.tex-vigil-stage--intro.is-leaving,
 .tex-vigil-stage--threshold.is-leaving,
 .tex-vigil-stage--manifesto.is-leaving {
   animation: tex-vigil-door-leave 900ms ease-in both;
