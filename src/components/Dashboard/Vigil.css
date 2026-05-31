@@ -82,8 +82,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: clamp(180px, 30vh, 360px);
-  height: clamp(180px, 30vh, 360px);
+  width: clamp(216px, 36vh, 432px);
+  height: clamp(216px, 36vh, 432px);
   border: 0;
   background: none;
   cursor: pointer;
@@ -94,7 +94,7 @@
 .tex-mark-glyph > span {
   font-family: var(--tex-mark);
   font-weight: 500;
-  font-size: clamp(150px, 27vh, 320px);
+  font-size: clamp(180px, 32.4vh, 384px);
   line-height: 1;
   color: var(--tex-ink);
   /* default visible opacity for reduced-motion / pre-animation */
