@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./Vigil.css";
 import { useSystemState } from "../../hooks/useSystemState";
-import { speak, VIGIL_LAYERS, ALL_LAYERS, absoluteState } from "../../lib/texVoice";
+import { useVigil } from "../../hooks/useVigil";
+import { explainLine } from "../../lib/texApi";
+import { speak, ALL_LAYERS } from "../../lib/texVoice";
 
 /* ==================================================================
    Vigil — the entire product surface.
@@ -26,19 +28,22 @@ import { speak, VIGIL_LAYERS, ALL_LAYERS, absoluteState } from "../../lib/texVoi
      from the first frame of this phase.
 
    PHASE: vigil
-     The six layer sentences cycle, one at a time, in the same
+     The sentences Tex chose cycle, one at a time, in the same
      place, in the same size. Each holds 7.4s, then crossfades.
-     Sentences are derived from /v1/system/state. The vigil does
-     not end.
+     The sentences and the standing word come from GET /v1/vigil —
+     Tex decides what to say on the backend (Bayesian surprise
+     across the six dimensions, sealed-filled forms); the frontend
+     renders the choice and computes nothing about it. The vigil
+     does not end.
 
    PHASE: proof
      Click a sentence. The summary dissolves. Tex finishes the
-     story of that one thing in the same voice. Below it, a small
-     italic anchor in Tex's voice with the sealed timestamp and
-     ledger position. Hover the anchor — the SHA-256 hash appears
-     in monospace, the only place in the product where typography
-     breaks register. After a beat of stillness, Tex returns to
-     the vigil at the next sentence in sequence.
+     story of that one thing in the same voice — POST /v1/vigil/explain
+     returns prose grounded in the sealed facts for that dimension.
+     Below it, a small italic anchor in Tex's voice. Hover the
+     anchor — the SHA-256 hash appears in monospace, the only place
+     in the product where typography breaks register. After a beat
+     of stillness, Tex returns to the vigil at the next sentence.
 
    The T mark resets to the vigil, never to the manifesto.
    Hovering anywhere pauses pacing. There are no other controls.
@@ -104,9 +109,14 @@ function markManifestoSeen() {
 /* ------------------------------------------------------------------ */
 
 export default function Vigil({ onHomeRequested, onChromeReady }) {
-  /* The snapshot is what the voice speaks from. Null until the first
-     fetch resolves; the voice module renders honest no-knowledge
-     sentences while null. */
+  /* The live voice. Tex chooses what to say on the backend; this is the
+     choice. Null until the first fetch resolves — the render falls back
+     to a posture-forward ready line while null, never a blank stage. */
+  const vigil = useVigil();
+
+  /* System state still feeds the day-two threshold door (the overnight
+     catch-up), which has no dedicated backend endpoint yet. The live
+     vigil no longer derives from this. */
   const snapshot = useSystemState();
 
   /* Initial phase: the manifesto on day one, the threshold otherwise. */
@@ -118,11 +128,34 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
   const [hashVisible, setHashVisible] = useState(false);
   const [paused, setPaused] = useState(false);
   const [blackout, setBlackout] = useState(false);
+  /* The explanation Tex returns when a line is opened. Null until the
+     explain call resolves; the proof layer shows a posture-forward
+     fallback while null or if the call fails. */
+  const [proof, setProof] = useState(null);
 
   const advanceTimer = useRef(null);
   const fadeTimer = useRef(null);
   const proofReturnTimer = useRef(null);
   const blackoutTimer = useRef(null);
+
+  /* ---------------- The chosen voice ----------------
+
+     The vigil renders whatever Tex chose this cycle, in surprise order.
+     The frontend authors and ranks nothing. When the backend hasn't
+     answered yet, or returned nothing, one posture-forward line keeps
+     the stage speaking instead of blank. Declared here, above the pacing
+     effects, because the rotation cycles over its length. */
+  const READY_FALLBACK = {
+    text: "I'm posted. The moment your agents appear, I'll have them.",
+    dimension: "discovery",
+    proof_ref: null,
+    requires_human: false,
+  };
+
+  const utterances = useMemo(() => {
+    const list = vigil?.utterances ?? [];
+    return list.length > 0 ? list : [READY_FALLBACK];
+  }, [vigil]);
 
   /* ---------------- Chrome visibility ----------------
 
@@ -234,13 +267,13 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     advanceTimer.current = setTimeout(() => {
       setLeaving(true);
       fadeTimer.current = setTimeout(() => {
-        setIndex((i) => (i + 1) % VIGIL_LAYERS.length);
+        setIndex((i) => (i + 1) % Math.max(utterances.length, 1));
         setLeaving(false);
       }, CROSSFADE_MS);
     }, VIGIL_HOLD_MS);
 
     return clearAll;
-  }, [phase, index, paused]);
+  }, [phase, index, paused, utterances.length]);
 
   /* Proof → vigil. */
   useEffect(() => {
@@ -251,20 +284,26 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
       setLeaving(true);
       fadeTimer.current = setTimeout(() => {
         setPhase("vigil");
-        setIndex((i) => (i + 1) % VIGIL_LAYERS.length);
+        setIndex((i) => (i + 1) % Math.max(utterances.length, 1));
         setLeaving(false);
         setHashVisible(false);
+        setProof(null);
       }, CROSSFADE_MS);
     }, PROOF_RETURN_MS);
 
     return clearAll;
-  }, [phase, paused]);
+  }, [phase, paused, utterances.length]);
 
-  /* ---------------- Voice derivation ---------------- */
+  /* ---------------- Voice derivation ----------------
 
-  const vigilSentences = useMemo(() => speak(snapshot), [snapshot]);
+     utterances (the chosen voice) is derived above, where the rotation
+     can read it. Here we resolve the standing word, the threshold-door
+     sentences, and the current line. */
 
-  const standing = useMemo(() => absoluteState(snapshot ?? null), [snapshot]);
+  /* The standing word is Tex's posture, owned by the backend: "Absolute"
+     when nothing is unresolved, "Open" the moment it cannot stand fully
+     behind the calm. Default to Absolute before the first response. */
+  const standingWord = vigil?.standing ?? "Absolute";
 
   const thresholdSentences = useMemo(() => {
     const all = speak(snapshot ?? null, ALL_LAYERS);
@@ -272,9 +311,32 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     return [byKey.discovery, byKey.monitoring, byKey.execution];
   }, [snapshot]);
 
-  const current = vigilSentences[index] ?? vigilSentences[0];
-  const proofPlaceholder =
-    PROOF_PLACEHOLDERS[current?.key] ?? PROOF_PLACEHOLDERS.evidence;
+  /* Index can outrun a freshly-shrunk utterance list between polls. */
+  const safeIndex = utterances.length ? index % utterances.length : 0;
+  const current = utterances[safeIndex] ?? utterances[0];
+  const proofFallback =
+    PROOF_PLACEHOLDERS[current?.dimension] ?? PROOF_PLACEHOLDERS.evidence;
+
+  /* The proof view-model. When Tex has returned an explanation for the
+     opened line, the prose and the sealed anchor are real; the hash is
+     the sha256 of the first sealed anchor (or the line's own proof_ref).
+     Until then — or if the explain call fails — the posture-forward
+     fallback keeps the layer's shape intact, never a blank or a spinner. */
+  const proofAnchorSha =
+    proof?.facts?.anchors?.find((a) => a.sha256)?.sha256 ??
+    current?.proof_ref?.sha256 ??
+    null;
+  const proofView = proof
+    ? {
+        prose: proof.explanation,
+        anchorLabel: proof.facts?.headline || "sealed",
+        hash: proofAnchorSha || "—",
+      }
+    : {
+        prose: null, // render the fallback head/tail pair below
+        anchorLabel: proofFallback.anchor,
+        hash: proofAnchorSha || proofFallback.hash,
+      };
 
   /* ---------------- Interaction ---------------- */
 
@@ -288,6 +350,18 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     if (phase !== "vigil") return;
     if (leaving) return;
     clearAll();
+
+    /* Ask Tex to finish the story behind this exact line. Fire now so the
+       prose is likely ready by the time the proof stage renders. The line
+       being opened is the claim; the dimension routes the sealed facts. */
+    const line = current;
+    setProof(null);
+    if (line?.dimension) {
+      explainLine(line.dimension, line.text)
+        .then((res) => setProof(res))
+        .catch(() => setProof(null)); // fall back to the posture line
+    }
+
     setLeaving(true);
     fadeTimer.current = setTimeout(() => {
       setPhase("proof");
@@ -370,8 +444,8 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
         <div className={stageClass()} key={`vigil-${index}`}>
           <div className="tex-vigil-stack">
             <h1
-              className={`tex-vigil-word tex-vigil-word--${standing.word.toLowerCase()}`}
-              aria-label={`${standing.word}.`}
+              className={`tex-vigil-word tex-vigil-word--${standingWord.toLowerCase()}`}
+              aria-label={`${standingWord}.`}
             >
               <svg
                 className="tex-vigil-glass"
@@ -408,7 +482,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
                       fontWeight="400"
                       letterSpacing="-11"
                       fill="#FFFFFF"
-                    >{standing.word}.</text>
+                    >{standingWord}.</text>
                   </mask>
                 </defs>
 
@@ -422,7 +496,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
                   fontWeight="400"
                   letterSpacing="-11"
                   fill="url(#tex-vigil-glass-body)"
-                >{standing.word}.</text>
+                >{standingWord}.</text>
 
                 <text
                   x="450" y="178"
@@ -432,7 +506,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
                   fontWeight="400"
                   letterSpacing="-11"
                   fill="url(#tex-vigil-glass-rim)"
-                >{standing.word}.</text>
+                >{standingWord}.</text>
 
                 <text
                   x="450" y="178"
@@ -445,7 +519,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
                   stroke="#5B6E84"
                   strokeOpacity="0.32"
                   strokeWidth="0.6"
-                >{standing.word}.</text>
+                >{standingWord}.</text>
 
                 <g mask="url(#tex-vigil-glass-mask)">
                   <rect
@@ -466,13 +540,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
               aria-label="Look closer at this"
             >
               <em className="tex-vigil-undertext">
-                <span className="tex-vigil-head">{current.head}</span>
-                {current.tail && (
-                  <>
-                    {" "}
-                    <span className="tex-vigil-tail">{current.tail}</span>
-                  </>
-                )}
+                <span className="tex-vigil-head">{current.text}</span>
               </em>
             </button>
           </div>
@@ -483,8 +551,16 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
         <div className={stageClass()} key={`proof-${index}`}>
           <div className="tex-vigil-proof">
             <p className="tex-vigil-proof-line">
-              <span className="tex-vigil-head">{proofPlaceholder.head}</span>{" "}
-              <em className="tex-vigil-tail">{proofPlaceholder.tail}</em>
+              {proofView.prose ? (
+                /* Tex finished the story — grounded in sealed facts. */
+                <span className="tex-vigil-head">{proofView.prose}</span>
+              ) : (
+                /* No explanation yet (or the call failed): posture prose. */
+                <>
+                  <span className="tex-vigil-head">{proofFallback.head}</span>{" "}
+                  <em className="tex-vigil-tail">{proofFallback.tail}</em>
+                </>
+              )}
             </p>
 
             <button
@@ -496,14 +572,14 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
               onBlur={() => setHashVisible(false)}
               aria-label="Show cryptographic anchor"
             >
-              {proofPlaceholder.anchor}
+              {proofView.anchorLabel}
             </button>
 
             <p
               className={`tex-vigil-hash${hashVisible ? " is-visible" : ""}`}
               aria-hidden={!hashVisible}
             >
-              {proofPlaceholder.hash}
+              {proofView.hash}
             </p>
           </div>
         </div>

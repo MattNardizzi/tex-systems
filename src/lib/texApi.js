@@ -1,33 +1,32 @@
 /**
  * texApi.js
  *
- * The frontend's only door into Tex.
+ * The frontend's only door into Tex — and that door is same-origin.
  *
- * Three calls. Every one of them maps to an endpoint that actually exists
- * in github.com/MattNardizzi/tex. No aspirational endpoints, no chat
- * inputs, no acknowledge actions. Tex talks; the operator listens. The
- * API exists to fetch the truth Tex is speaking, nothing more.
+ * Every call goes to `/api/tex/*`, the Vercel serverless proxy, which
+ * forwards to the real backend on Render and attaches the API key
+ * server-side. The browser never holds the key and never speaks to
+ * Render directly. No CORS, no secret in the bundle.
  *
- *   getSystemState()         → GET /v1/system/state
- *   getDecisionReplay(id)    → GET /decisions/{id}/replay
- *   getEvidenceBundle(id)    → GET /decisions/{id}/evidence-bundle
+ *   getVigil(tenantId?)            → GET  /v1/vigil
+ *   explainLine(dimension, ...)    → POST /v1/vigil/explain
+ *   getSystemState()               → GET  /v1/system/state   (threshold door)
+ *   getDecisionReplay(id)          → GET  /decisions/{id}/replay
+ *   getEvidenceBundle(id)          → GET  /decisions/{id}/evidence-bundle
  *
- * The base URL comes from VITE_TEX_API_BASE so Vercel preview deploys
- * and local dev can point at different backends. The default is the
- * live Render deployment, so the production build of the frontend
- * always speaks to a real Tex even if the env var is missing.
+ * The vigil is the live voice: Tex chooses what to say on the backend
+ * (Bayesian surprise across the six dimensions, sealed-filled sentences),
+ * and the frontend renders the choice. The frontend computes nothing
+ * about what Tex says.
  */
 
-const FALLBACK_BASE = "https://tex-uh4j.onrender.com";
-const BASE = (import.meta.env.VITE_TEX_API_BASE || FALLBACK_BASE).replace(
-  /\/$/,
-  ""
-);
+/* Same-origin proxy prefix. The proxy holds TEX_API_BASE / TEX_API_KEY. */
+const BASE = "/api/tex";
 
-/* The fetch wrapper is intentionally small. No retries, no exponential
-   backoff, no custom error envelopes. If the call fails, the hook above
-   surfaces null and the vigil keeps speaking the last known truth.
-   Silence is Tex's failure mode — not a toast notification. */
+/* The fetch wrapper is intentionally small. No retries, no backoff, no
+   error envelopes. If a call fails, the hook surfaces null and the vigil
+   keeps speaking the last known truth. Silence is Tex's failure mode —
+   not a toast notification. */
 async function request(path, init = {}) {
   const url = `${BASE}${path}`;
   const res = await fetch(url, {
@@ -42,37 +41,58 @@ async function request(path, init = {}) {
 }
 
 /**
- * The aggregate read. One round trip returns:
- *   - governance totals (total_agents, governed_pct, coverage_root_sha256)
- *   - last_scan summary (candidates_seen, registered_count, ledger range)
- *   - connector_health per platform
- *   - scheduler state (presence_tracker_enabled, interval_seconds)
- *   - latest_drift events
- *   - chain (discovery_ledger_length, chain integrity, durable_persistence)
+ * GET /v1/vigil — what Tex chose to say this cycle.
  *
- * This is what the six vigil sentences speak from. Five of the six
- * derive purely from this response. The sixth (learning) needs the
- * /v1/learning/proposals endpoint, which we add when the backend has
- * proposals to surface.
+ * Returns the contract the interface renders:
+ *   {
+ *     tenant_id, generated_at,
+ *     standing: "Absolute" | "Open",
+ *     utterances: [{ text, dimension, surprise, proof_ref?, requires_human }],
+ *     human_decision: { ... } | null,
+ *     meta: { warm, observed_dimensions, spoken, suppressed, selector_version }
+ *   }
+ *
+ * The key carries the tenant in keyed posture, so tenant_id is usually
+ * left unset; pass it only when a privileged key needs to scope a read.
+ */
+export const getVigil = (tenantId) =>
+  request(
+    `/v1/vigil${tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : ""}`
+  );
+
+/**
+ * POST /v1/vigil/explain — finish the story behind one spoken line,
+ * grounded in sealed facts.
+ *
+ * Returns { dimension, claim_text, explanation, facts: { headline,
+ * details, anchors: [{ kind, id, sha256, seq }] }, mode, generator,
+ * grounded }. The explanation prose rests on the sealed facts that
+ * travel with it; the anchor sha256 is the monospace watermark the
+ * proof layer reveals on hover.
+ */
+export const explainLine = (dimension, claimText, tenantId) =>
+  request("/v1/vigil/explain", {
+    method: "POST",
+    body: JSON.stringify({
+      dimension,
+      claim_text: claimText ?? null,
+      tenant_id: tenantId ?? null,
+    }),
+  });
+
+/**
+ * GET /v1/system/state — the aggregate read. Still used by the day-two
+ * threshold door (the overnight catch-up), which has no dedicated
+ * backend endpoint yet. The live vigil no longer derives from this.
  */
 export const getSystemState = () => request("/v1/system/state");
 
-/**
- * Fetch the full Decision record for a prior evaluation. Used by the
- * proof layer when the operator clicks the execution-governance sentence
- * — Tex finishes the story by quoting from the actual decision the
- * hash signs.
- */
+/** GET /decisions/{id}/replay — full Decision record for a prior eval. */
 export const getDecisionReplay = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/replay`);
 
-/**
- * Fetch the hash-chained evidence bundle for one decision. The bundle
- * carries the record_hash that becomes the monospace watermark revealed
- * on hover of the proof layer's anchor line.
- */
+/** GET /decisions/{id}/evidence-bundle — hash-chained evidence bundle. */
 export const getEvidenceBundle = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/evidence-bundle`);
 
-/* Exported so the hook can label which backend it's speaking to in dev. */
 export const TEX_API_BASE = BASE;
