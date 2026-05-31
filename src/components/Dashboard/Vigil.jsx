@@ -1,622 +1,436 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./Vigil.css";
-import { useSystemState } from "../../hooks/useSystemState";
 import { useVigil } from "../../hooks/useVigil";
-import { explainLine } from "../../lib/texApi";
-import { speak, ALL_LAYERS } from "../../lib/texVoice";
+import { useSystemState } from "../../hooks/useSystemState";
+import { askTex } from "../../lib/texApi";
+import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
 
 /* ==================================================================
    Vigil — the entire product surface.
 
-   One screen. One voice. Three depths.
+   One screen. One mark. One voice.
 
-   PHASE: intro (the first time this person ever opens tex.systems)
-     Three sentences arrive one at a time, slowly, on white. No chrome
-     — no T mark, no avatar. Tex stating its posture before it has a
-     night to report. This happens once per browser, ever. The
-     server-side flag (localStorage for now) records that it happened.
-     After the first visit, this screen never shows again.
+   The surface is a single letter T that breathes. The breath makes
+   two promises at once: nothing here is yours to do, and you can
+   trust the silence — everything is sealed and provable. There are
+   exactly two ways those promises break, so the breath has exactly
+   three states:
 
-   OPENING (every visit):
-     The page opens on a single black T in Cormorant Garamond. It
-     arrives faded — light black — and deepens to full black over
-     2.5 seconds. No chrome. The deepen is the inhale. The instant it
-     reaches full ink, Tex speaks: the T gives way to the vigil. This
-     is not a summon. No click, no hover. Tex speaks because it has
-     something to say and you are here.
+     REST       slow tidal swell, ink hue.
+                Nothing is yours. Trust the silence.
 
-   PHASE: vigil
-     The sentences Tex chose cycle, one at a time, in the same place,
-     in the same size. Each holds 7.4s, then crossfades. The sentences
-     and the standing word come from GET /v1/vigil — Tex decides what
-     to say on the backend; the frontend renders the choice and
-     computes nothing about it. The vigil does not end.
+     HELD       the inhale rises and is held at the top, suspended,
+                same hue. Something is yours now — Tex froze an action
+                and reserved the decision for a human (an ABSTAIN). It
+                waits. It does not alarm. When you reach for Tex, Tex
+                names the held thing first, then you may speak.
 
-   PHASE: proof
-     Click a sentence. The summary dissolves. Tex finishes the story
-     of that one thing in the same voice — POST /v1/vigil/explain
-     returns prose grounded in the sealed facts for that dimension.
-     Below it, a small italic anchor. Hover the anchor — the SHA-256
-     hash appears in monospace, the only place the type breaks
-     register. After a beat, Tex returns to the vigil.
+     FALTERING  the rhythm goes ragged and the trusted hue goes pale.
+                Tex's own integrity failed — the evidence chain broke,
+                an agent went dark, Tex can no longer prove what it
+                claims. The only deviation Tex ever shows about itself.
+                Tex speaks first, unprompted, the moment it can.
 
-   The T mark resets to the vigil, never replays the intro or the
-   opening. Hovering anywhere pauses pacing. There are no other
-   controls.
+   The ask gesture never changes: press and hold the T to address Tex.
+   No wake word, no hot mic — Tex listens only when held. In REST,
+   holding opens the mic and Tex answers your question, grounded only
+   in sealed facts. In HELD and FALTERING, Tex's voice speaks first,
+   then the mic opens.
+
+   FIRST VISIT EVER (once per browser): one sentence, then it dissolves
+   and the breath begins. The sentence teaches the mark its meaning and
+   never appears again.
+
+   There is no chrome. No T in a corner — the T is never a static logo,
+   only the living mark, here. No standing word, no dashboard, no scroll.
    ================================================================== */
 
-/* Pacing constants — all in one place so the rhythm is easy to tune. */
+/* The one sentence a first-time visitor ever reads. It carries the
+   authority (mine to allow or stop — Tex decides, which is why it can
+   be silent) and the invitation (connect your agents — the one thing
+   that is the user's to do). Present tense. No proof offered before
+   there is doubt, no future-boast. Read once, then gone forever. */
+const FIRST_SENTENCE =
+  "I'm Tex. Connect your agents — every action they take is mine to allow or stop.";
 
-/* Intro pacing — once per browser, ever. Three sentences. */
-const INTRO_FIRST_DELAY_MS = 400;
-const INTRO_LINE_STAGGER_MS = 2_600;
-const INTRO_LINE_FADE_MS = 1_000;
-const INTRO_HOLD_MS = 2_400;
-const INTRO_PAUSE_MS = 1_400;
+/* First-visit pacing. */
+const FIRST_IN_MS = 1_400;   /* the sentence fades up */
+const FIRST_HOLD_MS = 4_600; /* it rests, read once */
+const FIRST_OUT_MS = 1_200;  /* it dissolves */
 
-/* Opening pacing — the black T deepening from faded to full ink, then
-   Tex speaks. This is the inhale before the first sentence, every load. */
-const OPEN_INK_MS = 2_500;
+/* How long a spoken line lingers before the breath reclaims the screen.
+   Faltering lingers longest because it matters most; a rest answer
+   fades sooner because nothing is owed. */
+const FALTER_LINE_MS = 11_000;
+const ANSWER_LINE_MS = 8_000;
 
-/* Vigil pacing — the steady rhythm Tex lives in. */
-const VIGIL_HOLD_MS = 7_400;
-const CROSSFADE_MS = 700;
-
-/* Proof pacing. */
-const PROOF_RETURN_MS = 14_000;
-
-/* Server-side flag stand-in. When the backend grows a user model with
-   a seen_intro_at field, this becomes a fetch. Until then we keep the
-   once-per-browser contract locally. */
+/* Server-side flag stand-in. When the backend grows a user model with a
+   seen_intro_at field, this becomes a fetch. Until then the once-per-
+   browser contract lives here. */
 const INTRO_FLAG_KEY = "tex.seen_intro_at";
 
 function hasSeenIntro() {
   try {
     return Boolean(window.localStorage.getItem(INTRO_FLAG_KEY));
   } catch {
-    /* If localStorage is unavailable, fail closed — skip the intro.
-       It exists to be seen at most once; never showing it again on a
-       broken browser is the safer side of the contract. */
-    return true;
+    return true; /* fail closed: never replay on a broken browser */
   }
 }
-
 function markIntroSeen() {
   try {
     window.localStorage.setItem(INTRO_FLAG_KEY, new Date().toISOString());
   } catch {
-    /* No-op. The next session will simply skip the intro too. */
+    /* no-op */
   }
 }
 
-/* Per-page-load guard. The localStorage flag is the *permanent* record
-   — "this browser has met Tex." This is the *transient* one — "the
-   intro has begun during THIS load." It lives at module scope so it
-   survives a component remount within the same load (React 18 mounts
-   every component twice on first paint in development; a fast refresh
-   or a parent re-key would do the same). The intro is a delivered,
-   once-only statement: it must not restart just because the tree was
-   torn down and rebuilt under it. The instant the intro effect runs we
-   claim the load here, and any later mount that still finds phase at
-   "intro" hands straight to the opening T instead of replaying. */
+/* Per-load guard so React 18's development double-mount, a fast refresh,
+   or a parent re-key cannot replay the once-only sentence. */
 let introPlayedThisLoad = false;
+
+/* ------------------------------------------------------------------ */
+/* Breath derivation                                                   */
+/*                                                                     */
+/* The three states are not a severity scale. They are: healthy at     */
+/* rest, healthy but holding one decision for you, and not healthy.    */
+/* Each maps to a specific backend signal. A dev override lets the      */
+/* three be reviewed without a live backend producing an abstain or a   */
+/* broken chain.                                                       */
+/* ------------------------------------------------------------------ */
+
+function deriveBreath(vigil, snapshot, override) {
+  if (override) return override;
+
+  /* FALTERING — integrity failure. The chain not adding up is the one
+     thing Tex cannot stand silently behind. */
+  const chain = snapshot?.chain ?? {};
+  const intact =
+    (chain.discovery_chain_intact ?? true) &&
+    (chain.snapshot_chain_intact ?? true);
+  if (snapshot && !intact) return "faltering";
+
+  /* HELD — a decision is reserved for a human (an abstain), or a
+     learning proposal awaits sign-off. Both are "something is yours,
+     and it can wait." */
+  if (vigil?.human_decision) return "held";
+  const proposals = snapshot?.learning_proposals;
+  if (
+    Array.isArray(proposals) &&
+    proposals.some((p) => String(p.status || "").toUpperCase() === "PENDING")
+  ) {
+    return "held";
+  }
+
+  /* REST — healthy and silent. Also the honest default before any
+     answer has arrived: Tex at rest, nothing owed. */
+  return "rest";
+}
+
+/* The line Tex speaks first when reached in HELD, or unprompted in
+   FALTERING. Grounded in whatever the wire carries; posture-true
+   fallbacks when it carries nothing yet. */
+function heldLine(vigil) {
+  const d = vigil?.human_decision;
+  const summary = d?.summary || d?.action || null;
+  if (summary) {
+    return `I froze one thing. ${summary} It's yours to decide.`;
+  }
+  return "I'm holding one thing for you. It's yours to decide — there's no rush.";
+}
+function falterLine(snapshot) {
+  const chain = snapshot?.chain ?? {};
+  const at = chain.broke_at || chain.last_sealed_at || null;
+  if (at) {
+    return `My evidence chain broke at ${at}. I can't prove what I've sealed since. Don't trust me until this is resolved.`;
+  }
+  return "My evidence chain broke. I can't prove what I've sealed since. Don't trust me until this is resolved.";
+}
 
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
-export default function Vigil({ onHomeRequested, onChromeReady }) {
-  /* The live voice. Tex chooses what to say on the backend; this is the
-     choice. Null until the first fetch resolves — the render falls back
-     to a posture-forward ready line while null, never a blank stage. */
+export default function Vigil() {
   const vigil = useVigil();
-
-  /* System state feeds the once-only intro door (the three posture
-     sentences). The live vigil no longer derives from this. */
   const snapshot = useSystemState();
 
-  /* Initial phase: the intro the first time ever, the vigil otherwise.
-     If the intro already began this load (a remount), open on the vigil
-     so the lines never start over. */
+  /* phase: "first" (the one-time sentence) | "vigil" (the breath). */
   const [phase, setPhase] = useState(() =>
-    hasSeenIntro() || introPlayedThisLoad ? "vigil" : "intro"
+    hasSeenIntro() || introPlayedThisLoad ? "vigil" : "first"
   );
+  const [firstLeaving, setFirstLeaving] = useState(false);
 
-  /* The opening deepen plays once, on the first entry into the vigil
-     this load. Pressing the T or returning from proof never replays it. */
-  const [opening, setOpening] = useState(true);
-  const openedRef = useRef(false);
+  /* Dev override for the three states, toggled from the dev panel. */
+  const [override, setOverride] = useState(null); /* null | rest | held | faltering */
 
-  const [index, setIndex] = useState(0);
-  const [leaving, setLeaving] = useState(false);
-  const [hashVisible, setHashVisible] = useState(false);
-  const [paused, setPaused] = useState(false);
-  /* The explanation Tex returns when a line is opened. */
-  const [proof, setProof] = useState(null);
+  const breath = deriveBreath(vigil, snapshot, override);
 
-  const advanceTimer = useRef(null);
-  const fadeTimer = useRef(null);
-  const proofReturnTimer = useRef(null);
-  const openTimer = useRef(null);
+  /* Interaction state. */
+  const [holding, setHolding] = useState(false); /* mic open (addressing Tex) */
+  const [thinking, setThinking] = useState(false); /* released, awaiting answer */
+  const [spoken, setSpoken] = useState(null); /* the line Tex is currently saying */
 
-  /* ---------------- The chosen voice ----------------
-
-     The vigil renders whatever Tex chose this cycle, in surprise order.
-     The frontend authors and ranks nothing. When the backend hasn't
-     answered yet, one posture-forward line keeps the stage speaking
-     instead of blank — Tex without a response yet is still Tex. */
-  const READY_FALLBACK = {
-    text: "I'm posted. The moment your agents appear, I'll have them.",
-    dimension: "discovery",
-    proof_ref: null,
-    requires_human: false,
+  const lineTimer = useRef(null);
+  const clearLineTimer = () => {
+    if (lineTimer.current) clearTimeout(lineTimer.current);
+    lineTimer.current = null;
   };
 
-  const utterances = useMemo(() => {
-    const list = vigil?.utterances ?? [];
-    return list.length > 0 ? list : [READY_FALLBACK];
-  }, [vigil]);
-
-  /* ---------------- The witness at rest ----------------
-
-     True silence is a state Tex has EARNED, not a state of not having
-     answered. Tex is at rest only when the wire HAS answered this
-     session and chose to say nothing (warm and empty). A wire that
-     hasn't answered yet is not silence — Tex speaks the posted line.
-     This is the difference between "nothing to report" and "no report
-     yet," and it is what lets the opening hand off to speech. */
-  const nothingToReport =
-    !!vigil && (vigil.utterances?.length ?? 0) === 0;
-
-  /* ---------------- Chrome visibility ----------------
-
-     The chrome (T mark + avatar) is hidden during the intro and during
-     the opening deepen — nothing exists on the page but the letter. It
-     appears the moment Tex speaks, because then navigating and looking
-     closer become meaningful. It hides again only in earned rest. */
+  /* ---------------- First-visit sentence ---------------- */
   useEffect(() => {
-    if (!onChromeReady) return;
-    const showChrome =
-      phase !== "intro" && !opening && !nothingToReport;
-    onChromeReady(showChrome);
-  }, [phase, opening, nothingToReport, onChromeReady]);
-
-  /* ---------------- T mark home ----------------
-
-     T mark resets to the vigil. It never replays the intro or the
-     opening deepen — those are unrepeatable, by design. */
-  useEffect(() => {
-    if (!onHomeRequested) return;
-    onHomeRequested(() => {
-      clearAll();
-      if (!hasSeenIntro()) markIntroSeen();
-      setOpening(false);
-      openedRef.current = true;
-      setPhase("vigil");
-      setIndex(0);
-      setLeaving(false);
-      setHashVisible(false);
-    });
-  }, [onHomeRequested]);
-
-  /* ---------------- Pacing ---------------- */
-
-  const clearAll = () => {
-    [advanceTimer, fadeTimer, proofReturnTimer, openTimer].forEach((r) => {
-      if (r.current) clearTimeout(r.current);
-      r.current = null;
-    });
-  };
-
-  /* Intro → held pause → vigil. Plays to completion regardless of hover
-     — it is a delivered statement, once, and you don't interrupt it. */
-  useEffect(() => {
-    if (phase !== "intro") return;
-
-    /* A remount within this same load found us still in "intro" (React
-       18's development double-mount, a fast refresh, a parent re-key).
-       The lines already played their entrance once — do not replay
-       them. Hand straight to the opening T. No markIntroSeen here: the
-       permanent flag belongs to the genuine completion path below, so a
-       dev reload can still show the intro again. */
+    if (phase !== "first") return;
     if (introPlayedThisLoad) {
       setPhase("vigil");
       return;
     }
     introPlayedThisLoad = true;
 
-    const arriveTotal =
-      INTRO_FIRST_DELAY_MS +
-      2 * INTRO_LINE_STAGGER_MS +
-      INTRO_LINE_FADE_MS;
-    const dissolveAt = arriveTotal + INTRO_HOLD_MS;
-
-    advanceTimer.current = setTimeout(() => {
-      setLeaving(true);
-      fadeTimer.current = setTimeout(() => {
-        markIntroSeen();
-        setLeaving(false);
-        proofReturnTimer.current = setTimeout(() => {
-          setPhase("vigil");
-          setIndex(0);
-        }, INTRO_PAUSE_MS);
-      }, CROSSFADE_MS);
-    }, dissolveAt);
-
-    return clearAll;
-  }, [phase]);
-
-  /* Opening deepen → speech. The first time the vigil is entered this
-     load, the black T deepens from faded to full ink over 2.5s, then
-     Tex speaks. Runs exactly once; the ref guards against re-entry. */
-  useEffect(() => {
-    if (phase !== "vigil") return;
-    if (openedRef.current) return;
-    openedRef.current = true;
-
-    openTimer.current = setTimeout(() => {
-      setOpening(false);
-    }, OPEN_INK_MS);
+    const dissolveAt = FIRST_IN_MS + FIRST_HOLD_MS;
+    const t1 = setTimeout(() => setFirstLeaving(true), dissolveAt);
+    const t2 = setTimeout(() => {
+      markIntroSeen();
+      setPhase("vigil");
+    }, dissolveAt + FIRST_OUT_MS);
 
     return () => {
-      if (openTimer.current) clearTimeout(openTimer.current);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
   }, [phase]);
 
-  /* Vigil pacing. */
+  /* ---------------- Faltering speaks first, unprompted ----------------
+     The moment Tex enters the faltering state it says so on its own,
+     without being asked. Silence while broken would be a lie told in
+     the most dangerous window. */
   useEffect(() => {
     if (phase !== "vigil") return;
-    if (opening) return;
-    if (paused) return;
+    if (breath !== "faltering") return;
+    clearLineTimer();
+    setSpoken({ kind: "falter", text: falterLine(snapshot) });
+    lineTimer.current = setTimeout(() => setSpoken(null), FALTER_LINE_MS);
+    return clearLineTimer;
+    /* Re-run only when we ENTER faltering, not on every snapshot poll. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, breath]);
 
-    advanceTimer.current = setTimeout(() => {
-      setLeaving(true);
-      fadeTimer.current = setTimeout(() => {
-        setIndex((i) => (i + 1) % Math.max(utterances.length, 1));
-        setLeaving(false);
-      }, CROSSFADE_MS);
-    }, VIGIL_HOLD_MS);
-
-    return clearAll;
-  }, [phase, index, opening, paused, utterances.length]);
-
-  /* Proof → vigil. */
+  /* Leaving faltering or held clears any lingering line. */
   useEffect(() => {
-    if (phase !== "proof") return;
-    if (paused) return;
+    if (breath === "rest") {
+      /* don't stomp a fresh answer the user just got */
+      if (spoken && spoken.kind !== "answer") setSpoken(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breath]);
 
-    proofReturnTimer.current = setTimeout(() => {
-      setLeaving(true);
-      fadeTimer.current = setTimeout(() => {
-        setPhase("vigil");
-        setIndex((i) => (i + 1) % Math.max(utterances.length, 1));
-        setLeaving(false);
-        setHashVisible(false);
-        setProof(null);
-      }, CROSSFADE_MS);
-    }, PROOF_RETURN_MS);
+  /* ---------------- The ask gesture: press and hold ---------------- */
 
-    return clearAll;
-  }, [phase, paused, utterances.length]);
+  const listenerRef = useRef(null);
 
-  /* ---------------- Voice derivation ---------------- */
-
-  /* The standing word is Tex's posture, owned by the backend. */
-  const standingWord = vigil?.standing ?? "Absolute";
-
-  const introSentences = useMemo(() => {
-    const all = speak(snapshot ?? null, ALL_LAYERS);
-    const byKey = Object.fromEntries(all.map((x) => [x.key, x]));
-    return [byKey.discovery, byKey.monitoring, byKey.execution];
-  }, [snapshot]);
-
-  /* Index can outrun a freshly-shrunk utterance list between polls. */
-  const safeIndex = utterances.length ? index % utterances.length : 0;
-  const current = utterances[safeIndex] ?? utterances[0];
-  const proofFallback =
-    PROOF_PLACEHOLDERS[current?.dimension] ?? PROOF_PLACEHOLDERS.evidence;
-
-  const proofAnchorSha =
-    proof?.facts?.anchors?.find((a) => a.sha256)?.sha256 ??
-    current?.proof_ref?.sha256 ??
-    null;
-  const proofView = proof
-    ? {
-        prose: proof.explanation,
-        anchorLabel: proof.facts?.headline || "sealed",
-        hash: proofAnchorSha || "—",
-      }
-    : {
-        prose: null,
-        anchorLabel: proofFallback.anchor,
-        hash: proofAnchorSha || proofFallback.hash,
-      };
-
-  /* ---------------- Interaction ---------------- */
-
-  const handleEnter = () => setPaused(true);
-  const handleLeave = () => {
-    setPaused(false);
-    setHashVisible(false);
-  };
-
-  const handleSentenceClick = () => {
+  const beginHold = useCallback(() => {
     if (phase !== "vigil") return;
-    if (opening) return;
-    if (leaving) return;
-    clearAll();
+    clearLineTimer();
+    stopSpeaking();
+    setThinking(false);
+    setHolding(true);
 
-    const line = current;
-    setProof(null);
-    if (line?.dimension) {
-      explainLine(line.dimension, line.text)
-        .then((res) => setProof(res))
-        .catch(() => setProof(null));
+    /* In held and faltering, Tex's voice speaks FIRST — before the mic
+       opens — so you hear what Tex is holding or what failed before you
+       say anything. Same single voice, streamed from the gateway. In
+       rest, nothing is owed: the mic just opens. */
+    if (breath === "held") {
+      const text = heldLine(vigil);
+      setSpoken({ kind: "held", text });
+      texSpeak(text);
+    } else if (breath === "faltering") {
+      const text = falterLine(snapshot);
+      setSpoken({ kind: "falter", text });
+      texSpeak(text);
     }
 
-    setLeaving(true);
-    fadeTimer.current = setTimeout(() => {
-      setPhase("proof");
-      setLeaving(false);
-    }, CROSSFADE_MS);
+    /* Open the mic — only while held. Streams 16 kHz PCM to Tex's own
+       gateway. Any failure (denied, unsupported, unreachable) leaves
+       the listener null and the loop stays silent. */
+    const listener = new TexListener();
+    listenerRef.current = listener;
+    listener.start().catch(() => {
+      listenerRef.current = null;
+    });
+  }, [phase, breath, vigil, snapshot]);
+
+  const endHold = useCallback(() => {
+    if (!holding) return;
+    setHolding(false);
+
+    const listener = listenerRef.current;
+    listenerRef.current = null;
+    if (!listener) {
+      /* No mic was ever live (denied/unsupported/unreachable). Tex does
+         not announce a plumbing problem — it stays quiet. */
+      return;
+    }
+
+    /* Release = you've finished addressing Tex. Finalize the transcript,
+       answer grounded only in sealed facts, then speak it in Tex's one
+       voice. If nothing was heard or the wire is down, stay quiet. */
+    setThinking(true);
+    listener
+      .stop()
+      .then((transcript) => {
+        if (!transcript) {
+          setThinking(false);
+          return undefined;
+        }
+        return askTex(transcript).then((res) => {
+          const text = res?.answer || null;
+          setThinking(false);
+          if (text) {
+            setSpoken({ kind: "answer", text });
+            texSpeak(text);
+            clearLineTimer();
+            lineTimer.current = setTimeout(() => setSpoken(null), ANSWER_LINE_MS);
+          }
+        });
+      })
+      .catch(() => setThinking(false));
+  }, [holding]);
+
+  /* Keyboard parity: space/enter holds while pressed. */
+  const onKeyDown = (e) => {
+    if (e.repeat) return;
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      beginHold();
+    }
+  };
+  const onKeyUp = (e) => {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      endHold();
+    }
+  };
+
+  /* ---------------- Dev panel (⌘. / Ctrl+.) ----------------
+     Scaffolding only. Lets the three breath states and the speak-back
+     surface be reviewed without a live backend. Remove before ship. */
+  const [devOpen, setDevOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ".") {
+        e.preventDefault();
+        setDevOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const devAnswer = () => {
+    clearLineTimer();
+    setSpoken({ kind: "answer", text: "Fourteen agents. All governed, all sealed." });
+    lineTimer.current = setTimeout(() => setSpoken(null), ANSWER_LINE_MS);
+  };
+  const devResetIntro = () => {
+    try {
+      window.localStorage.removeItem(INTRO_FLAG_KEY);
+    } catch {
+      /* no-op */
+    }
+    introPlayedThisLoad = false;
+    setFirstLeaving(false);
+    setSpoken(null);
+    setPhase("first");
   };
 
   /* ---------------- Render ---------------- */
 
-  const stageClass = (extra = "") =>
-    `tex-vigil-stage tex-vigil-stage--${phase}${
-      leaving ? " is-leaving" : ""
-    }${extra ? ` ${extra}` : ""}`;
+  const markClass = useMemo(() => {
+    const base = "tex-mark-glyph";
+    const state = `tex-mark-glyph--${breath}`;
+    const listening = holding ? " is-listening" : "";
+    const think = thinking ? " is-thinking" : "";
+    return `${base} ${state}${listening}${think}`;
+  }, [breath, holding, thinking]);
 
-  /* The opening deepen owns the screen until the ink reaches full black,
-     for every visit. It renders over the vigil phase before the first
-     sentence. */
-  const showOpening = phase === "vigil" && opening;
+  if (phase === "first") {
+    return (
+      <section className="tex-vigil">
+        <div className="tex-stage">
+          <p
+            className={`tex-first-sentence${firstLeaving ? " is-leaving" : ""}`}
+            style={{
+              animationDuration: `${FIRST_IN_MS}ms`,
+            }}
+          >
+            {FIRST_SENTENCE}
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  const ariaState =
+    breath === "held"
+      ? "Tex is holding a decision for you. Press and hold to hear it."
+      : breath === "faltering"
+      ? "Tex's integrity has failed. Press and hold to hear what is wrong."
+      : "Tex, at rest. Press and hold to speak.";
 
   return (
-    <section
-      className="tex-vigil"
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-    >
-      {phase === "intro" && (
-        <div className={stageClass()} key="intro">
-          <div className="tex-vigil-door tex-vigil-door--threshold">
-            {introSentences.map((s, i) => {
-              const delaySec =
-                (INTRO_FIRST_DELAY_MS + i * INTRO_LINE_STAGGER_MS) / 1000;
-              const durationSec = INTRO_LINE_FADE_MS / 1000;
-              return (
-                <p
-                  key={s?.key ?? i}
-                  className="tex-vigil-door-line tex-vigil-door-line--threshold"
-                  style={{
-                    animationDelay: `${delaySec}s`,
-                    animationDuration: `${durationSec}s`,
-                  }}
-                >
-                  <span className="tex-vigil-head">{s?.head}</span>
-                  {s?.tail && (
-                    <>
-                      {" "}
-                      <em className="tex-vigil-tail">{s.tail}</em>
-                    </>
-                  )}
-                </p>
-              );
-            })}
-          </div>
-        </div>
-      )}
+    <section className="tex-vigil">
+      <div className="tex-stage">
+        <button
+          type="button"
+          className={markClass}
+          aria-label={ariaState}
+          onPointerDown={beginHold}
+          onPointerUp={endHold}
+          onPointerLeave={endHold}
+          onPointerCancel={endHold}
+          onKeyDown={onKeyDown}
+          onKeyUp={onKeyUp}
+        >
+          <span aria-hidden="true">T</span>
+        </button>
 
-      {showOpening && (
-        <div className="tex-vigil-stage tex-vigil-stage--open" key="open">
-          <div className="tex-vigil-open">
-            <span className="tex-vigil-open-mark" aria-hidden="true">
-              T
-            </span>
-          </div>
-        </div>
-      )}
-
-      {phase === "vigil" && !opening && nothingToReport && (
-        <div className="tex-vigil-stage tex-vigil-stage--idle" key="vigil-rest">
-          <div
-            className="tex-vigil-rest"
-            aria-label="Tex, at rest. Nothing to report."
-          >
-            <span className="tex-vigil-rest-mark" aria-hidden="true">
-              T
-            </span>
-          </div>
-        </div>
-      )}
-
-      {phase === "vigil" && !opening && !nothingToReport && current && (
-        <div className={stageClass()} key={`vigil-${index}`}>
-          <div className="tex-vigil-stack">
-            <h1
-              className={`tex-vigil-word tex-vigil-word--${standingWord.toLowerCase()}`}
-              aria-label={`${standingWord}.`}
-            >
-              <svg
-                className="tex-vigil-glass"
-                viewBox="0 0 900 240"
-                preserveAspectRatio="xMidYMid meet"
-                aria-hidden="true"
-              >
-                <defs>
-                  <linearGradient id="tex-vigil-glass-body" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%"   stopColor="#F4F6FA" stopOpacity="0.98" />
-                    <stop offset="28%"  stopColor="#C8D2DE" stopOpacity="0.92" />
-                    <stop offset="58%"  stopColor="#5B6E84" stopOpacity="0.95" />
-                    <stop offset="100%" stopColor="#1D2733" stopOpacity="1"    />
-                  </linearGradient>
-
-                  <linearGradient id="tex-vigil-glass-rim" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%"  stopColor="#FFFFFF" stopOpacity="0.85" />
-                    <stop offset="14%" stopColor="#FFFFFF" stopOpacity="0"    />
-                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"   />
-                  </linearGradient>
-
-                  <radialGradient id="tex-vigil-word-floor" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%"   stopColor="#0E1620" stopOpacity="0.10" />
-                    <stop offset="60%"  stopColor="#0E1620" stopOpacity="0.04" />
-                    <stop offset="100%" stopColor="#0E1620" stopOpacity="0"    />
-                  </radialGradient>
-
-                  <mask id="tex-vigil-glass-mask">
-                    <text
-                      x="450" y="178"
-                      textAnchor="middle"
-                      fontFamily="var(--tex-serif)"
-                      fontSize="186"
-                      fontWeight="400"
-                      letterSpacing="-11"
-                      fill="#FFFFFF"
-                    >{standingWord}.</text>
-                  </mask>
-                </defs>
-
-                <ellipse cx="450" cy="210" rx="320" ry="14" fill="url(#tex-vigil-word-floor)" />
-
-                <text
-                  x="450" y="178"
-                  textAnchor="middle"
-                  fontFamily="var(--tex-serif)"
-                  fontSize="186"
-                  fontWeight="400"
-                  letterSpacing="-11"
-                  fill="url(#tex-vigil-glass-body)"
-                >{standingWord}.</text>
-
-                <text
-                  x="450" y="178"
-                  textAnchor="middle"
-                  fontFamily="var(--tex-serif)"
-                  fontSize="186"
-                  fontWeight="400"
-                  letterSpacing="-11"
-                  fill="url(#tex-vigil-glass-rim)"
-                >{standingWord}.</text>
-
-                <text
-                  x="450" y="178"
-                  textAnchor="middle"
-                  fontFamily="var(--tex-serif)"
-                  fontSize="186"
-                  fontWeight="400"
-                  letterSpacing="-11"
-                  fill="none"
-                  stroke="#5B6E84"
-                  strokeOpacity="0.32"
-                  strokeWidth="0.6"
-                >{standingWord}.</text>
-
-                <g mask="url(#tex-vigil-glass-mask)">
-                  <rect
-                    className="tex-vigil-glass-sweep"
-                    x="-200" y="0"
-                    width="280" height="240"
-                    fill="#E6F0FF"
-                    opacity="0.85"
-                  />
-                </g>
-              </svg>
-            </h1>
-
-            <button
-              type="button"
-              className="tex-vigil-sentence tex-vigil-sentence--under"
-              onClick={handleSentenceClick}
-              aria-label="Look closer at this"
-            >
-              <em className="tex-vigil-undertext">
-                <span className="tex-vigil-head">{current.text}</span>
-              </em>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {phase === "proof" && current && (
-        <div className={stageClass()} key={`proof-${index}`}>
-          <div className="tex-vigil-proof">
-            <p className="tex-vigil-proof-line">
-              {proofView.prose ? (
-                <span className="tex-vigil-head">{proofView.prose}</span>
-              ) : (
-                <>
-                  <span className="tex-vigil-head">{proofFallback.head}</span>{" "}
-                  <em className="tex-vigil-tail">{proofFallback.tail}</em>
-                </>
-              )}
-            </p>
-
-            <button
-              type="button"
-              className="tex-vigil-anchor"
-              onMouseEnter={() => setHashVisible(true)}
-              onMouseLeave={() => setHashVisible(false)}
-              onFocus={() => setHashVisible(true)}
-              onBlur={() => setHashVisible(false)}
-              aria-label="Show cryptographic anchor"
-            >
-              {proofView.anchorLabel}
-            </button>
-
+        <div className="tex-voice" aria-live="polite">
+          {spoken && (
             <p
-              className={`tex-vigil-hash${hashVisible ? " is-visible" : ""}`}
-              aria-hidden={!hashVisible}
+              className={`tex-voice-line tex-voice-line--${spoken.kind}`}
+              key={spoken.text}
             >
-              {proofView.hash}
+              {spoken.text}
             </p>
-          </div>
+          )}
+          {!spoken && thinking && (
+            <p className="tex-voice-line tex-voice-line--thinking" aria-hidden="true">
+              &nbsp;
+            </p>
+          )}
+        </div>
+      </div>
+
+      {devOpen && (
+        <div className="tex-dev-panel" role="group" aria-label="Dev controls">
+          <span className="tex-dev-panel-label">breath</span>
+          {["rest", "held", "faltering"].map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={override === s ? "is-active" : ""}
+              onClick={() => setOverride(s === override ? null : s)}
+            >
+              {s}
+            </button>
+          ))}
+          <span className="tex-dev-panel-sep" />
+          <button type="button" onClick={devAnswer}>
+            sample answer
+          </button>
+          <button type="button" onClick={devResetIntro}>
+            replay intro
+          </button>
         </div>
       )}
     </section>
   );
 }
-
-/* Placeholder proof prose. These exist because the backend's evidence
-   chain is empty — there are no Decision records to replay yet. The
-   moment the first POST /evaluate runs, this object goes away and the
-   proof layer fetches real decisions by id. */
-const PROOF_PLACEHOLDERS = {
-  discovery: {
-    head: "When I find one, I'll tell you who it is, where I found it, and what it can already reach.",
-    tail: "Until then, the ledger waits.",
-    anchor: "ledger empty · ready to record",
-    hash: "—",
-  },
-  identity: {
-    head: "When an agent asks for more than I've given it, I will name what it asked for and what I said back.",
-    tail: "I will not blur the line for any of them.",
-    anchor: "no identity holds yet",
-    hash: "—",
-  },
-  monitoring: {
-    head: "I'm watching for changes in how every agent behaves.",
-    tail: "When something moves, I will name what moved and when.",
-    anchor: "watching · 0 events",
-    hash: "—",
-  },
-  execution: {
-    head: "Every decision I make will be sealed to the one before it.",
-    tail: "Nothing I do will be missing from the chain.",
-    anchor: "chain ready · 0 decisions",
-    hash: "—",
-  },
-  evidence: {
-    head: "I'll write every decision down the moment I make it.",
-    tail: "Each one will be sealed to the one before. Nothing can be removed without a mark.",
-    anchor: "chain intact · 0 records",
-    hash: "—",
-  },
-  learning: {
-    head: "When I notice a pattern worth turning into a rule, I will bring it to you.",
-    tail: "I will not act on it until you say yes.",
-    anchor: "0 proposals · waiting on signal",
-    hash: "—",
-  },
-};

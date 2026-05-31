@@ -1,777 +1,327 @@
 /* ============================================================
    Vigil — the entire product surface.
 
-   Three depths, one canvas. The type is the room. The dissolve
-   is the breath. The hash is the proof, sitting quietly under
-   the story like a watermark.
+   One mark. One voice. The T breathes, and the breath makes two
+   promises: nothing here is yours, and you can trust the silence.
+   There are exactly two ways those promises break, so the breath
+   has exactly three states — rest, held, faltering.
 
-   Door, vigil, and proof all live in the same centered stage.
-   They dissolve into one another at the same speed, in the
-   same place, in the same voice. The operator's eye never has
-   to relearn where Tex is.
+   Color appears once or never: the only hue the T ever shows that
+   isn't its resting ink is the sickness of a faltering breath. It
+   is not a severity ramp. It is a binary — trusted, or not.
    ============================================================ */
 
 .tex-vigil {
-  flex: 1;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  /* Asymmetric vertical padding biases the centered stage upward.
-     A 24vh delta between top and bottom shifts the visual center of
-     the stage from 50% of the viewport (flex default) to ~38% —
-     the place the eye actually lands when it enters a page. Empty
-     space below a sentence reads as breath. Empty space above it
-     reads as missing. */
-  padding: 8vh 24px 32vh;
-  position: relative;
+  min-height: 100vh;
+  background: var(--tex-paper);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* The stage is the centered breath of every phase. Door, vigil,
-   proof — all rendered in here. Crossfades are owned by the
-   parent re-keying the stage so React mounts/unmounts cleanly,
-   plus an `is-leaving` class for the outgoing fade. */
-.tex-vigil-stage {
-  position: relative;
+/* The stage: the T sits a little above center; beneath it, a region
+   reserved for Tex's voice. That region stays EMPTY at rest — the
+   breath below the mark is sacred and is not filled with chrome. */
+.tex-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   max-width: 920px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  padding: 0 6vw;
+  /* nudge the whole composition up so there is more breath below */
+  transform: translateY(-4vh);
+}
+
+/* ------------------------------------------------------------------ */
+/* The first sentence — read once per browser, ever, then gone.        */
+/* It teaches the mark its meaning. Present tense, no proof offered,    */
+/* authority + invitation, name first.                                 */
+/* ------------------------------------------------------------------ */
+
+.tex-first-sentence {
+  margin: 0;
+  max-width: 17em;
   text-align: center;
-  animation: tex-vigil-arrive 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-/* The threshold and manifesto stages own their own per-line entrance
-   animations. The stage-level arrival would fight those timings, so
-   we suppress it (done above for both). The vigil and proof phases
-   keep the default stage arrival. */
-
-.tex-vigil-stage.is-leaving {
-  animation: tex-vigil-leave 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-/* The blackout — the held empty moment between the manifesto and the
-   vigil. Pure paper, nothing on it. This is the ma. Tex finishes
-   introducing itself, and the room goes quiet for a beat before Tex
-   begins working. The chrome arrives at the same moment the vigil
-   begins — never during the blackout. */
-.tex-vigil-blackout {
-  position: absolute;
-  inset: 0;
-  background: var(--tex-paper);
-  pointer-events: none;
-  animation: tex-vigil-blackout-in 600ms ease-out both;
-}
-
-@keyframes tex-vigil-blackout-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* The threshold stage — day two onward. Renders three past-tense
-   reports stacked. Each line has its own fade-in on its own delay;
-   the stage-level arrival is suppressed the same way the manifesto's
-   is, so the line timings own the rhythm. */
-.tex-vigil-stage--intro,
-.tex-vigil-stage--threshold,
-.tex-vigil-stage--manifesto {
-  animation: none;
-}
-
-.tex-vigil-stage--intro.is-leaving,
-.tex-vigil-stage--threshold.is-leaving,
-.tex-vigil-stage--manifesto.is-leaving {
-  animation: tex-vigil-door-leave 900ms ease-in both;
-}
-
-/* The threshold/manifesto leave animations are defined above in the
-   stage modifier rules. The keyframes themselves stay; they're shared
-   between manifesto and threshold leaving phases. */
-
-@keyframes tex-vigil-door-leave {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
-/* ----------------------------------------------------------------
-   Phase 1 — the door.
-
-   Four lines. Each is its own paragraph, full ink, large serif.
-   They arrive one at a time, slowly, with long pauses between
-   them. The first appears in silence. It sits alone long enough
-   to be a thought, not a label. Then the next slowly materializes
-   beneath it. Then the next.
-
-   The drama is the pause between lines, not motion. There is no
-   translation, no zoom — each line just fades from invisible to
-   visible in place. The eye should almost miss the *starting* of
-   the fade and only notice the line is, somehow, already there.
-
-   Total door experience runs ~19 seconds. By the time the operator
-   has read all four lines, they have spent more time on the door
-   than they spend on most full landing pages. The patience is the
-   product. The patience is what makes the operator feel that
-   someone has been thinking about this longer than they have.
-   ---------------------------------------------------------------- */
-
-.tex-vigil-door {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(10px, 1.4vh, 22px);
-}
-
-/* The door lines.
-
-   Each line fades in slowly, in place, with no translation. The
-   eye should almost miss the *starting* of the fade — only notice
-   the line is, somehow, already there. Animation timing and delay
-   are set inline from JS so the pacing constants stay in one place.
-
-   The curve is ease-out (not the sharper cubic-bezier used for the
-   crossfades) — slow start, gentle finish. The line settles in
-   rather than appearing. */
-.tex-vigil-door-line {
   font-family: var(--tex-serif);
   font-weight: 400;
-  font-size: clamp(36px, 4.6vw, 64px);
-  line-height: 1.15;
-  letter-spacing: -0.022em;
+  font-size: clamp(22px, 3.4vw, 38px);
+  line-height: 1.42;
+  letter-spacing: -0.01em;
   color: var(--tex-ink);
-  margin: 0;
   opacity: 0;
-  animation-name: tex-vigil-door-line-in;
-  animation-timing-function: ease-out;
+  transform: translateY(6px);
+  animation-name: tex-first-rise;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   animation-fill-mode: both;
-  /* animation-duration and animation-delay are set inline per line */
+}
+.tex-first-sentence.is-leaving {
+  animation: none;
+  opacity: 0;
+  transform: translateY(0);
+  transition: opacity 1200ms ease, transform 1200ms ease;
+}
+@keyframes tex-first-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* The threshold lines are smaller than the manifesto's. Day-two
-   onward the operator is not being introduced to Tex — they are
-   being caught up. Lighter weight in voice means lighter weight in
-   type. The head/tail rhythm matches the vigil itself, so the
-   transition into the vigil feels like one continuous thought. */
-.tex-vigil-door-line--threshold {
-  font-size: clamp(28px, 3.2vw, 44px);
-  line-height: 1.25;
-  letter-spacing: -0.016em;
-  max-width: 880px;
-  margin: 0 auto;
-  text-align: center;
-}
+/* ------------------------------------------------------------------ */
+/* The mark — one living T. Never a logo, never static. The button     */
+/* is the ask gesture (press and hold); the glyph is the breath.       */
+/* ------------------------------------------------------------------ */
 
-@keyframes tex-vigil-door-line-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* ----------------------------------------------------------------
-   Phase 2 — the vigil sentence.
-
-   One sentence, large serif. Same family and same letter-spacing
-   as the door. The "head" is upright, full ink — what Tex did.
-   The "tail" is italic, ink-soft — Tex pausing on the meaning.
-
-   The sentence is a button. The affordance is the cursor change
-   and a barely-perceptible lift on hover. No box. No underline.
-   The button is the same thing the eye is already reading.
-   ---------------------------------------------------------------- */
-
-.tex-vigil-sentence {
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  font-size: clamp(30px, 3.6vw, 52px);
-  line-height: 1.25;
-  letter-spacing: -0.018em;
-  color: var(--tex-ink);
-  background: transparent;
-  border: 0;
-  padding: 12px 16px;
-  /* Auto horizontal margin centers the button block inside the stage.
-     Without this the sentence biases left of optical center on lines
-     that wrap, because the stage's flex-align-items only centers the
-     element's bounding box — not the wrapped text within it. The
-     fix is: keep max-width as a content guard, and center the block
-     itself with auto margins. */
-  margin: 0 auto;
-  cursor: pointer;
-  max-width: 880px;
-  text-align: center;
-  border-radius: 8px;
-  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1),
-              color 320ms ease;
-}
-
-.tex-vigil-sentence:hover {
-  transform: translateY(-1px);
-  color: #000000;
-}
-
-.tex-vigil-sentence:focus-visible {
-  outline: 2px solid var(--tex-ink);
-  outline-offset: 8px;
-}
-
-.tex-vigil-head {
-  /* The first beat: upright, full ink. */
-  font-style: normal;
-  font-weight: 400;
-  color: var(--tex-ink);
-}
-
-.tex-vigil-tail {
-  /* The second beat: italic, ink-soft, weight 300. Same register
-     used for "None needed you." on the homepage. The visitor's
-     eye learns this as "Tex pausing" once, and recognizes it
-     everywhere. */
-  font-style: italic;
-  font-weight: 300;
-  color: var(--tex-ink-soft);
-}
-
-/* ----------------------------------------------------------------
-   Phase 3 — the proof.
-
-   The summary dissolves. In its place, Tex finishes the story of
-   that one thing — in the same serif, same size, same voice as
-   the vigil. Same head + tail rhythm. The reader does not feel
-   they moved to a new page. They feel Tex continued speaking.
-
-   Below the proof story, in smaller italic, the anchor line — a
-   factual statement about where this decision is sealed. Hovering
-   the anchor reveals the cryptographic hash in monospace, very
-   small, the way you'd show someone the serial number on a bill
-   if they asked to see it.
-   ---------------------------------------------------------------- */
-
-.tex-vigil-proof {
-  display: flex;
-  flex-direction: column;
+.tex-mark-glyph {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 40px;
-  max-width: 880px;
-}
-
-.tex-vigil-proof-line {
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  font-size: clamp(28px, 3.2vw, 46px);
-  line-height: 1.28;
-  letter-spacing: -0.016em;
-  color: var(--tex-ink);
-  margin: 0 auto;
-  max-width: 880px;
-  text-align: center;
-}
-
-.tex-vigil-anchor {
-  font-family: var(--tex-serif);
-  font-style: italic;
-  font-weight: 300;
-  font-size: 15px;
-  line-height: 1.6;
-  letter-spacing: 0.005em;
-  color: var(--tex-ink-soft);
-  background: transparent;
+  justify-content: center;
+  width: clamp(180px, 30vh, 360px);
+  height: clamp(180px, 30vh, 360px);
   border: 0;
-  padding: 6px 10px;
-  margin: 0;
-  cursor: default;
-  border-radius: 6px;
-  transition: color 240ms ease;
-  animation: tex-vigil-anchor-in 700ms cubic-bezier(0.22, 0.61, 0.36, 1) 200ms both;
-}
-
-.tex-vigil-anchor:hover,
-.tex-vigil-anchor:focus-visible {
-  color: var(--tex-ink);
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
   outline: none;
 }
-
-@keyframes tex-vigil-anchor-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* The hash — monospace, small, lowercase hex. Hidden by default;
-   revealed when the operator hovers the anchor. The visual
-   contrast (serif everywhere else, mono here) is what makes the
-   hash feel like *proof* — the only place in the product where
-   the typography itself signals "this is machine truth, not a
-   sentence." */
-.tex-vigil-hash {
-  font-family: var(--tex-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--tex-ink-mute);
-  margin: -28px 0 0 0;
-  max-width: 720px;
-  word-break: break-all;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 320ms ease, transform 320ms ease;
-  transform: translateY(-3px);
-}
-
-.tex-vigil-hash.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* ----------------------------------------------------------------
-   The dissolves.
-
-   Arrive: 700ms ease-out, slight upward lift.
-   Leave:  700ms ease-in, slight downward settle, fading out.
-
-   Same curve, same duration. The operator's eye registers
-   continuous breath rather than two separate animations.
-   ---------------------------------------------------------------- */
-
-@keyframes tex-vigil-arrive {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes tex-vigil-leave {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-4px); }
-}
-
-/* ----------------------------------------------------------------
-   Small screens.
-
-   The door lines come down a notch; the vigil sentence wraps
-   more aggressively. The proof story stays large because it's
-   the moment the operator asked for detail.
-   ---------------------------------------------------------------- */
-
-@media (max-width: 720px) {
-  .tex-vigil {
-    /* Same upward bias as desktop, scaled slightly tighter for mobile. */
-    padding: 6vh 20px 24vh;
-  }
-  .tex-vigil-door-line {
-    font-size: clamp(28px, 7vw, 40px);
-  }
-  .tex-vigil-sentence {
-    font-size: clamp(24px, 5.4vw, 36px);
-  }
-  .tex-vigil-proof-line {
-    font-size: clamp(22px, 5vw, 32px);
-  }
-  .tex-vigil-anchor {
-    font-size: 14px;
-  }
-  .tex-vigil-hash {
-    font-size: 10px;
-  }
-}
-
-/* Reduced motion — the system-wide rule in index.css already
-   neutralizes animations. We keep the structure intact so
-   layout is identical with or without motion. */
-
-/* ================================================================
-   The standing word — Absolute / Open
-   ================================================================
-   The top of the vigil stage. One serif word, in a glass
-   treatment lifted exactly from the marketing site's Hero so the
-   product and the brand sit in the same typographic universe.
-
-   The word is binary. Absolute when Tex has the night. Open when
-   something is unresolved. There is no third state.
-
-   Below it, the rotating sentence sits smaller and in italic
-   soft ink — receipt to the word's claim.
-   ================================================================ */
-
-.tex-vigil-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 1000px;
-}
-
-.tex-vigil-word {
-  margin: 0 0 44px 0;
-  width: 100%;
-  max-width: 880px;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 1.6s ease 0.2s, transform 1.6s ease 0.2s;
-}
-
-/* When the vigil phase is active, the word arrives. */
-.tex-vigil-stage--vigil .tex-vigil-word {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.tex-vigil-glass {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-/* The light sweep across the glass — same recipe as the Hero. */
-.tex-vigil-glass-sweep {
-  animation: tex-vigil-sweep 7s ease-in-out infinite;
-  animation-delay: 2s;
-}
-
-@keyframes tex-vigil-sweep {
-  0%   { transform: translateX(0);     opacity: 0;   }
-  8%   { opacity: 0.5; }
-  35%  { transform: translateX(1100px); opacity: 0.5; }
-  42%  { opacity: 0;   }
-  100% { transform: translateX(1100px); opacity: 0;   }
-}
-
-/* ---- The rotating sentence under the word --------------------- */
-
-/* Override the prior tex-vigil-sentence sizing for the vigil-phase
-   "under" variant. Smaller, italic, soft ink — a quiet receipt to
-   the glass word above it, not a headline of its own. */
-.tex-vigil-sentence--under {
-  font-family: var(--tex-serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: clamp(18px, 1.55vw, 22px);
-  line-height: 1.55;
-  letter-spacing: -0.005em;
-  color: var(--tex-ink-soft);
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  max-width: 640px;
-  text-align: center;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  transition: color 0.6s ease;
-}
-
-.tex-vigil-sentence--under:hover {
-  color: var(--tex-ink);
-}
-
-.tex-vigil-undertext {
-  font-style: italic;
-  display: block;
-}
-
-/* Inside the italic undertext, both head and tail are the same
-   soft italic register — no two-tone, no bolding. The receipt
-   reads as one quiet sentence. */
-.tex-vigil-sentence--under .tex-vigil-head {
-  font-style: italic;
-  font-weight: 400;
-  color: inherit;
-}
-
-.tex-vigil-sentence--under .tex-vigil-tail {
-  font-style: italic;
-  font-weight: 400;
-  color: var(--tex-ink-mute);
-}
-
-/* ---- Responsive: phone ---------------------------------------- */
-
-@media (max-width: 720px) {
-  .tex-vigil-word {
-    max-width: 86vw;
-    margin-bottom: 32px;
-  }
-  .tex-vigil-sentence--under {
-    font-size: clamp(15px, 4vw, 18px);
-    line-height: 1.5;
-    padding: 0 14px;
-    max-width: 88vw;
-  }
-}
-
-@media (max-width: 420px) {
-  .tex-vigil-word {
-    max-width: 90vw;
-    margin-bottom: 28px;
-  }
-  .tex-vigil-sentence--under {
-    font-size: 14px;
-  }
-}
-
-/* ================================================================
-   The opening — the black T, deepening.
-
-   Every visit opens here. A single capital T in Cormorant Garamond,
-   solid black, arriving as faded ink and deepening to full black over
-   2.5 seconds. No breath loop, no migrating light, no chrome — one
-   letter gaining weight, the way ink soaks into paper. When it reaches
-   full black, Tex speaks: the opening hands off to the vigil. This is
-   the inhale before the first sentence, and it is not a summon —
-   nothing the operator does triggers it.
-   ================================================================ */
-
-.tex-vigil-stage--open {
-  max-width: none;
-  /* The stage itself does not fade — the letter carries the deepen,
-     so the ink visibly soaks in rather than the whole layer dissolving
-     up from nothing. */
-}
-
-.tex-vigil-open {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.tex-vigil-open-mark {
+.tex-mark-glyph > span {
   font-family: var(--tex-mark);
-  font-style: italic;
-  font-weight: 500;
-  font-size: clamp(160px, 24vw, 320px);
+  font-weight: 400;
+  font-size: clamp(150px, 27vh, 320px);
   line-height: 1;
-  /* Solid black. Not a gradient, not slate — ink. */
-  color: #000000;
-  padding: 0.06em 0.2em;
-  display: inline-block;
-  /* Faded black → full black over 2.5s. The ease keeps most of the
-     deepen in the back half, so it reads as settling into ink, not
-     snapping on. Holds at full black on the last frame (both). */
-  animation: tex-open-ink 2500ms cubic-bezier(0.33, 0, 0.2, 1) both;
-  will-change: opacity;
+  color: var(--tex-ink);
+  /* default visible opacity for reduced-motion / pre-animation */
+  opacity: 0.82;
+  will-change: opacity, color, transform;
 }
 
-@keyframes tex-open-ink {
-  from {
-    /* Light, faded black — present, but not yet committed. */
-    opacity: 0.14;
-  }
-  to {
-    /* Full black. */
-    opacity: 1;
-  }
+/* Keyboard focus — a quiet ring, only for keyboard users. */
+.tex-mark-glyph:focus-visible {
+  outline: none;
 }
-
-/* Reduced motion — the letter is simply present, full black, at once. */
-@media (prefers-reduced-motion: reduce) {
-  .tex-vigil-open-mark {
-    opacity: 1;
-    animation: none;
-  }
+.tex-mark-glyph:focus-visible > span {
+  text-shadow: 0 0 0 transparent;
 }
-
-/* Phone — the letter stays the hero, sized to the viewport. */
-@media (max-width: 720px) {
-  .tex-vigil-open-mark {
-    font-size: clamp(120px, 42vw, 240px);
-  }
-}
-
-/* ================================================================
-   The witness at rest — the breathing T.
-
-   When Tex has nothing true to report, the screen is one letter.
-   No standing word, no sentence, no chrome. A calligraphic capital
-   T, alive.
-
-   What makes it read as alive, not animated:
-
-     1. It does not pulse. A throbbing letter is a heart-rate
-        monitor — mechanical, medical, dead. The breath moves on
-        opacity, a sub-pixel rise, a faint bloom of light, and the
-        bright band migrating down the stem. Never scale.
-
-     2. The breath is slow and asymmetric — a ~11s cycle, roughly
-        five breaths a minute, a calm body at rest. Long inhale,
-        held top, slower exhale. So slow you only feel it if you
-        sit with the screen. Which is the entire point.
-
-     3. It is NOT a clean loop. A periodic animation reads as a
-        machine. Two non-harmonic cycles are layered — an 11s
-        primary breath on the glyph and a 29s wander on the wrapper
-        — so the combined motion only truly repeats every ~319s.
-        To the eye: never. Life punctuates stillness; it never keeps
-        a metronome.
-
-     4. The shadow answers in counterpoint — spreading and softening
-        as the letter rises, tightening as it settles. A thing with
-        no shadow-response is a sticker. The relationship between the
-        letter and its shadow is what sells presence.
-   ================================================================ */
-
-.tex-vigil-stage--idle {
-  /* The single glyph is the whole composition — no max-width clamp,
-     no stack. It arrives by simply fading up, slowly, the way the
-     blackout resolves into the vigil. */
-  max-width: none;
-  animation: tex-rest-stage-in 1800ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-@keyframes tex-rest-stage-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* The wrapper carries the SECOND, slower cycle — a gentle wander
-   and the occasional deeper breath that lands off the primary beat.
-   Translation only; no scale, so it never reads as a pulse. */
-.tex-vigil-rest {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  animation: tex-rest-wander 29s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* The shadow beneath the letter — its counterpoint. On the same 11s
-   breath, but it spreads and softens as the letter rises (42%) and
-   tightens as it settles (0 / 100%). Presence, not physics. */
-.tex-vigil-rest::after {
+.tex-mark-glyph:focus-visible::before {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: 3%;
-  width: 64%;
-  height: 18px;
-  transform: translateX(-50%);
-  background: radial-gradient(
-    50% 100% at 50% 50%,
-    rgba(29, 39, 51, 0.22),
-    rgba(29, 39, 51, 0) 70%
-  );
-  filter: blur(9px);
-  opacity: 0.55;
+  inset: 14%;
+  border-radius: 50%;
+  border: 1px solid var(--tex-ink-hair);
+}
+
+/* ---------------- REST — slow tidal swell, ink hue ----------------
+   In and out, forever. Nothing is yours; trust the silence. */
+.tex-mark-glyph--rest > span {
+  color: var(--tex-ink);
+  animation: tex-breath-rest 5200ms ease-in-out infinite;
+}
+@keyframes tex-breath-rest {
+  0%   { opacity: 0.26; }
+  50%  { opacity: 0.96; }
+  100% { opacity: 0.26; }
+}
+
+/* ---------------- HELD — the inhale, suspended ----------------
+   Rises once and is held at the top with only the faintest tremor,
+   same hue. The breath does literally what the verdict did: it froze
+   something and is holding it. It never falls back to rest on its own. */
+.tex-mark-glyph--held > span {
+  color: var(--tex-ink);
+  animation:
+    tex-held-inhale 1100ms cubic-bezier(0.4, 0, 0.2, 1) both,
+    tex-held-strain 5000ms ease-in-out 1100ms infinite;
+}
+@keyframes tex-held-inhale {
+  from { opacity: 0.30; }
+  to   { opacity: 0.93; }
+}
+@keyframes tex-held-strain {
+  0%   { opacity: 0.930; }
+  50%  { opacity: 0.965; }
+  100% { opacity: 0.930; }
+}
+
+/* ---------------- FALTERING — the rhythm fails, the hue goes pale ----
+   The only deviation the T ever shows about itself. Arrhythmic, uneven
+   opacity on one period; the trusted ink desaturating to a sick taupe
+   on a different period — so the two never resolve into a clean loop.
+   A tile flashes red. A face goes pale and unsteady. */
+.tex-mark-glyph--faltering > span {
+  animation:
+    tex-breath-falter 2600ms linear infinite,
+    tex-falter-pallor 3100ms ease-in-out infinite;
+}
+@keyframes tex-breath-falter {
+  0%   { opacity: 0.55; }
+  9%   { opacity: 0.30; }
+  14%  { opacity: 0.63; }
+  23%  { opacity: 0.41; }
+  31%  { opacity: 0.71; }
+  37%  { opacity: 0.37; }
+  46%  { opacity: 0.58; }
+  55%  { opacity: 0.33; }
+  63%  { opacity: 0.67; }
+  72%  { opacity: 0.40; }
+  80%  { opacity: 0.60; }
+  88%  { opacity: 0.34; }
+  100% { opacity: 0.55; }
+}
+@keyframes tex-falter-pallor {
+  0%   { color: #6f6a63; }
+  50%  { color: #9a958d; }
+  100% { color: #6f6a63; }
+}
+
+/* ---------------- LISTENING — Tex is being addressed ----------------
+   While the T is held, the breath stills and holds near full ink —
+   Tex is attending to you, not breathing at you. A single ring lifts
+   outward to say the mic is open. No hot mic: this only exists while
+   the gesture is held. */
+.tex-mark-glyph.is-listening > span {
+  animation: none;
+  opacity: 0.97;
+  color: var(--tex-ink);
+  transition: opacity 180ms ease, color 180ms ease;
+}
+.tex-mark-glyph.is-listening::after {
+  content: "";
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  border: 1px solid var(--tex-ink);
+  opacity: 0;
+  animation: tex-listen-ring 1700ms ease-out infinite;
   pointer-events: none;
-  animation: tex-rest-shadow 11s ease-in-out infinite;
+}
+@keyframes tex-listen-ring {
+  0%   { transform: scale(0.7); opacity: 0.32; }
+  100% { transform: scale(1.75); opacity: 0; }
 }
 
-/* The letter itself carries the PRIMARY breath. The slate-glass
-   gradient is the same family as the standing word, oversized
-   vertically so its bright band can travel down the stem as
-   background-position animates — light moving across a living
-   surface. */
-.tex-vigil-rest-mark {
-  font-family: var(--tex-mark);
-  font-style: italic;
-  font-weight: 500;
-  font-size: clamp(160px, 24vw, 320px);
-  /* Padding gives the clip box room. Cormorant's italic capital T
-     overhangs its advance width on the upper right; without this the
-     background-clip:text box shears that flare off. Also lets the
-     grounding shadow sit under the real width of the letter. */
-  padding: 0.06em 0.2em;
-  display: inline-block;
-
-  /* Ink, not vapour. The letter must read confidently on white from
-     crossbar to foot — a slate that goes nearly to black at the base,
-     with one brighter band that travels as it breathes. The old pale
-     top belonged to the standing word, against dark text; alone on
-     paper it simply disappeared. */
-  background: linear-gradient(
-    180deg,
-    #6f8096 0%,
-    #93a3b8 13%,
-    #5f7187 37%,
-    #3a4a5e 64%,
-    #18222e 100%
-  );
-  background-size: 100% 200%;
-  background-position: 50% 14%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-
-  filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
-  animation: tex-rest-breath 11s ease-in-out infinite;
-  will-change: opacity, transform, background-position, filter;
+/* ---------------- THINKING — released, composing a grounded answer --
+   Brief, between your release and Tex's voice. A slow even pulse, ink. */
+.tex-mark-glyph.is-thinking > span {
+  animation: tex-think 1400ms ease-in-out infinite;
+  color: var(--tex-ink);
+}
+@keyframes tex-think {
+  0%   { opacity: 0.5; }
+  50%  { opacity: 0.86; }
+  100% { opacity: 0.5; }
 }
 
-/* Primary breath. The peak lands at 44%, not 50% — the asymmetry
-   (quicker rise, longer settle) is what keeps it off the sine wave.
-   The light band sweeps a long way down the letter and the bloom
-   swells at the top of the breath: that travelling light is the
-   strongest "living surface" cue and, unlike opacity alone, never
-   reads as a blink. Visible within a second of looking, still calm. */
-@keyframes tex-rest-breath {
-  0% {
-    opacity: 0.9;
-    transform: translateY(4px);
-    background-position: 50% 4%;
-    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
-  }
-  44% {
-    opacity: 1;
-    transform: translateY(-4px);
-    background-position: 50% 82%;
-    filter: drop-shadow(0 0 18px rgba(120, 150, 185, 0.32));
-  }
-  64% {
-    opacity: 0.99;
-    transform: translateY(-2.5px);
-    background-position: 50% 92%;
-    filter: drop-shadow(0 0 10px rgba(120, 150, 185, 0.18));
-  }
-  100% {
-    opacity: 0.9;
-    transform: translateY(4px);
-    background-position: 50% 4%;
-    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
-  }
+/* ------------------------------------------------------------------ */
+/* The voice — Tex's words. Held in the breath below the mark; empty   */
+/* at rest. A line fades in, lingers, dissolves; the breath reclaims    */
+/* the screen. One voice, whether answering you or telling you it broke.*/
+/* ------------------------------------------------------------------ */
+
+.tex-voice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  /* reserve the breath below the mark without ever filling it at rest */
+  min-height: 22vh;
+  margin-top: 2.2vh;
+  padding: 0 4vw;
+  pointer-events: none;
+}
+.tex-voice-line {
+  margin: 0;
+  max-width: 22em;
+  text-align: center;
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-size: clamp(18px, 2.1vw, 25px);
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  color: var(--tex-ink-soft);
+  opacity: 0;
+  animation: tex-voice-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* The faltering line is still Tex's voice — the words stay legible.
+   The sickness is carried by the breath, not by making the text hard
+   to read. A hair darker so the warning is not soft-pedalled. */
+.tex-voice-line--falter {
+  color: var(--tex-ink);
+}
+.tex-voice-line--thinking {
+  opacity: 0;
+}
+@keyframes tex-voice-rise {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Secondary, non-harmonic wander — a slow ±1.5px drift with one
-   deeper draw near the 33% mark. 29s against the 11s breath means the
-   two never line up on a period the eye can catch. */
-@keyframes tex-rest-wander {
-  0%   { transform: translateY(0); }
-  33%  { transform: translateY(-1.5px); }
-  66%  { transform: translateY(0.8px); }
-  100% { transform: translateY(0); }
+/* ------------------------------------------------------------------ */
+/* Dev panel — scaffolding. Lets the three breath states and the       */
+/* speak-back surface be reviewed without a live voice gateway.        */
+/* Remove before ship. Deliberately utilitarian so it never reads as   */
+/* part of the product.                                                */
+/* ------------------------------------------------------------------ */
+
+.tex-dev-panel {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--tex-ink-hair);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(8px);
+  -webkit-backdrop-filter: saturate(180%) blur(8px);
+}
+.tex-dev-panel-label {
+  font-family: var(--tex-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tex-ink-mute);
+  padding: 0 2px;
+}
+.tex-dev-panel-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--tex-ink-hair);
+  margin: 0 2px;
+}
+.tex-dev-panel button {
+  font-family: var(--tex-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--tex-ink-soft);
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.tex-dev-panel button:hover {
+  background: var(--tex-paper-3);
+}
+.tex-dev-panel button.is-active {
+  color: var(--tex-paper);
+  background: var(--tex-ink);
 }
 
-/* Shadow counterpoint — spreads + softens at the letter's peak. */
-@keyframes tex-rest-shadow {
-  0% {
-    opacity: 0.55;
-    transform: translateX(-50%) scaleX(0.9) scaleY(1);
-  }
-  42% {
-    opacity: 0.3;
-    transform: translateX(-50%) scaleX(1.14) scaleY(0.78);
-  }
-  100% {
-    opacity: 0.55;
-    transform: translateX(-50%) scaleX(0.9) scaleY(1);
-  }
-}
-
-/* Reduced motion — hold the letter at its full, settled state. No
-   breath, no wander, no migrating light. Pristine and still. */
 @media (prefers-reduced-motion: reduce) {
-  .tex-vigil-rest-mark {
-    opacity: 1;
-    transform: translateY(0);
-    background-position: 50% 44%;
-    filter: drop-shadow(0 2px 3px rgba(29, 39, 51, 0.14));
-  }
-  .tex-vigil-rest::after {
-    opacity: 0.55;
-    transform: translateX(-50%) scaleX(1) scaleY(1);
-  }
-}
-
-/* Phone — the letter stays the hero, sized to the viewport. */
-@media (max-width: 720px) {
-  .tex-vigil-rest-mark {
-    font-size: clamp(120px, 42vw, 240px);
-  }
+  /* The breath stills to a single legible state. The mark stays present;
+     the meaning then rests on the word Tex speaks rather than the motion. */
+  .tex-mark-glyph > span { opacity: 0.84 !important; }
+  .tex-mark-glyph--faltering > span { color: #8a857d !important; }
+  .tex-mark-glyph.is-listening::after { animation: none; opacity: 0.2; }
 }

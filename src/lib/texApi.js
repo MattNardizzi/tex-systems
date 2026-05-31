@@ -95,4 +95,47 @@ export const getDecisionReplay = (decisionId) =>
 export const getEvidenceBundle = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/evidence-bundle`);
 
+/* ------------------------------------------------------------------ */
+/* Voice — the push-to-talk loop.                                      */
+/*                                                                     */
+/* The recognizer stream is a direct browser→gateway WebSocket (a      */
+/* serverless proxy cannot hold a streaming socket), so the listen     */
+/* path needs a short-lived token + the gateway URL, both minted       */
+/* server-side. The answer and synthesis paths ride the same-origin    */
+/* proxy. Audio never touches a third party: the gateway is Tex's own  */
+/* self-hosted infrastructure.                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * GET /v1/voice/token — mint a short-lived grant for the recognizer
+ * socket. Returns { ws_url, token, expires_at }. The browser opens a
+ * WebSocket to ws_url and streams 16 kHz PCM while the T is held.
+ */
+export const mintVoiceToken = () => request("/v1/voice/token");
+
+/**
+ * POST /v1/ask — answer a spoken question, grounded ONLY in sealed
+ * facts. The transcript is what the recognizer returned on release.
+ * Returns { answer, proof_ref? }. This is the integrity boundary: the
+ * backend answers from the ledger and the six layers, never a
+ * free-running model.
+ */
+export const askTex = (transcript, tenantId) =>
+  request("/v1/ask", {
+    method: "POST",
+    body: JSON.stringify({
+      transcript: transcript ?? "",
+      tenant_id: tenantId ?? null,
+    }),
+  });
+
+/**
+ * GET /v1/speak?text=... — synthesize a grounded line in Tex's ONE
+ * voice and stream the audio body back through the proxy. Returned as a
+ * URL so an <audio> element can stream it directly. Same voice whether
+ * Tex is answering you or telling you it broke.
+ */
+export const speakStreamUrl = (text) =>
+  `${BASE}/v1/speak?text=${encodeURIComponent(text || "")}`;
+
 export const TEX_API_BASE = BASE;

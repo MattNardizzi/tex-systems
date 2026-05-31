@@ -1,53 +1,23 @@
-import { useRef, useState } from "react";
-import TopBar from "./TopBar";
 import Vigil from "./Vigil";
 import "./Dashboard.css";
 
 /**
  * Dashboard — the entire product surface.
  *
- *   TopBar   — the persistent chrome. T mark (home) + initial avatar.
- *              Hidden during the manifesto; appears for the first time
- *              at the moment the vigil begins on day one. Persistent
- *              thereafter.
+ * There is no chrome. There used to be a TopBar — a T mark in the
+ * corner as a way home, an avatar on the right. Both are gone. The T
+ * is never a static logo sitting in a corner; it is the living mark,
+ * center stage, breathing. A second, frozen T would be a face caught
+ * mid-expression — a lie. So there is one T, and it is the product.
  *
- *   Vigil    — the door (manifesto on day one, threshold on day two
- *              onward), the vigil, the proof. All on one stage,
- *              dissolving into one another.
- *
- * There is no scroll. There are no rooms. There is no overlay. Tex is
- * talking. The operator is listening. When the operator wants to look
- * closer at a sentence, the sentence opens in place. When the operator
- * presses the T, Tex returns to the start of the vigil. The T mark
- * never replays the manifesto — that is, by design, an unrepeatable
- * event.
+ * The vigil owns the whole screen. One mark, three breath states, one
+ * voice you reach by holding it. Nothing else.
  */
-export default function Dashboard({ initial = "M" }) {
-  /* The T mark resets the vigil. We expose a registration callback so
-     the Vigil component can install its own reset handler. */
-  const homeHandler = useRef(() => {});
-  const registerHome = (fn) => {
-    homeHandler.current = fn;
-  };
-  const handleHome = () => homeHandler.current();
-
-  /* Chrome visibility — driven by Vigil so the topbar can hide during
-     the manifesto and during the held blackout between manifesto and
-     vigil. Default false so day-one operators don't see the chrome
-     flash for a frame before Vigil reports back. */
-  const [chromeVisible, setChromeVisible] = useState(false);
-
+export default function Dashboard() {
   return (
     <div className="tex-shell">
-      {chromeVisible && (
-        <TopBar initial={initial} onHome={handleHome} />
-      )}
-
-      <main className={`tex-body${chromeVisible ? "" : " tex-body--bare"}`}>
-        <Vigil
-          onHomeRequested={registerHome}
-          onChromeReady={setChromeVisible}
-        />
+      <main className="tex-body tex-body--bare">
+        <Vigil />
       </main>
     </div>
   );
