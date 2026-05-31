@@ -157,16 +157,36 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
     return list.length > 0 ? list : [READY_FALLBACK];
   }, [vigil]);
 
+  /* ---------------- The witness at rest ----------------
+
+     When Tex has nothing true to report — no agents yet, or the vigil
+     hasn't answered this session — there is nothing to say, so Tex says
+     nothing. The screen is one breathing letter and nothing else. A
+     witness at rest does not narrate its own waiting; patience does not
+     announce itself. The instant a real utterance arrives, this goes
+     false and Tex speaks. The signal is read straight off the wire:
+     an empty (or not-yet-loaded) utterance list. */
+  const nothingToReport = !vigil || (vigil.utterances?.length ?? 0) === 0;
+
   /* ---------------- Chrome visibility ----------------
 
      The chrome (T mark + avatar) is hidden during the manifesto and
      during the blackout. It first appears at the moment the vigil
-     begins on day one, and is always visible from then on. */
+     begins on day one, and is always visible from then on — EXCEPT
+     when Tex is at rest. With nothing to report, the screen is one
+     breathing T and nothing else; a second T in the corner and an
+     avatar would contradict that stillness. The chrome returns the
+     instant Tex speaks, because then navigating and looking closer
+     become meaningful again. The threshold door keeps its chrome from
+     the first frame (the rest-gate only applies inside the vigil). */
   useEffect(() => {
     if (!onChromeReady) return;
-    const showChrome = phase !== "manifesto" && !blackout;
+    const showChrome =
+      phase !== "manifesto" &&
+      !blackout &&
+      !(phase === "vigil" && nothingToReport);
     onChromeReady(showChrome);
-  }, [phase, blackout, onChromeReady]);
+  }, [phase, blackout, nothingToReport, onChromeReady]);
 
   /* ---------------- T mark home ----------------
 
@@ -440,7 +460,15 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
         </div>
       )}
 
-      {phase === "vigil" && current && (
+      {phase === "vigil" && nothingToReport && (
+        <div className="tex-vigil-stage tex-vigil-stage--idle" key="vigil-rest">
+          <div className="tex-vigil-rest" aria-label="Tex, at rest. Nothing to report.">
+            <span className="tex-vigil-rest-mark" aria-hidden="true">T</span>
+          </div>
+        </div>
+      )}
+
+      {phase === "vigil" && !nothingToReport && current && (
         <div className={stageClass()} key={`vigil-${index}`}>
           <div className="tex-vigil-stack">
             <h1

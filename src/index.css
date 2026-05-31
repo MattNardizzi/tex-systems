@@ -13,6 +13,14 @@
     "Times New Roman", Georgia, serif;
   --tex-mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
 
+  /* The mark — Tex's identity at rest. One glyph, and the one place
+     the type system is allowed to break, because the T is not body
+     text: it is the witness itself. A high-contrast calligraphic
+     italic carries the trace of a hand — thick where the pen bore
+     down, thin where it lifted — which is what makes a letter read as
+     alive rather than placed. Used for nothing but the breathing T. */
+  --tex-mark: "Cormorant", "Source Serif 4", Georgia, serif;
+
   /* Ink — black on paper, two soft greys for asides and proof. */
   --tex-ink: #14110d;
   --tex-ink-soft: #5e564c;

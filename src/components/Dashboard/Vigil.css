@@ -500,3 +500,200 @@
     font-size: 14px;
   }
 }
+
+/* ================================================================
+   The witness at rest — the breathing T.
+
+   When Tex has nothing true to report, the screen is one letter.
+   No standing word, no sentence, no chrome. A calligraphic capital
+   T, alive.
+
+   What makes it read as alive, not animated:
+
+     1. It does not pulse. A throbbing letter is a heart-rate
+        monitor — mechanical, medical, dead. The breath moves on
+        opacity, a sub-pixel rise, a faint bloom of light, and the
+        bright band migrating down the stem. Never scale.
+
+     2. The breath is slow and asymmetric — a ~11s cycle, roughly
+        five breaths a minute, a calm body at rest. Long inhale,
+        held top, slower exhale. So slow you only feel it if you
+        sit with the screen. Which is the entire point.
+
+     3. It is NOT a clean loop. A periodic animation reads as a
+        machine. Two non-harmonic cycles are layered — an 11s
+        primary breath on the glyph and a 29s wander on the wrapper
+        — so the combined motion only truly repeats every ~319s.
+        To the eye: never. Life punctuates stillness; it never keeps
+        a metronome.
+
+     4. The shadow answers in counterpoint — spreading and softening
+        as the letter rises, tightening as it settles. A thing with
+        no shadow-response is a sticker. The relationship between the
+        letter and its shadow is what sells presence.
+   ================================================================ */
+
+.tex-vigil-stage--idle {
+  /* The single glyph is the whole composition — no max-width clamp,
+     no stack. It arrives by simply fading up, slowly, the way the
+     blackout resolves into the vigil. */
+  max-width: none;
+  animation: tex-rest-stage-in 1800ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes tex-rest-stage-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* The wrapper carries the SECOND, slower cycle — a gentle wander
+   and the occasional deeper breath that lands off the primary beat.
+   Translation only; no scale, so it never reads as a pulse. */
+.tex-vigil-rest {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  animation: tex-rest-wander 29s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* The shadow beneath the letter — its counterpoint. On the same 11s
+   breath, but it spreads and softens as the letter rises (42%) and
+   tightens as it settles (0 / 100%). Presence, not physics. */
+.tex-vigil-rest::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7%;
+  width: 44%;
+  height: 14px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    50% 100% at 50% 50%,
+    rgba(29, 39, 51, 0.18),
+    rgba(29, 39, 51, 0) 72%
+  );
+  filter: blur(7px);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: tex-rest-shadow 11s ease-in-out infinite;
+}
+
+/* The letter itself carries the PRIMARY breath. The slate-glass
+   gradient is the same family as the standing word, oversized
+   vertically so its bright band can travel down the stem as
+   background-position animates — light moving across a living
+   surface. */
+.tex-vigil-rest-mark {
+  font-family: var(--tex-mark);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(150px, 23vw, 320px);
+  letter-spacing: -0.02em;
+  /* Lean a hair further than the italic already does — the letter is
+     a body already in motion, holding the breath it's about to take. */
+  display: inline-block;
+  transform: translateY(0);
+
+  background: linear-gradient(
+    180deg,
+    #f4f6fa 0%,
+    #dce3ec 16%,
+    #c8d2de 32%,
+    #8a99ac 54%,
+    #5b6e84 76%,
+    #1d2733 100%
+  );
+  background-size: 100% 230%;
+  background-position: 50% 16%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+  /* The bloom — a faint halo that swells on the inhale. The nearest a
+     fixed-weight face gets to breathing heavier. */
+  filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+  animation: tex-rest-breath 11s ease-in-out infinite;
+  will-change: opacity, transform, background-position, filter;
+}
+
+/* Primary breath. The peak lands at 42%, not 50% — the asymmetry
+   (quicker rise, longer settle) is what keeps it off the sine wave
+   and makes it feel drawn rather than generated. */
+@keyframes tex-rest-breath {
+  0% {
+    opacity: 0.86;
+    transform: translateY(2px);
+    background-position: 50% 12%;
+    filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+  }
+  42% {
+    opacity: 1;
+    transform: translateY(-2.5px);
+    background-position: 50% 30%;
+    filter: drop-shadow(0 0 11px rgba(150, 170, 195, 0.24));
+  }
+  62% {
+    opacity: 0.98;
+    transform: translateY(-1.5px);
+    background-position: 50% 33%;
+    filter: drop-shadow(0 0 6px rgba(150, 170, 195, 0.14));
+  }
+  100% {
+    opacity: 0.86;
+    transform: translateY(2px);
+    background-position: 50% 12%;
+    filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+  }
+}
+
+/* Secondary, non-harmonic wander — a slow ±1.5px drift with one
+   deeper draw near the 33% mark. 29s against the 11s breath means the
+   two never line up on a period the eye can catch. */
+@keyframes tex-rest-wander {
+  0%   { transform: translateY(0); }
+  33%  { transform: translateY(-1.5px); }
+  66%  { transform: translateY(0.8px); }
+  100% { transform: translateY(0); }
+}
+
+/* Shadow counterpoint — spreads + softens at the letter's peak. */
+@keyframes tex-rest-shadow {
+  0% {
+    opacity: 0.55;
+    transform: translateX(-50%) scaleX(0.9) scaleY(1);
+  }
+  42% {
+    opacity: 0.3;
+    transform: translateX(-50%) scaleX(1.14) scaleY(0.78);
+  }
+  100% {
+    opacity: 0.55;
+    transform: translateX(-50%) scaleX(0.9) scaleY(1);
+  }
+}
+
+/* Reduced motion — hold the letter at its full, settled state. No
+   breath, no wander, no migrating light. Pristine and still. */
+@media (prefers-reduced-motion: reduce) {
+  .tex-vigil-rest-mark {
+    opacity: 1;
+    transform: translateY(0);
+    background-position: 50% 24%;
+    filter: drop-shadow(0 1px 1px rgba(29, 39, 51, 0.10));
+  }
+  .tex-vigil-rest::after {
+    opacity: 0.5;
+    transform: translateX(-50%) scaleX(1) scaleY(1);
+  }
+}
+
+/* Phone — the letter stays the hero, sized to the viewport. */
+@media (max-width: 720px) {
+  .tex-vigil-rest-mark {
+    font-size: clamp(120px, 42vw, 240px);
+  }
+}
