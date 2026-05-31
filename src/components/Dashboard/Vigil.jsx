@@ -138,6 +138,11 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
   const proofReturnTimer = useRef(null);
   const blackoutTimer = useRef(null);
 
+  /* The element the awareness is written onto while Tex is at rest, plus
+     a one-frame throttle so cursor tracking never runs faster than paint. */
+  const restMarkRef = useRef(null);
+  const restRafRef = useRef(0);
+
   /* ---------------- The chosen voice ----------------
 
      The vigil renders whatever Tex chose this cycle, in surprise order.
@@ -364,6 +369,56 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
   const handleLeave = () => {
     setPaused(false);
     setHashVisible(false);
+    /* The witness settles. It was aware of you; now you've gone, and it
+       returns to rest — the glow fades, the lean straightens, the light
+       recenters. The transitions in CSS make this a slow exhale, not a snap. */
+    restToNeutral();
+  };
+
+  /* ---------------- Awareness ----------------
+
+     While Tex is at rest, it registers the one presence in front of it:
+     you. As the cursor moves, the light inside the letter shifts toward
+     it and the whole mark leans a hair its way — the ear turning toward
+     the sound, not a word spoken. This is the honest, smallest version
+     of what Tex does: it watches your system; on this screen, you are
+     the system. Awareness, never announcement.
+
+     We write the cursor's bearing as CSS variables and let CSS do the
+     easing, so the motion stays on the compositor and the lean lags
+     just enough to read as attention rather than a cursor-follow. */
+  const restToNeutral = () => {
+    const el = restMarkRef.current;
+    if (!el) return;
+    el.style.setProperty("--tex-rest-glow", "0");
+    el.style.setProperty("--tex-rest-tilt", "0");
+    el.style.setProperty("--tex-rest-mx", "50%");
+    el.style.setProperty("--tex-rest-my", "32%");
+  };
+
+  const handleRestPointer = (e) => {
+    if (restRafRef.current) return; // at most once per frame
+    const x = e.clientX;
+    const y = e.clientY;
+    restRafRef.current = requestAnimationFrame(() => {
+      restRafRef.current = 0;
+      const el = restMarkRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (!r.width) return;
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      /* Highlight position within the glyph box, clamped to its bounds. */
+      const mx = Math.max(0, Math.min(100, ((x - r.left) / r.width) * 100));
+      const my = Math.max(0, Math.min(100, ((y - r.top) / r.height) * 100));
+      /* Lean: a fraction of the cursor's offset from center. The wide
+         divisor keeps it to a couple of degrees at most — felt, not seen. */
+      const tilt = Math.max(-1, Math.min(1, (x - cx) / (r.width * 1.8)));
+      el.style.setProperty("--tex-rest-mx", `${mx.toFixed(1)}%`);
+      el.style.setProperty("--tex-rest-my", `${my.toFixed(1)}%`);
+      el.style.setProperty("--tex-rest-tilt", tilt.toFixed(3));
+      el.style.setProperty("--tex-rest-glow", "1");
+    });
   };
 
   const handleSentenceClick = () => {
@@ -401,6 +456,7 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
       className="tex-vigil"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
+      onMouseMove={handleRestPointer}
     >
       {phase === "manifesto" && !blackout && (
         <div className={stageClass()} key="manifesto">
@@ -463,7 +519,9 @@ export default function Vigil({ onHomeRequested, onChromeReady }) {
       {phase === "vigil" && nothingToReport && (
         <div className="tex-vigil-stage tex-vigil-stage--idle" key="vigil-rest">
           <div className="tex-vigil-rest" aria-label="Tex, at rest. Nothing to report.">
-            <span className="tex-vigil-rest-mark" aria-hidden="true">T</span>
+            <span className="tex-vigil-rest-lean" ref={restMarkRef}>
+              <span className="tex-vigil-rest-mark" aria-hidden="true">T</span>
+            </span>
           </div>
         </div>
       )}
