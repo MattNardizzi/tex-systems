@@ -3,6 +3,7 @@ import "./Vigil.css";
 import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
+import { useIgnition } from "../../hooks/useIgnition";
 import { askTex } from "../../lib/texApi";
 import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
 
@@ -117,6 +118,14 @@ const OBJECT_LINGER_MS = 6_000;
    however you arrive. */
 const HERE_LINE_MS = 2_400;
 
+/* The day-one ignition line — "You have forty-one agents running. I'll
+   begin." — is a fuller sentence than "Here.", and it is the one line §1
+   permits the surface to hold on open: the count, and that Tex is
+   beginning. It lingers a beat longer, then the glass goes clean and the
+   live vigil takes over. Said once, ever (the server-side flag enforces
+   it); never replayed. */
+const IGNITE_LINE_MS = 4_600;
+
 /* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
    paper goes empty, then this long after the word clears a held decision
    arrives — so the full arc (presence → silence → a real decision →
@@ -164,6 +173,12 @@ function deriveState(vigil, snapshot, demoDecision, override) {
 export default function Vigil() {
   const vigil = useVigil();
   const snapshot = useSystemState();
+
+  /* The day-one threshold. Server-authoritative: whether Tex has begun
+     lives in the backend, not localStorage. While the status read is in
+     flight the surface renders nothing (silence is the resting truth, not
+     a spinner), so a returning operator never sees a flash of the door. */
+  const ignition = useIgnition();
 
   /* Dev override for the wire's liveness, toggled from the dev panel:
      null = real heartbeat, "lost" = force the still breath. */
@@ -255,6 +270,11 @@ export default function Vigil() {
   useEffect(() => {
     if (openHandledRef.current) return;
     if (override) return; /* dev override owns the surface */
+    /* The day-one door owns the open. Wait until the ignition status has
+       resolved, and don't run the presence/demo choreography while the
+       greeting is up — begin()/dismiss() claim the open themselves. */
+    if (!ignition.ready) return;
+    if (ignition.doorOpen) return;
     openHandledRef.current = true;
 
     if (state === "silent" && alive) sayHere();
@@ -264,7 +284,43 @@ export default function Vigil() {
     }, HERE_LINE_MS + DEMO_ABSTAIN_AFTER_HERE_MS);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ignition.ready, ignition.doorOpen]);
+
+  /* ---------------- The day-one threshold: begin / not yet ----------------
+     Tex says hello once and offers to begin discovery. "Begin discovery."
+     fires ignition on the backend (said once, ever) and Tex speaks the one
+     line it is allowed to hold on open — the count, and that it is
+     beginning — then the glass goes clean and the live vigil takes over.
+     "Not yet" closes the greeting for this session without firing, so Tex
+     greets again next time; it does not nag again now. Both claim the open
+     so the presence/demo choreography above stays silent. */
+  const beginButtonRef = useRef(null);
+
+  const beginDiscovery = useCallback(async () => {
+    openHandledRef.current = true; /* claim the open: no "Here.", no demo */
+    const line = await ignition.begin();
+    if (line) {
+      clearLineTimer();
+      setSpoken({ kind: "ignite", text: line });
+      texSpeak(line);
+      lineTimer.current = setTimeout(() => setSpoken(null), IGNITE_LINE_MS);
+    }
+    /* line === null → already ignited or a failed reach; the door state in
+       the hook decides whether to stay (retry) or fall through to silence. */
+  }, [ignition]);
+
+  const deferDiscovery = useCallback(() => {
+    openHandledRef.current = true; /* rest in silence; Tex does not nag */
+    ignition.dismiss();
+  }, [ignition]);
+
+  /* Move focus to the primary act when the door opens, so the threshold is
+     crossable from the keyboard the same way it is by pointer. */
+  useEffect(() => {
+    if (ignition.ready && ignition.doorOpen && beginButtonRef.current) {
+      beginButtonRef.current.focus();
+    }
+  }, [ignition.ready, ignition.doorOpen]);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
   const listenerRef = useRef(null);
@@ -275,6 +331,10 @@ export default function Vigil() {
       if (e && e.target && e.target.closest && e.target.closest("[data-act]")) {
         return;
       }
+      /* The ask gesture is inert until the day-one door is resolved and
+         closed. There is nothing sealed to ask about before discovery has
+         begun, and holding must not open a mic over the greeting. */
+      if (!ignition.ready || ignition.doorOpen) return;
       clearLineTimer();
       clearObjectTimer();
       setSurfaced(null);
@@ -298,7 +358,7 @@ export default function Vigil() {
         listenerRef.current = null;
       });
     },
-    [state, liveDecision, snapshot]
+    [state, liveDecision, snapshot, ignition.ready, ignition.doorOpen]
   );
 
   const endHold = useCallback(() => {
@@ -458,6 +518,8 @@ export default function Vigil() {
 
   const ariaState = !alive
     ? "Tex is no longer responding. The connection to the witness was lost."
+    : ignition.ready && ignition.doorOpen
+    ? "Tex is ready to begin discovery. Begin, or not yet."
     : state === "held"
     ? "Tex is holding a decision for you."
     : state === "faltering"
@@ -465,6 +527,12 @@ export default function Vigil() {
     : "Tex, watching. Press and hold anywhere to speak.";
 
   const decision = liveDecision;
+
+  /* The day-one door owns the surface until it is crossed — except a
+     broken chain, which Tex must confess first (you don't greet over a
+     faltering witness). */
+  const doorOpen =
+    ignition.ready && ignition.doorOpen && state !== "faltering";
 
   return (
     <section
@@ -507,8 +575,42 @@ export default function Vigil() {
         </div>
       )}
 
+      {/* The day-one threshold — Tex says hello, once, and offers to begin
+          discovery. "Begin discovery." fires ignition on the backend (said
+          once, ever); "Not yet" leaves it unfired so Tex greets again next
+          time. The buttons carry data-act so a press on them never opens
+          the ask mic. */}
+      {doorOpen && (
+        <div className="tex-door" role="group" aria-label="Begin discovery">
+          <p className="tex-door-sentence">
+            Hi, I am Tex. I am ready to begin discovery when you are?
+          </p>
+          <div className="tex-acts tex-door-acts">
+            <button
+              ref={beginButtonRef}
+              type="button"
+              data-act="begin"
+              className="tex-act tex-act--approve"
+              disabled={ignition.igniting}
+              onClick={beginDiscovery}
+            >
+              Begin discovery.
+            </button>
+            <button
+              type="button"
+              data-act="defer"
+              className="tex-act"
+              disabled={ignition.igniting}
+              onClick={deferDiscovery}
+            >
+              Not yet
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* The held decision — Tex's voice, the facts, the resolved acts. */}
-      {state === "held" && decision && !sealed && (
+      {!doorOpen && state === "held" && decision && !sealed && (
         <div className="tex-held">
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
@@ -550,16 +652,19 @@ export default function Vigil() {
           never written. The only spoken lines that touch the paper are
           presence ("Here.") and the faltering warning — and only because
           those are states Tex is in, not answers to a question. */}
-      {state !== "held" && !sealed && (
+      {!doorOpen && state !== "held" && !sealed && (
         <div className="tex-voice" aria-live="polite">
-          {spoken && (spoken.kind === "here" || spoken.kind === "falter") && (
-            <p
-              className={`tex-voice-line tex-voice-line--${spoken.kind}`}
-              key={spoken.text}
-            >
-              {spoken.text}
-            </p>
-          )}
+          {spoken &&
+            (spoken.kind === "here" ||
+              spoken.kind === "falter" ||
+              spoken.kind === "ignite") && (
+              <p
+                className={`tex-voice-line tex-voice-line--${spoken.kind}`}
+                key={spoken.text}
+              >
+                {spoken.text}
+              </p>
+            )}
         </div>
       )}
 
@@ -568,7 +673,7 @@ export default function Vigil() {
           centered, only because you reached for it, and dissolves the
           moment it has been taken. You don't comprehend a hash — you take
           it. Meaning is spoken; an object is shown. */}
-      {state !== "held" && !sealed && surfaced && (
+      {!doorOpen && state !== "held" && !sealed && surfaced && (
         <div className="tex-object" role="status" aria-live="polite">
           <span className="tex-object-value" key={surfaced.value}>
             {surfaced.value}

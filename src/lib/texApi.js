@@ -87,6 +87,34 @@ export const explainLine = (dimension, claimText, tenantId) =>
  */
 export const getSystemState = () => request("/v1/system/state");
 
+/* ------------------------------------------------------------------ */
+/* Discovery surface — the day-one threshold (ignition) + pull-only.   */
+/*                                                                     */
+/* "Run discovery" is ignition, said once. The status read carries no  */
+/* side effect, so the surface can decide whether to show the day-one  */
+/* door WITHOUT firing it; firing is the operator's deliberate act on   */
+/* ignite, which returns the single spoken line (the count, and that    */
+/* Tex is beginning) and never speaks again. Both are server-           */
+/* authoritative: the "fired once" truth lives in the backend's         */
+/* IgnitionRegistry, not in a forgeable localStorage flag.              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * GET /v1/surface/discovery/status — has ignition fired for this tenant?
+ * Pure read, no side effect. Returns { ignited, ignited_at }.
+ */
+export const getDiscoveryStatus = () => request("/v1/surface/discovery/status");
+
+/**
+ * POST /v1/surface/discovery/ignite — begin watching the estate.
+ * Returns { spoken, object, already_ignited, count }. ``spoken`` is the
+ * one line Tex says on ignition ("You have forty-one agents running. I'll
+ * begin."); ``already_ignited`` is true if the door had already opened, in
+ * which case ``spoken`` is null and the surface goes straight to silence.
+ */
+export const igniteDiscovery = () =>
+  request("/v1/surface/discovery/ignite", { method: "POST" });
+
 /** GET /decisions/{id}/replay — full Decision record for a prior eval. */
 export const getDecisionReplay = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/replay`);
