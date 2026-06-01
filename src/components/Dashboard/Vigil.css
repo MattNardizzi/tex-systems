@@ -172,6 +172,7 @@
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
+  perspective: 1100px;
   animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 .tex-door-sentence {
@@ -182,6 +183,47 @@
   line-height: 1.32;
   letter-spacing: -0.012em;
   color: var(--tex-ink);
+}
+/* The manifesto cycle — each declarative line rotates in, holds, then
+   rotates out as the next takes its place. A whisper of rotateX, like a
+   page turning toward you — never a spin: the glass stays calm. The line
+   is keyed by step in the JSX, so each beat replays this from the top.
+   Duration must track MANIFESTO_BEAT_MS in Vigil.jsx. */
+.tex-door-line {
+  transform-origin: 50% 0;
+  animation: tex-door-cycle 2400ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* The final line — the question — only arrives; it does not leave. */
+.tex-door-line--hold {
+  animation: tex-door-arrive 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes tex-door-cycle {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) rotateX(7deg);
+  }
+  16% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) rotateX(-6deg);
+  }
+}
+@keyframes tex-door-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) rotateX(7deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
 }
 /* The acts arrive a beat after the greeting — the same cadence the held
    card uses — so the eye reads the sentence before the choice appears. */
@@ -404,6 +446,14 @@
 @media (prefers-reduced-motion: reduce) {
   .tex-field.is-listening::after { animation: none; opacity: 0.12; }
   .tex-field--faltering { animation: none; background: #f7f5f2; }
+  /* The manifesto still advances (the lines are content, not decoration),
+     but without the rotate/rise — each line simply appears. */
+  .tex-door-line,
+  .tex-door-line--hold {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Off-screen status for assistive tech — used to report a lost wire,

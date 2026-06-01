@@ -126,6 +126,23 @@ const HERE_LINE_MS = 2_400;
    it); never replayed. */
 const IGNITE_LINE_MS = 4_600;
 
+/* The day-one open — the manifesto. Tex introduces itself in a short
+   litany: each line rotates in, holds, and rotates out, the next taking
+   its place, until the last line — the question — arrives and stays with
+   the two acts beneath it. Fires on the day-one threshold; the preview
+   flag in useIgnition replays it on every load. */
+const MANIFESTO = [
+  "Hi, I am Tex.",
+  "I am always awake.",
+  "I am always here.",
+  "You can hold anywhere to speak with me.",
+  "Are you ready to begin mapping?",
+];
+/* How long each declarative line owns the glass — long enough to read,
+   then it gives way. The final line (the question) does not cycle out.
+   Keep in sync with the tex-door-cycle duration in Vigil.css. */
+const MANIFESTO_BEAT_MS = 2_400;
+
 /* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
    paper goes empty, then this long after the word clears a held decision
    arrives — so the full arc (presence → silence → a real decision →
@@ -196,6 +213,9 @@ export default function Vigil() {
 
   /* Dev override for the states, toggled from the dev panel. */
   const [override, setOverride] = useState(null); /* null | silent | held | faltering */
+
+  /* Which line of the day-one manifesto is on the glass (see MANIFESTO). */
+  const [manifestoStep, setManifestoStep] = useState(0);
 
   /* The resolved act, briefly shown as a seal before returning to
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
@@ -314,13 +334,19 @@ export default function Vigil() {
     ignition.dismiss();
   }, [ignition]);
 
-  /* Move focus to the primary act when the door opens, so the threshold is
+  /* Move focus to the primary act when the question line arrives (the
+     acts only exist on the final manifesto beat), so the threshold is
      crossable from the keyboard the same way it is by pointer. */
   useEffect(() => {
-    if (ignition.ready && ignition.doorOpen && beginButtonRef.current) {
+    if (
+      ignition.ready &&
+      ignition.doorOpen &&
+      manifestoStep >= MANIFESTO.length - 1 &&
+      beginButtonRef.current
+    ) {
       beginButtonRef.current.focus();
     }
-  }, [ignition.ready, ignition.doorOpen]);
+  }, [ignition.ready, ignition.doorOpen, manifestoStep]);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
   const listenerRef = useRef(null);
@@ -534,6 +560,23 @@ export default function Vigil() {
   const doorOpen =
     ignition.ready && ignition.doorOpen && state !== "faltering";
 
+  /* The manifesto plays while the door is open: advance through the
+     declarative lines on a steady beat, then stop on the question and let
+     the acts appear. Resets whenever the door closes, so the next open (or
+     the next preview load) begins again at "Hi, I am Tex." */
+  useEffect(() => {
+    if (!doorOpen) {
+      setManifestoStep(0);
+      return;
+    }
+    if (manifestoStep >= MANIFESTO.length - 1) return; /* the question holds */
+    const t = setTimeout(
+      () => setManifestoStep((s) => s + 1),
+      MANIFESTO_BEAT_MS
+    );
+    return () => clearTimeout(t);
+  }, [doorOpen, manifestoStep]);
+
   return (
     <section
       className={fieldClass}
@@ -580,32 +623,48 @@ export default function Vigil() {
           once, ever); "Not yet" leaves it unfired so Tex greets again next
           time. The buttons carry data-act so a press on them never opens
           the ask mic. */}
+      {/* The day-one threshold — the manifesto. Tex introduces itself in a
+          short litany: each line rotates in, holds, and rotates out, the
+          next taking its place, until the final line — the question —
+          arrives and stays with the two acts beneath it. "Yes" fires
+          ignition on the backend (said once, ever); "No" leaves it unfired
+          so Tex greets again next time. The acts carry data-act so a press
+          on them never opens the ask mic. */}
       {doorOpen && (
-        <div className="tex-door" role="group" aria-label="Begin discovery">
-          <p className="tex-door-sentence">
-            Hi, I am Tex. I am ready to begin discovery when you are?
+        <div className="tex-door" role="group" aria-label="Begin mapping">
+          <p
+            key={manifestoStep}
+            className={
+              manifestoStep >= MANIFESTO.length - 1
+                ? "tex-door-sentence tex-door-line tex-door-line--hold"
+                : "tex-door-sentence tex-door-line"
+            }
+          >
+            {MANIFESTO[manifestoStep]}
           </p>
-          <div className="tex-acts tex-door-acts">
-            <button
-              ref={beginButtonRef}
-              type="button"
-              data-act="begin"
-              className="tex-act tex-act--approve"
-              disabled={ignition.igniting}
-              onClick={beginDiscovery}
-            >
-              Begin discovery.
-            </button>
-            <button
-              type="button"
-              data-act="defer"
-              className="tex-act"
-              disabled={ignition.igniting}
-              onClick={deferDiscovery}
-            >
-              Not yet
-            </button>
-          </div>
+          {manifestoStep >= MANIFESTO.length - 1 && (
+            <div className="tex-acts tex-door-acts">
+              <button
+                ref={beginButtonRef}
+                type="button"
+                data-act="begin"
+                className="tex-act tex-act--approve"
+                disabled={ignition.igniting}
+                onClick={beginDiscovery}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                data-act="defer"
+                className="tex-act"
+                disabled={ignition.igniting}
+                onClick={deferDiscovery}
+              >
+                No
+              </button>
+            </div>
+          )}
         </div>
       )}
 
