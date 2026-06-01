@@ -9,19 +9,16 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
 /* ==================================================================
    Vigil — the entire product surface.
 
-   There is no T. There is no logo, no mark, no breathing letter. The
-   surface at rest is silence — empty paper. Tex is watching, and the
-   proof that it is watching is a single breath at the center: not a
-   glyph, not a letter, a slow ink breath you catch in the corner of
-   your eye from across a desk. Quiet, not dead.
+   There is no T. There is no logo, no mark, no breathing letter, and
+   no pilot light. The surface at rest is silence — empty paper, fully
+   empty. There is nothing at center but white.
 
-   The breath is REAL. It is driven by useHeartbeat — a live ping to
-   the backend — and nothing else. While the wire returns, Tex breathes.
-   The instant the wire goes quiet, the breath stops and holds still,
-   and that stillness is the alarm: when the witness loses the thread
-   it can no longer speak, so the still breath is the one honest channel
-   left to say so. A witness whose whole pitch is provable honesty must
-   never animate liveness it does not have. Real or gone.
+   Tex does not announce that it is alive. A sovereign doesn't post a
+   sign of life; you know it is alive two ways — the kingdom is in order,
+   and when you reach for it, it answers. Tex speaks ONLY when it has
+   something for you. The absence of speech is not absence of life. It
+   is the calm of a watch that doesn't need you yet. That silence is the
+   proof, and the instant you reach in, the answer is the proof again.
 
    Tex speaks ONLY when it has something for you. The screen breaks
    its silence in exactly two ways:
@@ -367,18 +364,6 @@ export default function Vigil() {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >
-      {/* The breath — proof of life, and it is real. Driven by the
-          heartbeat, never a loop. It breathes while Tex is alive on the
-          wire; it holds still the moment the wire is lost. The stillness
-          is the alarm. Visible at rest only; held and faltering replace
-          it with words. */}
-      {state === "silent" && !sealed && (
-        <span
-          className={`tex-breath${alive ? "" : " is-still"}`}
-          aria-hidden="true"
-        />
-      )}
-
       {/* A lost wire is the one death Tex cannot speak. For anyone who
           cannot see the still breath, the interface — not Tex — reports
           the dropped channel, politely, off the visible paper. */}

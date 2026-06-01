@@ -34,49 +34,15 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The breath — proof of life, and it is real. Driven by the heartbeat  */
-/* (useHeartbeat), never a decorative loop. An ink breath, not an orb:  */
-/* big enough to catch in peripheral vision from across a desk, quiet   */
-/* enough to never announce itself. It breathes while Tex is alive on   */
-/* the wire. When the wire is lost it holds STILL — and the stillness   */
-/* is the alarm. Visible at rest only; held and faltering use words.    */
+/* The surface at rest is empty. There is no sign of life, by design.   */
+/* Tex does not announce that it is alive — you know it is alive because */
+/* it answers when reached. The only thing the held gesture summons in   */
+/* silence is the mic-open ring below, and only while held.             */
 /* ------------------------------------------------------------------ */
 
-.tex-breath {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--tex-ink);
-  opacity: 0.22;
-  animation: tex-breath-cycle 4600ms ease-in-out infinite;
-  will-change: opacity, transform;
-}
-@keyframes tex-breath-cycle {
-  0%   { opacity: 0.14; transform: scale(0.82); }
-  50%  { opacity: 0.34; transform: scale(1.12); }
-  100% { opacity: 0.14; transform: scale(0.82); }
-}
-
-/* The wire is gone. The breath stops mid-rest and the life drains out
-   of it — a held, faded mark. No motion, because there is nothing alive
-   behind it to move it. This stillness is the only honest signal left
-   when Tex can no longer speak. */
-.tex-breath.is-still {
-  animation: none;
-  opacity: 0.08;
-  transform: scale(0.82);
-  transition: opacity 900ms ease, transform 900ms ease;
-}
-
-/* While the surface is held (you're addressing Tex), the breath steadies
-   and a single ring lifts outward — the mic is open. No hot mic: this
-   only exists while the gesture is held. */
-.tex-field.is-listening .tex-breath {
-  animation: none;
-  opacity: 0.4;
-  transform: scale(1.18);
-  transition: opacity 180ms ease, transform 180ms ease;
-}
+/* While the surface is held (you're addressing Tex), a single ring lifts
+   outward from center — the mic is open. No hot mic: this only exists
+   while the gesture is held. */
 .tex-field.is-listening::after {
   content: "";
   position: absolute;
@@ -94,18 +60,6 @@
 @keyframes tex-listen-ring {
   0%   { transform: scale(0.35); opacity: 0.18; }
   100% { transform: scale(1); opacity: 0; }
-}
-
-/* Thinking — released, composing a grounded answer. The breath holds a
-   touch more present, evenly. */
-.tex-field.is-thinking .tex-breath {
-  animation: tex-breath-think 1400ms ease-in-out infinite;
-  opacity: 0.3;
-}
-@keyframes tex-breath-think {
-  0%   { opacity: 0.16; }
-  50%  { opacity: 0.38; }
-  100% { opacity: 0.16; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -355,13 +309,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tex-breath {
-    animation: none !important;
-    opacity: 0.24 !important;
-  }
-  .tex-breath.is-still {
-    opacity: 0.08 !important;
-  }
   .tex-field.is-listening::after { animation: none; opacity: 0.12; }
   .tex-field--faltering { animation: none; background: #f7f5f2; }
 }
