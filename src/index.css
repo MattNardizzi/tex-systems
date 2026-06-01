@@ -13,9 +13,9 @@
     "Times New Roman", Georgia, serif;
   --tex-mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
 
-  /* There is no mark. The surface at rest is silence — a single
-     faint pulse, not a letter. The slab-mark token was retired when
-     the T was removed; nothing in the product renders a glyph now. */
+  /* There is no mark. The surface at rest is silence — empty paper,
+     fully empty. The slab-mark token was retired when the T was
+     removed; nothing in the product renders a glyph now. */
 
   /* Ink — black on paper, two soft greys for asides and proof. */
   --tex-ink: #14110d;

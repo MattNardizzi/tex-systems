@@ -4,14 +4,12 @@ import "./Dashboard.css";
 /**
  * Dashboard — the entire product surface.
  *
- * There is no chrome. There used to be a TopBar — a T mark in the
- * corner as a way home, an avatar on the right. Both are gone. The T
- * is never a static logo sitting in a corner; it is the living mark,
- * center stage, breathing. A second, frozen T would be a face caught
- * mid-expression — a lie. So there is one T, and it is the product.
- *
- * The vigil owns the whole screen. One mark, three breath states, one
- * voice you reach by holding it. Nothing else.
+ * There is no chrome. There is no mark. The surface at rest is empty
+ * white — no logo, no breathing letter, no pilot light. Tex does not
+ * post a sign of life; you know it is alive because it answers when you
+ * reach. The vigil owns the whole screen: silence at rest, one voice you
+ * reach by holding anywhere, and the two things worth breaking silence
+ * for — a held decision, or a broken chain. Nothing else.
  */
 export default function Dashboard() {
   return (

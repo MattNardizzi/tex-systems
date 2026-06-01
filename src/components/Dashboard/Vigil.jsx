@@ -13,6 +13,15 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    no pilot light. The surface at rest is silence — empty paper, fully
    empty. There is nothing at center but white.
 
+   What Tex is: a witness WITH authority. It does not only watch. The
+   execution governance layer rules on every action an agent attempts —
+   PERMIT, FORBID, ABSTAIN — thousands of times, in the background.
+   Letting a wire through is a decision. Blocking it is a decision Tex
+   makes on its own authority. Holding it is Tex deciding it will not
+   rule alone. Tex watches, RULES, and proves. The voice flexes to
+   match: it speaks as GOVERNOR when it reports its rulings or holds one
+   for you, and as WITNESS when it must confess its proof has broken.
+
    Tex does not announce that it is alive. A sovereign doesn't post a
    sign of life; you know it is alive two ways — the kingdom is in order,
    and when you reach for it, it answers. Tex speaks ONLY when it has
@@ -20,23 +29,33 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    is the calm of a watch that doesn't need you yet. That silence is the
    proof, and the instant you reach in, the answer is the proof again.
 
-   Tex speaks ONLY when it has something for you. The screen breaks
-   its silence in exactly two ways:
+   Tex speaks ONLY when it has something for you. On open it speaks the
+   most urgent true thing, once, then returns to silence:
 
-     HELD       a decision is reserved for a human. Tex froze an
-                action it will not take on its own authority (an
-                ABSTAIN) and surfaces it, in its own voice, with the
-                facts that matter and the resolved acts that seal it.
-                A wire transfer is not approved by a spoken "yes" —
-                it is sealed by a named human act the evidence layer
-                can prove. So the held state carries approve / hold /
-                refuse, and resolving it writes a sealed decision.
+     FALTERING  (first, always) Tex's own integrity failed — the
+                evidence chain broke, an agent went dark, Tex can no
+                longer prove what it claims. It speaks first, unprompted,
+                the instant it can. Silence while broken is a lie told in
+                the most dangerous window. This is the witness confessing.
 
-     FALTERING  Tex's own integrity failed — the evidence chain broke,
-                an agent went dark, Tex can no longer prove what it
-                claims. It speaks first, unprompted, the instant it
-                can. Silence while broken is a lie told in the most
-                dangerous window.
+     HELD       a decision is reserved for a human. Tex froze an action
+                it will not take on its own authority (an ABSTAIN) and
+                surfaces it, in its own voice, with the facts that matter
+                and the resolved acts that seal it. A wire transfer is
+                not approved by a spoken "yes" — it is sealed by a named
+                human act the evidence layer can prove. So the held state
+                carries approve / hold / refuse, and resolving it writes
+                a sealed decision. This is the governor asking permission.
+
+     PRESENCE   nothing is faltering, nothing waits on you. Opening is a
+                reach, so Tex answers the reach the same way it answers a
+                press in silence: one word — "Here." — that lands and
+                fades, and the paper goes empty. No report, no count, no
+                catch. What it governed while you were gone is not news;
+                if you want it, you reach and ask. The silence after
+                "Here" is the proof that nothing needs you. (When the
+                wire is dead, Tex does not say "Here" — it cannot, and
+                the still breath already told you.)
 
    The ask gesture lives everywhere: press and hold ANYWHERE on the
    surface to address Tex. No wake word, no hot mic — Tex listens only
@@ -76,13 +95,23 @@ function falterLine(snapshot) {
 /* How long a spoken answer lingers before silence reclaims the screen. */
 const ANSWER_LINE_MS = 8_000;
 
-/* "Here." is one word — it lands and leaves faster than an answer. */
+/* "Here." is one word — it lands and leaves faster than an answer. The
+   same word answers a reach in silence and a fresh open; one vocabulary
+   for presence, however you arrive. */
 const HERE_LINE_MS = 2_400;
 
-/* Demo: the abstain that surfaces on its own so the held state can be
-   seen without a live backend. This is what a real /v1/vigil
-   human_decision would carry. Remove the demo wiring before ship; the
-   shape is the contract. */
+/* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
+   paper goes empty, then this long after the word clears a held decision
+   arrives — so the full arc (presence → silence → a real decision →
+   resolution → silence) is visible without a backend. A real build never
+   schedules this; the wire delivers human_decision whenever it comes. */
+const DEMO_ABSTAIN_AFTER_HERE_MS = 5_000;
+
+/* Demo: the abstain — a frozen action Tex will not rule on alone. This
+   is what a real /v1/vigil human_decision carries; here it is summoned
+   by the open choreography above (and by the dev panel) to review the
+   held flow. Remove the demo wiring before ship; the shape is the
+   contract. */
 const DEMO_ABSTAIN = {
   id: "dec_9f3a71c2",
   sentence: "I need to know if I can send this wire transfer.",
@@ -91,8 +120,6 @@ const DEMO_ABSTAIN = {
   /* The sealed facts the proof rests on. */
   anchor_sha256: "b7e23ec29af22b0b4e0d8f6c1a93d5f8c2e1a04d9b3f7c6e",
   agent: "payments-agent-03",
-  /* When this demo fires after the surface goes quiet (ms). */
-  fires_after_ms: 3_400,
 };
 
 /* ------------------------------------------------------------------ */
@@ -129,11 +156,11 @@ export default function Vigil() {
      breathes. false → the wire is gone and the breath holds still. */
   const alive = useHeartbeat(wireOverride);
 
-  /* The demo abstain — fires itself once after the surface settles,
-     so the held state is visible without a live backend. A real build
-     gets this from vigil.human_decision and never sets it here. */
+  /* The demo abstain — summoned by the open choreography below, after
+     "Here" has landed and the paper has gone quiet. A real build gets
+     this from vigil.human_decision and never sets it here. */
   const [demoDecision, setDemoDecision] = useState(null);
-  const demoFiredRef = useRef(false);
+  const openHandledRef = useRef(false);
 
   /* Dev override for the states, toggled from the dev panel. */
   const [override, setOverride] = useState(null); /* null | silent | held | faltering */
@@ -156,17 +183,6 @@ export default function Vigil() {
     lineTimer.current = null;
   };
 
-  /* ---------------- Demo abstain fires itself ---------------- */
-  useEffect(() => {
-    if (demoFiredRef.current) return;
-    if (override) return; /* dev override owns the state */
-    demoFiredRef.current = true;
-    const t = setTimeout(() => {
-      setDemoDecision(DEMO_ABSTAIN);
-    }, DEMO_ABSTAIN.fires_after_ms);
-    return () => clearTimeout(t);
-  }, [override]);
-
   /* ---------------- Faltering speaks first, unprompted ---------------- */
   useEffect(() => {
     if (state !== "faltering") return;
@@ -186,6 +202,31 @@ export default function Vigil() {
     setSpoken({ kind: "here", text: "Here." });
     texSpeak("Here.");
     lineTimer.current = setTimeout(() => setSpoken(null), HERE_LINE_MS);
+  }, []);
+
+  /* ---------------- Open: presence, then (demo) a decision arrives ----------------
+     Opening is a reach. With nothing faltering and nothing held, Tex
+     answers the open the same way it answers a press in silence: "Here."
+     — then the paper goes empty. No report, no count. (Faltering and held
+     own their own effects above/below and take precedence; this only
+     speaks into a silent, living open.)
+
+     The scheduled abstain below is DEMO ONLY — it lets the full arc be
+     seen without a backend: Here → silence → a held decision → you
+     resolve it → silence. A real build deletes this timer; the wire
+     delivers human_decision on its own clock. */
+  useEffect(() => {
+    if (openHandledRef.current) return;
+    if (override) return; /* dev override owns the surface */
+    openHandledRef.current = true;
+
+    if (state === "silent" && alive) sayHere();
+
+    const t = setTimeout(() => {
+      setDemoDecision(DEMO_ABSTAIN);
+    }, HERE_LINE_MS + DEMO_ABSTAIN_AFTER_HERE_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
