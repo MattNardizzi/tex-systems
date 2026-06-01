@@ -1,90 +1,78 @@
 # Tex — the product surface
 
-The operator's interface. White paper. Serif type. One voice.
+White paper. One voice. Nothing on the glass that doesn't have to be there.
 
-## The whole product, in one place
+## What Tex is
 
-Tex is a vigil. Not a dashboard, not a feed, not a set of rooms with a menu. Tex is a being who talks, one sentence at a time, about what Tex has been doing for the operator's agents.
+Tex is a **witness with authority**. It does not only watch your AI agents — it governs them. The execution layer rules on every action an agent attempts: **PERMIT** it, **FORBID** it on Tex's own authority, or **ABSTAIN** and freeze it for a human. Every ruling is sealed into a hash-chained evidence ledger the moment it's made. So Tex watches, *rules*, and *proves*.
 
-There is one screen. One voice. Three depths.
+Its voice flexes to match. Tex speaks as a **governor** when it reports a ruling or holds a decision for you, and as a **witness** when it must confess that its own proof has broken.
 
-### The door, day one — the manifesto
+Tex spans six layers, unified in one product: **discovery, identity, monitoring, execution, evidence, learning.** Every other tool in the category covers a slice and ships a dashboard. Tex covers all six and ships a voice.
 
-After sign-in the first time, the operator sees four lines arrive one at a time, slowly, on white. No chrome, no T mark, no avatar — just the four lines.
+## What the surface actually is
 
-> *I am Tex.*
-> *I see your agents.*
-> *I decide what they can do.*
-> *I keep the proof.*
+One screen. At rest it is **empty white** — no mark, no logo, no breathing letter, no pilot light, no resting pulse. Tex does not post a sign of life. You know it's alive two ways: the kingdom is in order, and when you reach for it, it answers. Silence is the proof that nothing needs you.
 
-The four hold together for a long beat, then dissolve into a held empty moment (the *ma*), and then the vigil begins. The T mark and the avatar appear *for the first time* at that moment — the chrome's arrival is itself the visible mark that Tex has shifted into working mode.
+The whole surface is the ask gesture: **press and hold anywhere** to speak to Tex. No wake word, no hot mic — Tex listens only while you hold.
 
-This entire phase happens **once per account, ever**. A server-side flag (or, until the backend has a user model, a localStorage stand-in) records that it happened. The T mark resets to the vigil, never to the manifesto.
+The screen breaks its silence in only a few moments, and on open it speaks the most urgent true one, once, then returns to silence:
 
-### The door, day two onward — the threshold
+**Presence.** You open Tex, or you press and hold in silence and say nothing. That's a reach, not a question. Tex answers with one word — *"Here."* — and the paper goes empty. (When the wire is dead, Tex does not say "Here." It cannot, and the stillness already told you.)
 
-From the second visit on, the door is shorter and specific. Three sentences derived from `/v1/system/state` — last night's truth. Tex does not re-introduce itself; identity is performed by voice, not announced. ~8 seconds, then a 1.5 second held pause, then the vigil.
+**Held.** Tex froze an action it will not take on its own authority. It surfaces the decision in its own voice, with the facts that ground it and the acts that seal it — **Approve / Keep holding / Refuse**. A wire transfer is never approved by a spoken "yes"; it is sealed by a named human act the evidence layer can prove. Resolving it writes a sealed decision, briefly shown, then the surface returns to silence.
 
-### The vigil
+**Faltering.** Tex's own integrity broke — the evidence chain snapped, it can no longer prove what it claims. It speaks first, unprompted, the instant it can, because silence while broken is a lie told in the most dangerous window. The field tints faintly toward a sick taupe; the words stay fully legible.
 
-In the same place, in the same serif, Tex begins:
+## How you talk to Tex
 
-> *I found eighty-three agents this week.* Two were new. One had gone quiet.
+The whole loop, end to end:
 
-The sentence holds. It dissolves. The next one arrives:
+1. **Press and hold anywhere** on the surface and speak. No wake word, no hot mic — the microphone is open only while you hold.
+2. **Release** to send. Tex answers **by voice**.
+3. If what you reached for was a **handle** — a hash, an exact name — that one object rises on the white, then dissolves. Otherwise the screen simply stays empty.
 
-> *All of them are who they say they are.* One asked for more than I'd given it. I held the line.
+If you hold and say nothing, that's a reach, not a question, and Tex answers it with one word: *"Here."* The same gesture works in every state — in silence it opens the mic; on a held decision or a faltering surface, Tex's voice speaks first, then the mic opens so you can ask about it.
 
-And so on, through six beats of Tex's day — discovery, identity, monitoring, execution, evidence, learning. After the sixth, Tex returns to the first. The vigil does not end. Tex paces the rhythm; the operator does not press "next."
+## The output doctrine (locked)
 
-The first half of each sentence is upright, full ink — what Tex did. The second half is italic, soft ink — Tex pausing on the meaning. Same rhythm as the homepage line *"I let 4,827 through today. None needed you."*
+**The answer is spoken, never written. Meaning lives in the voice; the glass stays clean.** When you ask Tex a question, it speaks the answer and that is all. The screen never holds an answer.
 
-### The proof
+The single thing the surface is ever allowed to hold is an **object** — a handle you grab and walk away with: a hash, an exact identifier like `bedrock-invoke-03`. You don't comprehend a hash, you take it. So when a question's true target is such a handle, that handle — and nothing else — rises alone, monospace, centered, because you reached for it, and dissolves the moment it has been taken. No label, no field, no card.
 
-Click the sentence. The summary dissolves. In its place, Tex finishes the story of that one thing — in the same serif, the same size, the same voice:
+The boundary is not voice-versus-text. It is **meaning versus object**. Meaning is spoken, always. Objects — the few things that are pure handle, no comprehension required — surface as themselves, then vanish.
 
-> *Kestrel tried to wire fifty thousand dollars in your CEO's name.* The policy says never, outside the firm. I forbade it.
+This is why there is **no agent view**. "Show me the Bedrock agent" is answered with the worry underneath it, spoken — *"Quiet since four. Reads three buckets, touches nothing else. It's fine."* — never with a screen of fields. You drill deeper by speaking, not by scrolling. Tex answers the feeling, not the request.
 
-Below the story, in smaller italic, the anchor line:
+## The voice infrastructure (locked)
 
-> *sealed at 14:43:08 utc · evidence chain position 4,827*
+Tex hears you and speaks back through a **grounded cascade**, and that architecture is a deliberate, defended choice:
 
-Hover the anchor. The cryptographic hash appears in monospace, very small. That is the only place in the product where the typography breaks register — and it is the breaking that signals *this is machine truth, not a sentence.*
+1. **Hear** — your held speech streams to best-in-class streaming STT with turn and interruption detection.
+2. **Answer** — the transcript hits `/v1/ask`, the **integrity boundary**. The answer is composed only from the six layers and the sealed ledger. Never a free-running model.
+3. **Speak** — the grounded answer streams back through low-latency TTS in Tex's one voice.
 
-After a beat of stillness, Tex returns to the vigil — not to the same room, to the next one. Tex has moved on. The conversation continues.
+**Tex must never be "upgraded" to a native speech-to-speech model.** As of 2026 the lowest-latency, trendiest path is an end-to-end S2S model (OpenAI Realtime, Gemini Live, Grok Voice). Those models *generate their own answers* — a free-running model in the speaking seat — which breaks the one thing that makes Tex a witness: that every word it says is grounded in something it can prove. The components in the three slots may be swapped for the best available (e.g. Deepgram Flux / ElevenLabs Scribe for hearing; ElevenLabs / Cartesia for the voice). The cascade shape and the grounding boundary may not.
 
-## Pacing
+## What renders, file by file
 
-| Beat | Duration |
-|---|---|
-| Manifesto (day one) total | ~25s |
-| Manifesto line stagger | 4.2s |
-| Manifesto held blackout before vigil | 1.8s |
-| Threshold (day two onward) total | ~8s + 1.5s pause |
-| Threshold line stagger | 2.5s |
-| Each vigil sentence holds | 7.4s |
-| Crossfade between vigil sentences | 700ms |
-| Proof returns to next vigil sentence | 14s |
-| Polling interval for system-state | 30s |
-
-Hover anywhere pauses the cycle. When the operator's mouse leaves, pacing resumes.
-
-## The chrome
-
-Two objects only, both hidden during the manifesto, both visible from the vigil onward.
-
-- **T mark** (top-left) — the only home gesture. Press T from anywhere — vigil, proof, hash open — and Tex returns to the start of the vigil. The T mark never replays the manifesto. That is by design.
-- **Initial** (top-right) — account.
-
-No menu. No cog. No notifications. No search. The T is the way home. The vigil is the product. The hash is the proof.
+- `src/components/Dashboard/Vigil.jsx` — the entire product surface. Rest, presence, held, faltering, the seal, the spoken-answer path, and the object that rises and dissolves.
+- `src/components/Dashboard/Vigil.css` — the surface styling. Ink on paper, one monospace object, the faltering tint.
+- `src/components/Dashboard/Dashboard.jsx` — the shell. No chrome.
+- `src/hooks/useHeartbeat.js` — the one honest liveness signal. Drives whether Tex is alive on the wire; a dead wire is the one death Tex cannot speak.
+- `src/hooks/useSystemState.js` — chain integrity. A broken chain is what flips the surface into faltering.
+- `src/hooks/useVigil.js` — polls `/v1/vigil` for what Tex has chosen to say (held decisions).
+- `src/lib/texApi.js` — the only door to the backend. `/v1/voice/token`, `/v1/ask`, `/v1/speak`, plus the read endpoints.
+- `src/lib/texVoiceClient.js` — the push-to-talk loop and synthesis playback.
+- `public/tex-mic-worklet.js` — the microphone, open only while held.
 
 ## Stack
 
-- Vite + React 18, plain CSS
-- Two fonts: Source Serif 4, Inter. SF Mono / JetBrains Mono for the hash.
-- One palette: ink (`#14110d`), ink-soft (`#5e564c`), ink-mute (`#9b9388`), paper (`#ffffff`).
+- Vite + React 18, plain CSS.
+- Source Serif 4 + Inter; SF Mono / JetBrains Mono for objects (the hash, the name).
+- One palette: ink `#14110d`, ink-soft `#5e564c`, ink-mute `#9b9388`, paper `#ffffff`. The only color the surface ever shows that isn't resting ink is the faint sick taupe of a faltering breath.
 
-## Local
+## Run it
 
 ```bash
 npm install
@@ -94,28 +82,36 @@ npm run dev
 Production build:
 
 ```bash
-npm run build
-npm run preview
+npm run build && npm run preview
 ```
 
 ## Backend
 
-The vigil's sentences are derived from `/v1/system/state` on the Tex backend (FastAPI, `github.com/MattNardizzi/tex`). The frontend's `src/lib/texApi.js` defaults to the live deployment at `https://tex-uh4j.onrender.com`. Override with the `VITE_TEX_API_BASE` env var for local dev or Vercel preview deploys.
+`src/lib/texApi.js` talks to the Tex backend (FastAPI, `github.com/MattNardizzi/tex`) through a same-origin proxy — the browser never holds the API key. Override the base with `VITE_TEX_API_BASE` for local dev or preview deploys.
 
-The voice module (`src/lib/texVoice.js`) is six pure functions, one per architectural layer (discovery, identity, monitoring, execution, evidence, learning). Each consumes the relevant slice of the system-state response and returns a `{ head, tail? }` pair. Empty state is honest state — the day-one operator sees true no-knowledge sentences, not placeholder copy.
+## The demo
 
-## Resetting the manifesto, for testing
+The frontend ships with demo wiring so the full arc is visible without a live backend. Open `tex.systems` and:
 
-The manifesto is once-per-account by design. To replay it locally during development, clear the localStorage flag from the browser console:
+1. *"Here."* lands, holds, and fades.
+2. The paper is empty for ~5 seconds.
+3. A held wire-transfer decision rises. Click Approve / Keep holding / Refuse.
+4. The seal shows briefly, then the surface returns to empty white, reachable.
 
-```js
-localStorage.removeItem("tex.seen_manifesto_at")
-```
+Press **⌘. / Ctrl+.** for the dev panel. The **ask** row demonstrates the output doctrine without speaking aloud: *count* answers by voice and leaves the glass clean; *agent* speaks a verdict and lifts an exact name, which then dissolves; *prove* speaks a verdict and lifts a hash, which then dissolves. The demo timer and these controls are clearly marked and a real build removes them; the wire delivers decisions on its own clock.
 
-This is the *only* way to see the manifesto again on a given account. There is no "replay intro" button in the product, and there will never be.
+## What this is not
 
-## What this product is not
+Not a dashboard. No graphs, tabs, sidebars, widgets, alert queues, or posture scores. Not a feed — there is no scroll. Not a chatbot — answers are spoken, not written. There is no agent list and no agent detail screen. There is no home button and no menu, because there is nowhere else to go.
 
-It is not a dashboard. There are no graphs, no tabs, no sidebars, no widgets. It is not a feed. There is no scroll. It is not a chatbot. The operator does not type. It is not configuration. Settings live elsewhere.
+It is Tex: watching, ruling, proving — and silent until it has something only you can decide.
 
-It is Tex, talking, about Tex's work.
+## Current state
+
+Everything above is **locked** and reflects what the code actually does today.
+
+Still **open**, for a future thread to settle:
+
+- **Demo vs live.** The spoken answers and the held decision are demo-wired so the surface can be felt without a backend. Wiring `/v1/ask`, `/v1/voice/token`, and `/v1/speak` to the live grounded backend is not yet done.
+- **"Here" — spoken or shown.** Presence currently renders the word *"Here."* on the glass briefly. By the strict letter of the doctrine (only objects touch the glass) it could become audio-only with the screen staying white. Not yet decided.
+- **The last T.** `public/favicon.svg` is still a "T" — the browser-tab icon. It's outside the rendered surface, so it was kept; whether to replace or drop it is open.
