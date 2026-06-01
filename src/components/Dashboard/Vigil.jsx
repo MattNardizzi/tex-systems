@@ -135,8 +135,8 @@ const MANIFESTO = [
   "Hi, I am Tex.",
   "I am always awake.",
   "I am always here.",
-  "You can hold anywhere to speak with me.",
-  "Are you ready to begin mapping?",
+  "Hold anywhere to speak with me.",
+  "Let's begin.",
 ];
 /* How long each declarative line owns the glass — long enough to read,
    then it gives way. The final line (the question) does not cycle out.

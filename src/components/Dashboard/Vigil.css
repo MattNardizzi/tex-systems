@@ -130,6 +130,17 @@
   border-color: var(--tex-ink);
   color: var(--tex-ink);
 }
+/* The Yes act is auto-focused when the question arrives, so kill the
+   browser's blue focus ring — at rest it must look identical to the held
+   Approve button. Keyboard navigation still shows focus, but in ink and
+   offset from the pill, never browser blue. */
+.tex-act:focus {
+  outline: none;
+}
+.tex-act:focus-visible {
+  outline: 2px solid var(--tex-ink-soft);
+  outline-offset: 3px;
+}
 .tex-act--approve {
   color: var(--tex-paper);
   background: var(--tex-ink);

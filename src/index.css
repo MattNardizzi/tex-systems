@@ -5,12 +5,40 @@
    Pure paper. Three type sizes. One palette. One rhythm.
    ============================================================ */
 
+/* ── The voice face: Tiempos (licensed; self-host) ──────────────────
+   These point at files you must license from Klim (klim.co.nz) and place
+   in /public/fonts. They are intentionally referenced even before the
+   files exist — the browser simply falls back to Georgia until they do,
+   so nothing breaks. Headline is the display optical size (the big
+   sentence); Text is for smaller serif lines. Roman only — Tex never
+   speaks in italic. */
+@font-face {
+  font-family: "Tiempos Headline";
+  src: url("/fonts/TiemposHeadline-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiempos Text";
+  src: url("/fonts/TiemposText-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Type families — two, plus mono for real machine identifiers. */
   --tex-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Helvetica Neue", Arial, sans-serif;
-  --tex-serif: "Source Serif 4", "Source Serif Pro", "New York",
-    "Times New Roman", Georgia, serif;
+  /* The voice. Tiempos (Klim Type Foundry) — Times reborn for screens:
+     it states rather than performs, which is the whole Tex posture.
+     Tiempos is a LICENSED face — it is not on any free CDN. License it
+     from klim.co.nz, drop the woff2 files into /public/fonts (see the
+     @font-face block below), and this stack uses them. Until those files
+     exist the browser falls through to Georgia, the closest calm serif. */
+  --tex-serif: "Tiempos Headline", "Tiempos Text", "New York", Georgia,
+    "Times New Roman", serif;
   --tex-mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
 
   /* There is no mark. The surface at rest is silence — empty paper,
