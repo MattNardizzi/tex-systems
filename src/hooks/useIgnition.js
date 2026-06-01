@@ -30,6 +30,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getDiscoveryStatus, igniteDiscovery } from "../lib/texApi";
 
+/* ----------------------------------------------------------------------
+ * PREVIEW TOGGLE — the day-one threshold, on demand.
+ *
+ * The real first-run experience fires ONCE per tenant and never again:
+ * "has Tex begun?" is server-authoritative (the backend's IgnitionRegistry),
+ * not a browser flag, so clearing cookies / incognito will NOT bring it
+ * back. That once-only gate is what ships and it is left fully intact
+ * below.
+ *
+ * While reviewing the open, set this to `true` to keep the day-one door
+ * AND the ignition line replaying on EVERY load. In this mode nothing is
+ * deleted and nothing on the backend is touched — the server's once-only
+ * flag is never spent, because begin() speaks locally instead of firing
+ * real ignition.
+ *
+ * Flip back to `false` to restore the real, server-authoritative,
+ * fires-once-ever behaviour for ship.
+ * -------------------------------------------------------------------- */
+const PREVIEW_FIRST_RUN = true;
+
+/* The exact line the backend returns on real ignition (the count, and
+   that Tex is beginning). Reused verbatim so the preview open sounds
+   identical to the real one. */
+const PREVIEW_IGNITION_LINE = "You have forty-one agents running. I'll begin.";
+
 export function useIgnition() {
   /* null = unknown (still reading); true/false = resolved. */
   const [ignited, setIgnited] = useState(null);
@@ -42,6 +67,17 @@ export function useIgnition() {
 
   useEffect(() => {
     cancelledRef.current = false;
+
+    /* PREVIEW: hold the door open on every load. Skip the server read
+       entirely — no network, no side effect. The real read below is left
+       untouched for when PREVIEW_FIRST_RUN returns to false. */
+    if (PREVIEW_FIRST_RUN) {
+      setIgnited(false);
+      return () => {
+        cancelledRef.current = true;
+      };
+    }
+
     const ac = new AbortController();
 
     (async () => {
@@ -64,6 +100,15 @@ export function useIgnition() {
 
   const begin = useCallback(async () => {
     if (igniting) return null;
+
+    /* PREVIEW: speak the day-one line and close the door for this session
+       WITHOUT firing real ignition. The backend's once-only flag is never
+       spent, so the open replays on the next load. */
+    if (PREVIEW_FIRST_RUN) {
+      setIgnited(true);
+      return PREVIEW_IGNITION_LINE;
+    }
+
     setIgniting(true);
     try {
       const res = await igniteDiscovery();
