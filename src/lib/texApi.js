@@ -116,9 +116,27 @@ export const mintVoiceToken = () => request("/v1/voice/token");
 /**
  * POST /v1/ask — answer a spoken question, grounded ONLY in sealed
  * facts. The transcript is what the recognizer returned on release.
- * Returns { answer, proof_ref? }. This is the integrity boundary: the
- * backend answers from the ledger and the six layers, never a
- * free-running model.
+ * Returns { answer, object?, proof_ref? } where:
+ *   - answer:  the sentence Tex speaks (TTS). Meaning is spoken, never
+ *              written to the glass.
+ *   - object:  { value, kind: "hash"|"name" } | absent. The one thing
+ *              the surface is allowed to hold — a handle the operator
+ *              grabs and walks away with. Surfaced, then dissolved.
+ *
+ * This is the integrity boundary: the backend answers from the ledger
+ * and the six layers, never a free-running model.
+ *
+ * ARCHITECTURE — do not "upgrade" this to a native speech-to-speech
+ * model. As of 2026 the lowest-latency, trendiest path is an end-to-end
+ * S2S model (OpenAI Realtime, Gemini Live, Grok Voice). Those models
+ * GENERATE their own answers — a free-running model in the speaking
+ * seat — which directly breaks the line above and the entire premise of
+ * a witness that can only say what it can prove. Tex is a deliberate
+ * grounded cascade: streaming STT to hear, THIS endpoint to answer from
+ * sealed facts, streaming TTS (/v1/speak) to voice it. The components in
+ * those three slots may be swapped for the best available (e.g. Deepgram
+ * Flux / ElevenLabs Scribe for STT, ElevenLabs / Cartesia for TTS); the
+ * cascade shape and the grounding boundary must not be.
  */
 export const askTex = (transcript, tenantId) =>
   request("/v1/ask", {

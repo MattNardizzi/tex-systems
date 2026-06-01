@@ -63,6 +63,18 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    grounded only in sealed facts. In held and faltering, Tex's voice
    speaks first, then the mic opens.
 
+   The answer is SPOKEN, never written. Meaning lives in the voice; the
+   glass stays clean. The screen never holds an answer. The single thing
+   it is ever allowed to hold is an OBJECT — a handle you grab and walk
+   away with: a hash, an exact identifier like bedrock-invoke-03. You
+   don't comprehend a hash, you take it. So when a question's true target
+   is such a handle, that handle — and nothing else — rises alone,
+   monospace, centered, because you reached for it, and dissolves the
+   moment it has been taken. "Show me the Bedrock agent" is answered with
+   the worry underneath it, spoken — "Quiet since four, reads three
+   buckets, touches nothing else, it's fine" — never with a view. There
+   is no agent screen. You drill by speaking, not by scrolling.
+
    The wordless reach: if you press and hold in silence and say nothing
    — a check-in, not a question — Tex answers with one word: "Here."
    Presence, confirmed, only because you sought it. That is the cure for
@@ -92,12 +104,17 @@ function falterLine(snapshot) {
   return "My evidence chain broke. I can't prove what I've sealed since. Don't trust me until this is resolved.";
 }
 
-/* How long a spoken answer lingers before silence reclaims the screen. */
-const ANSWER_LINE_MS = 8_000;
+/* An answer is never written. Meaning is spoken; the glass stays clean.
+   The only thing the screen is ever allowed to hold is an OBJECT — a
+   handle you grab and walk away with, a hash or an exact identifier.
+   You don't comprehend a hash, you take it; so it surfaces as itself and
+   dissolves the moment it has been taken. This is how long it lingers —
+   long enough to read or copy, then gone. */
+const OBJECT_LINGER_MS = 6_000;
 
-/* "Here." is one word — it lands and leaves faster than an answer. The
-   same word answers a reach in silence and a fresh open; one vocabulary
-   for presence, however you arrive. */
+/* "Here." is one word — presence, not an answer. The same word answers a
+   reach in silence and a fresh open; one vocabulary for presence,
+   however you arrive. */
 const HERE_LINE_MS = 2_400;
 
 /* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
@@ -204,6 +221,26 @@ export default function Vigil() {
     lineTimer.current = setTimeout(() => setSpoken(null), HERE_LINE_MS);
   }, []);
 
+  /* ---------------- The object — the one thing the screen may hold ----------------
+     An answer is never written; meaning is spoken and the glass stays
+     clean. The single exception is an OBJECT — a handle you grab and walk
+     away with: a hash, an exact identifier like bedrock-invoke-03. It
+     isn't information to comprehend, it's a thing to take. So it rises
+     alone, monospace, centered, only because you reached for it, and
+     dissolves the moment it has been taken. { value, kind: "hash"|"name" } */
+  const [surfaced, setSurfaced] = useState(null);
+  const objectTimer = useRef(null);
+  const clearObjectTimer = () => {
+    if (objectTimer.current) clearTimeout(objectTimer.current);
+    objectTimer.current = null;
+  };
+  const surfaceObject = useCallback((value, kind) => {
+    if (!value) return;
+    clearObjectTimer();
+    setSurfaced({ value, kind: kind || "hash" });
+    objectTimer.current = setTimeout(() => setSurfaced(null), OBJECT_LINGER_MS);
+  }, []);
+
   /* ---------------- Open: presence, then (demo) a decision arrives ----------------
      Opening is a reach. With nothing faltering and nothing held, Tex
      answers the open the same way it answers a press in silence: "Here."
@@ -239,6 +276,8 @@ export default function Vigil() {
         return;
       }
       clearLineTimer();
+      clearObjectTimer();
+      setSurfaced(null);
       stopSpeaking();
       setThinking(false);
       setHolding(true);
@@ -291,12 +330,16 @@ export default function Vigil() {
           return undefined;
         }
         return askTex(transcript).then((res) => {
-          const text = res?.answer || null;
-          if (text) {
-            setSpoken({ kind: "answer", text });
-            texSpeak(text);
-            clearLineTimer();
-            lineTimer.current = setTimeout(() => setSpoken(null), ANSWER_LINE_MS);
+          const answer = res?.answer || null;
+          if (answer) {
+            /* Meaning is spoken, always — and never written. The answer
+               leaves no ink. If the answer's true target is an object you
+               must carry away (a hash, an exact name), that handle — and
+               only that handle — surfaces on the glass, then dissolves. */
+            texSpeak(answer);
+            if (res?.object?.value) {
+              surfaceObject(res.object.value, res.object.kind);
+            }
           } else if (reachInSilence) {
             /* Backend had nothing to add — still answer the reach. */
             sayHere();
@@ -304,7 +347,7 @@ export default function Vigil() {
         });
       })
       .catch(() => setThinking(false));
-  }, [holding, state, alive, sayHere]);
+  }, [holding, state, alive, sayHere, surfaceObject]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -370,6 +413,36 @@ export default function Vigil() {
     setOverride(null);
     setSpoken(null);
     setDemoDecision(null);
+    clearObjectTimer();
+    setSurfaced(null);
+  };
+
+  /* Demo the answer doctrine without a backend: a question Tex hears,
+     answered by voice. "count" is pure meaning — Tex speaks, the glass
+     stays clean. "agent" and "prove" each leave one object behind — the
+     handle you grab and walk away with — which rises, then dissolves. */
+  const devAsk = (kind) => {
+    setSealed(null);
+    setOverride(null);
+    setDemoDecision(null);
+    setSpoken(null);
+    clearLineTimer();
+    stopSpeaking();
+    if (kind === "count") {
+      texSpeak(
+        "Forty-one agents. Three more than yesterday — all on the data team."
+      );
+    } else if (kind === "agent") {
+      texSpeak(
+        "Bedrock-invoke-03. Quiet since four. Reads three buckets, touches nothing else. It's fine."
+      );
+      surfaceObject("bedrock-invoke-03", "name");
+    } else if (kind === "prove") {
+      texSpeak(
+        "Sealed at 7:48 this morning. Payments-agent-03. Here's the anchor."
+      );
+      surfaceObject(DEMO_ABSTAIN.anchor_sha256, "hash");
+    }
   };
 
   /* ---------------- Render ---------------- */
@@ -473,10 +546,13 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* The voice — answers and faltering lines, when not in a held card. */}
+      {/* The voice — Tex speaks; the glass stays clean. An answer is
+          never written. The only spoken lines that touch the paper are
+          presence ("Here.") and the faltering warning — and only because
+          those are states Tex is in, not answers to a question. */}
       {state !== "held" && !sealed && (
         <div className="tex-voice" aria-live="polite">
-          {spoken && (
+          {spoken && (spoken.kind === "here" || spoken.kind === "falter") && (
             <p
               className={`tex-voice-line tex-voice-line--${spoken.kind}`}
               key={spoken.text}
@@ -484,6 +560,19 @@ export default function Vigil() {
               {spoken.text}
             </p>
           )}
+        </div>
+      )}
+
+      {/* The object — the one thing the screen is ever allowed to hold: a
+          handle you grab and walk away with. It rises alone, monospace,
+          centered, only because you reached for it, and dissolves the
+          moment it has been taken. You don't comprehend a hash — you take
+          it. Meaning is spoken; an object is shown. */}
+      {state !== "held" && !sealed && surfaced && (
+        <div className="tex-object" role="status" aria-live="polite">
+          <span className="tex-object-value" key={surfaced.value}>
+            {surfaced.value}
+          </span>
         </div>
       )}
 
@@ -500,6 +589,17 @@ export default function Vigil() {
           </button>
           <button type="button" onClick={devSilence}>
             silence
+          </button>
+          <span className="tex-dev-panel-sep" />
+          <span className="tex-dev-panel-label">ask</span>
+          <button type="button" onClick={() => devAsk("count")}>
+            count
+          </button>
+          <button type="button" onClick={() => devAsk("agent")}>
+            agent
+          </button>
+          <button type="button" onClick={() => devAsk("prove")}>
+            prove
           </button>
           <span className="tex-dev-panel-sep" />
           <button

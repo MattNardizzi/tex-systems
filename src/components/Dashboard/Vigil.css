@@ -185,7 +185,9 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The voice — answers and faltering lines, held in the center.        */
+/* The voice — Tex speaks; the glass stays clean. An answer is never     */
+/* written. The only spoken lines that touch the paper are presence      */
+/* ("Here.") and the faltering warning — states Tex is in, not answers.  */
 /* ------------------------------------------------------------------ */
 
 .tex-voice {
@@ -212,11 +214,8 @@
   color: var(--tex-ink);
   animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-.tex-voice-line--answer {
-  color: var(--tex-ink-soft);
-}
-/* "Here." — presence, not an aside. One calm word in full ink, a touch
-   larger than an answer, sized to stand alone. */
+/* "Here." — presence, not an aside. One calm word in full ink, sized to
+   stand alone. */
 .tex-voice-line--here {
   color: var(--tex-ink);
   font-size: clamp(26px, 3vw, 38px);
@@ -226,6 +225,49 @@
    the field tint, not by making the warning hard to read. */
 .tex-voice-line--falter {
   color: var(--tex-ink);
+}
+
+/* ------------------------------------------------------------------ */
+/* The object — the one thing the screen is ever allowed to hold. Not    */
+/* an answer (meaning is spoken); a handle you grab and walk away with:  */
+/* a hash, an exact identifier. You don't comprehend it, you take it. So */
+/* it rises alone, monospace, centered, because you reached for it — and */
+/* dissolves the moment it has been taken. No label, no field, no card.  */
+/* ------------------------------------------------------------------ */
+
+.tex-object {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 32em;
+  padding: 0 24px;
+  pointer-events: none;
+}
+.tex-object-value {
+  font-family: var(--tex-mono);
+  font-size: clamp(15px, 1.7vw, 19px);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  color: var(--tex-ink);
+  text-align: center;
+  word-break: break-all;
+  /* Rises as itself, holds, then dissolves when taken. The fade is timed
+     to finish just as OBJECT_LINGER_MS (6s) clears it from the DOM. */
+  animation: tex-object-rise 720ms cubic-bezier(0.22, 0.61, 0.36, 1) both,
+    tex-object-fade 600ms ease 5400ms both;
+}
+@keyframes tex-object-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tex-object-fade {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 /* Faltering tints the whole field a hair toward the sick taupe, on an
