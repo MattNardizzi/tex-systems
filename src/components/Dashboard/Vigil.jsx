@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./Vigil.css";
 import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
+import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { askTex } from "../../lib/texApi";
 import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
 
@@ -10,11 +11,17 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
 
    There is no T. There is no logo, no mark, no breathing letter. The
    surface at rest is silence — empty paper. Tex is watching, and the
-   proof that it is watching is the faintest pulse at the center: not
-   a glyph, not a letter, a single breath you only notice if you look
-   for it. Quiet, not dead. The pulse exists for one reason — a blank
-   screen cannot prove it is alive, and a witness must never look
-   crashed during the watch.
+   proof that it is watching is a single breath at the center: not a
+   glyph, not a letter, a slow ink breath you catch in the corner of
+   your eye from across a desk. Quiet, not dead.
+
+   The breath is REAL. It is driven by useHeartbeat — a live ping to
+   the backend — and nothing else. While the wire returns, Tex breathes.
+   The instant the wire goes quiet, the breath stops and holds still,
+   and that stillness is the alarm: when the witness loses the thread
+   it can no longer speak, so the still breath is the one honest channel
+   left to say so. A witness whose whole pitch is provable honesty must
+   never animate liveness it does not have. Real or gone.
 
    Tex speaks ONLY when it has something for you. The screen breaks
    its silence in exactly two ways:
@@ -39,6 +46,13 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    while held. In silence, holding opens the mic and Tex answers,
    grounded only in sealed facts. In held and faltering, Tex's voice
    speaks first, then the mic opens.
+
+   The wordless reach: if you press and hold in silence and say nothing
+   — a check-in, not a question — Tex answers with one word: "Here."
+   Presence, confirmed, only because you sought it. That is the cure for
+   "is it on": not a status light on the resting screen, but an instant
+   answer the moment you reach. (When the wire is dead, Tex does not say
+   "Here" — it cannot, and the still breath already told you.)
    ================================================================== */
 
 /* The line Tex speaks first when reached in a held state, or that the
@@ -64,6 +78,9 @@ function falterLine(snapshot) {
 
 /* How long a spoken answer lingers before silence reclaims the screen. */
 const ANSWER_LINE_MS = 8_000;
+
+/* "Here." is one word — it lands and leaves faster than an answer. */
+const HERE_LINE_MS = 2_400;
 
 /* Demo: the abstain that surfaces on its own so the held state can be
    seen without a live backend. This is what a real /v1/vigil
@@ -106,6 +123,14 @@ function deriveState(vigil, snapshot, demoDecision, override) {
 export default function Vigil() {
   const vigil = useVigil();
   const snapshot = useSystemState();
+
+  /* Dev override for the wire's liveness, toggled from the dev panel:
+     null = real heartbeat, "lost" = force the still breath. */
+  const [wireOverride, setWireOverride] = useState(null);
+
+  /* The real breath. true → Tex is alive on the wire and the surface
+     breathes. false → the wire is gone and the breath holds still. */
+  const alive = useHeartbeat(wireOverride);
 
   /* The demo abstain — fires itself once after the surface settles,
      so the held state is visible without a live backend. A real build
@@ -154,6 +179,18 @@ export default function Vigil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  /* ---------------- The wordless reach: "Here." ---------------- */
+  /* You held the surface and said nothing. Not an error — a check-in.
+     Tex answers the reach with one word and returns to silence. Only
+     when alive; a dead wire cannot speak, and the still breath has
+     already answered. */
+  const sayHere = useCallback(() => {
+    clearLineTimer();
+    setSpoken({ kind: "here", text: "Here." });
+    texSpeak("Here.");
+    lineTimer.current = setTimeout(() => setSpoken(null), HERE_LINE_MS);
+  }, []);
+
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
   const listenerRef = useRef(null);
 
@@ -193,29 +230,43 @@ export default function Vigil() {
 
     const listener = listenerRef.current;
     listenerRef.current = null;
-    if (!listener) return;
+
+    /* Whether this release should be answered with "Here": only a reach
+       made in silence, and only while Tex is actually alive to answer. */
+    const reachInSilence = state === "silent" && alive;
+
+    /* The mic never opened (denied, no grant, unsupported). The gesture
+       still happened, so a silent reach is still answered. */
+    if (!listener) {
+      if (reachInSilence) sayHere();
+      return;
+    }
 
     setThinking(true);
     listener
       .stop()
       .then((transcript) => {
+        setThinking(false);
         if (!transcript) {
-          setThinking(false);
+          /* Held, said nothing. Answer the reach. */
+          if (reachInSilence) sayHere();
           return undefined;
         }
         return askTex(transcript).then((res) => {
           const text = res?.answer || null;
-          setThinking(false);
           if (text) {
             setSpoken({ kind: "answer", text });
             texSpeak(text);
             clearLineTimer();
             lineTimer.current = setTimeout(() => setSpoken(null), ANSWER_LINE_MS);
+          } else if (reachInSilence) {
+            /* Backend had nothing to add — still answer the reach. */
+            sayHere();
           }
         });
       })
       .catch(() => setThinking(false));
-  }, [holding]);
+  }, [holding, state, alive, sayHere]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -290,15 +341,17 @@ export default function Vigil() {
     const s = `tex-field--${state}`;
     const listening = holding ? " is-listening" : "";
     const think = thinking ? " is-thinking" : "";
-    return `${base} ${s}${listening}${think}`;
-  }, [state, holding, thinking]);
+    const lost = !alive ? " is-lost" : "";
+    return `${base} ${s}${listening}${think}${lost}`;
+  }, [state, holding, thinking, alive]);
 
-  const ariaState =
-    state === "held"
-      ? "Tex is holding a decision for you."
-      : state === "faltering"
-      ? "Tex's integrity has failed."
-      : "Tex, watching. Press and hold anywhere to speak.";
+  const ariaState = !alive
+    ? "Tex is no longer responding. The connection to the witness was lost."
+    : state === "held"
+    ? "Tex is holding a decision for you."
+    : state === "faltering"
+    ? "Tex's integrity has failed."
+    : "Tex, watching. Press and hold anywhere to speak.";
 
   const decision = liveDecision;
 
@@ -314,10 +367,26 @@ export default function Vigil() {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >
-      {/* The pulse — proof of life. Visible only at rest; the faintest
-          sign Tex is awake. Not a mark, not a letter. Quiet, not dead. */}
+      {/* The breath — proof of life, and it is real. Driven by the
+          heartbeat, never a loop. It breathes while Tex is alive on the
+          wire; it holds still the moment the wire is lost. The stillness
+          is the alarm. Visible at rest only; held and faltering replace
+          it with words. */}
       {state === "silent" && !sealed && (
-        <span className="tex-pulse" aria-hidden="true" />
+        <span
+          className={`tex-breath${alive ? "" : " is-still"}`}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* A lost wire is the one death Tex cannot speak. For anyone who
+          cannot see the still breath, the interface — not Tex — reports
+          the dropped channel, politely, off the visible paper. */}
+      {!alive && (
+        <p className="tex-visually-hidden" role="status" aria-live="assertive">
+          The connection to Tex was lost. It can no longer prove what it
+          sees. Do not trust the surface until it returns.
+        </p>
       )}
 
       {/* The seal — a resolved decision, shown briefly before silence. */}
@@ -415,6 +484,15 @@ export default function Vigil() {
             }
           >
             faltering
+          </button>
+          <button
+            type="button"
+            className={wireOverride === "lost" ? "is-active" : ""}
+            onClick={() =>
+              setWireOverride(wireOverride === "lost" ? null : "lost")
+            }
+          >
+            wire lost
           </button>
         </div>
       )}
