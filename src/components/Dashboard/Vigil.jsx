@@ -428,6 +428,16 @@ export default function Vigil() {
     ignition.dismiss();
   }, [ignition]);
 
+  /* Presenter only: the opener's Yes/No both cross the threshold into the
+     silent vigil. The scripted demo has no client wired, so there is no
+     backend ignition to fire — the visible result either way is the
+     manifesto dissolving to the resting field, and the number-key arc
+     takes it from there. */
+  const crossThreshold = useCallback(() => {
+    stopSpeaking();
+    setPresenterDoorOpen(false);
+  }, []);
+
   /* Move focus to the primary act when the question line arrives (the
      acts only exist on the final manifesto beat), so the threshold is
      crossable from the keyboard the same way it is by pointer. */
@@ -747,10 +757,10 @@ export default function Vigil() {
     : ignition.ready && ignition.doorOpen && state !== "faltering";
 
   /* The manifesto plays while the door is open: advance through the
-     declarative lines on a steady beat. In the real product it stops on the
-     last line and shows the Yes/No acts. In presenter mode there are no
-     acts — each line plays its clip (m1..m5), and after the last line holds
-     a beat, the door dissolves to silence so the number-key arc can begin. */
+     declarative lines on a steady beat. The last line ("Let's begin
+     mapping.") holds and shows the Yes/No acts beneath it — in both the
+     real product and the presenter demo. In presenter mode each line also
+     plays its clip (m1..m5) as it lands. */
   useEffect(() => {
     if (!doorOpen) {
       setManifestoStep(0);
@@ -760,16 +770,12 @@ export default function Vigil() {
     if (PRESENTER) texPlayClip(`m${manifestoStep + 1}`);
 
     if (manifestoStep >= MANIFESTO.length - 1) {
-      /* Last line ("Let's begin mapping."). Real product holds here for the
-         acts; presenter lets it breathe, then dissolves to silence. */
-      if (PRESENTER) {
-        const done = setTimeout(
-          () => setPresenterDoorOpen(false),
-          MANIFESTO_BEAT_MS
-        );
-        return () => clearTimeout(done);
-      }
-      return; /* the question holds (real product) */
+      /* Last line ("Let's begin mapping."). Both the real product and the
+         presenter demo hold here and show the Yes/No acts beneath it. The
+         presenter crosses the threshold by clicking Yes/No (or pressing a
+         number key / 0 / Esc), never on a timer, so the opener can rest on
+         screen as long as the room needs. */
+      return;
     }
     const t = setTimeout(
       () => setManifestoStep((s) => s + 1),
@@ -844,24 +850,24 @@ export default function Vigil() {
           >
             {MANIFESTO[manifestoStep]}
           </p>
-          {!PRESENTER && manifestoStep >= MANIFESTO.length - 1 && (
+          {manifestoStep >= MANIFESTO.length - 1 && (
             <div className="tex-acts tex-door-acts">
               <button
                 ref={beginButtonRef}
                 type="button"
                 data-act="begin"
                 className="tex-act tex-act--approve"
-                disabled={ignition.igniting}
-                onClick={beginDiscovery}
+                disabled={!PRESENTER && ignition.igniting}
+                onClick={PRESENTER ? crossThreshold : beginDiscovery}
               >
                 Yes
               </button>
               <button
                 type="button"
                 data-act="defer"
-                className="tex-act"
-                disabled={ignition.igniting}
-                onClick={deferDiscovery}
+                className={PRESENTER ? "tex-act tex-act--hold" : "tex-act"}
+                disabled={!PRESENTER && ignition.igniting}
+                onClick={PRESENTER ? crossThreshold : deferDiscovery}
               >
                 No
               </button>

@@ -6,8 +6,11 @@ intentional. **Press `Spacebar` once to begin: Tex introduces itself.** The five
 > Hi, I am Tex. / I am always awake. / I am always here. /
 > Hold anywhere to speak with me. / Let's begin mapping.
 
-— then dissolve to silence. (Important: this first keypress also "arms"
-audio in the browser, so always open with it.) After it dissolves, drive
+— then **holds on the last line with Yes / No beneath it** (the real
+threshold). Click Yes to cross into the silent vigil — or just press the
+next number key, which also dissolves the opener. (Important: this first
+keypress also "arms" audio in the browser, so always open with it.) From
+the resting field, drive
 the arc with the number keys. You speak the question aloud first ("Tex,
 …"), then press the key as you finish. The mechanism is invisible — to
 Jose it looks like you asked and Tex answered.
@@ -17,8 +20,14 @@ Jose it looks like you asked and Tex answered.
 ## The arc
 
 **`Spacebar`  — the opener**
-Tex introduces itself (the five manifesto lines), then dissolves to
-silence. Press this first, every time — it also arms browser audio.
+Tex introduces itself (the five manifesto lines), then **holds on the last
+line — "Let's begin mapping." — with Yes / No beneath it**, the real
+threshold. Press this first, every time — it also arms browser audio.
+Cross the threshold by clicking **Yes** (or **No** — in the demo both
+dissolve the opener to the silent resting field; there's no client wired,
+so nothing fires on the backend). You can also just press the next number
+key, which dissolves the opener and plays the beat. The opener holds as
+long as you like — no timer.
 
 **`1`  — presence**
 You say: *"Tex, are you watching?"*
