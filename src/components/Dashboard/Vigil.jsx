@@ -206,7 +206,7 @@ const MANIFESTO = [
   "I am always awake.",
   "I am always here.",
   "Hold anywhere to speak with me.",
-  "Let's begin.",
+  "Let's begin mapping.",
 ];
 /* How long each declarative line owns the glass — long enough to read,
    then it gives way. The final line (the question) does not cycle out.
@@ -305,6 +305,11 @@ export default function Vigil() {
 
   /* Which line of the day-one manifesto is on the glass (see MANIFESTO). */
   const [manifestoStep, setManifestoStep] = useState(0);
+
+  /* Presenter mode only: whether the manifesto opener is currently playing.
+     Started by the ` key (or 9), it rotates the five lines with their clips,
+     then dissolves to silence so the number-key arc can begin. */
+  const [presenterDoorOpen, setPresenterDoorOpen] = useState(false);
 
   /* The resolved act, briefly shown as a seal before returning to
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
@@ -582,11 +587,19 @@ export default function Vigil() {
       setDemoDecision(null);
       setSpoken(null);
       setSurfaced(null);
+      setPresenterDoorOpen(false);
     };
 
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       switch (e.key) {
+        case "`": /* the opener — Tex introduces itself (manifesto) */
+        case "9":
+          e.preventDefault();
+          reset();
+          setManifestoStep(0);
+          setPresenterDoorOpen(true);
+          break;
         case "1": /* "Tex, are you watching?" */
           e.preventDefault();
           reset();
@@ -716,25 +729,43 @@ export default function Vigil() {
 
   /* The day-one door owns the surface until it is crossed — except a
      broken chain, which Tex must confess first (you don't greet over a
-     faltering witness). */
-  const doorOpen =
-    ignition.ready && ignition.doorOpen && state !== "faltering" && !PRESENTER;
+     faltering witness). In presenter mode the ignition door is bypassed;
+     the manifesto opener is owned by presenterDoorOpen instead. */
+  const doorOpen = PRESENTER
+    ? presenterDoorOpen && state !== "faltering"
+    : ignition.ready && ignition.doorOpen && state !== "faltering";
 
   /* The manifesto plays while the door is open: advance through the
-     declarative lines on a steady beat, then stop on the question and let
-     the acts appear. Resets whenever the door closes, so the next open (or
-     the next preview load) begins again at "Hi, I am Tex." */
+     declarative lines on a steady beat. In the real product it stops on the
+     last line and shows the Yes/No acts. In presenter mode there are no
+     acts — each line plays its clip (m1..m5), and after the last line holds
+     a beat, the door dissolves to silence so the number-key arc can begin. */
   useEffect(() => {
     if (!doorOpen) {
       setManifestoStep(0);
       return;
     }
-    if (manifestoStep >= MANIFESTO.length - 1) return; /* the question holds */
+    /* Presenter: speak the current line's clip as it lands. */
+    if (PRESENTER) texPlayClip(`m${manifestoStep + 1}`);
+
+    if (manifestoStep >= MANIFESTO.length - 1) {
+      /* Last line ("Let's begin mapping."). Real product holds here for the
+         acts; presenter lets it breathe, then dissolves to silence. */
+      if (PRESENTER) {
+        const done = setTimeout(
+          () => setPresenterDoorOpen(false),
+          MANIFESTO_BEAT_MS
+        );
+        return () => clearTimeout(done);
+      }
+      return; /* the question holds (real product) */
+    }
     const t = setTimeout(
       () => setManifestoStep((s) => s + 1),
       MANIFESTO_BEAT_MS
     );
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doorOpen, manifestoStep]);
 
   return (
@@ -802,7 +833,7 @@ export default function Vigil() {
           >
             {MANIFESTO[manifestoStep]}
           </p>
-          {manifestoStep >= MANIFESTO.length - 1 && (
+          {!PRESENTER && manifestoStep >= MANIFESTO.length - 1 && (
             <div className="tex-acts tex-door-acts">
               <button
                 ref={beginButtonRef}

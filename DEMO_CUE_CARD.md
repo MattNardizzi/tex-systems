@@ -1,17 +1,25 @@
 # Tex — Gunderson demo cue card
 
 Open the deployed site full-screen. The screen is empty white — that's
-intentional. **Let it sit.** Say something like: *"This is Tex at rest.
-It's watching forty-some agents right now. It says nothing, because nothing
-needs me. The silence is the product."*
+intentional. **Press the `` ` `` key (top-left, or `9`) to begin: Tex
+introduces itself.** The five lines play in its voice —
 
-Then drive the arc with the number keys. You speak the question aloud first
-("Tex, …"), then press the key as you finish. The mechanism is invisible —
-to Jose it looks like you asked and Tex answered.
+> Hi, I am Tex. / I am always awake. / I am always here. /
+> Hold anywhere to speak with me. / Let's begin mapping.
+
+— then dissolve to silence. (Important: this first keypress also "arms"
+audio in the browser, so always open with it.) After it dissolves, drive
+the arc with the number keys. You speak the question aloud first ("Tex,
+…"), then press the key as you finish. The mechanism is invisible — to
+Jose it looks like you asked and Tex answered.
 
 ---
 
 ## The arc
+
+**`` ` `` (or `9`)  — the opener**
+Tex introduces itself (the five manifesto lines), then dissolves to
+silence. Press this first, every time — it also arms browser audio.
 
 **`1`  — presence**
 You say: *"Tex, are you watching?"*
