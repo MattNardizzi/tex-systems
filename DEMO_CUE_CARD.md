@@ -1,8 +1,7 @@
 # Tex — Gunderson demo cue card
 
 Open the deployed site full-screen. The screen is empty white — that's
-intentional. **Press the `` ` `` key (top-left, or `9`) to begin: Tex
-introduces itself.** The five lines play in its voice —
+intentional. **Press `Spacebar` once to begin: Tex introduces itself.** The five lines play in its voice —
 
 > Hi, I am Tex. / I am always awake. / I am always here. /
 > Hold anywhere to speak with me. / Let's begin mapping.
@@ -17,7 +16,7 @@ Jose it looks like you asked and Tex answered.
 
 ## The arc
 
-**`` ` `` (or `9`)  — the opener**
+**`Spacebar`  — the opener**
 Tex introduces itself (the five manifesto lines), then dissolves to
 silence. Press this first, every time — it also arms browser audio.
 

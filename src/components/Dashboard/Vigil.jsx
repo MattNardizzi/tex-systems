@@ -592,9 +592,20 @@ export default function Vigil() {
 
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+
+      /* Spacebar — the opener. One press starts the manifesto: the five
+         lines play in sequence with their clips and matching text, then
+         dissolve to silence. This first press also arms browser audio. */
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        reset();
+        setManifestoStep(0);
+        setPresenterDoorOpen(true);
+        return;
+      }
+
       switch (e.key) {
-        case "`": /* the opener — Tex introduces itself (manifesto) */
-        case "9":
+        case "`": /* fallback opener (manifesto) */
           e.preventDefault();
           reset();
           setManifestoStep(0);
