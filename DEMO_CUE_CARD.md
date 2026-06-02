@@ -23,11 +23,13 @@ Jose it looks like you asked and Tex answered.
 Tex introduces itself (the five manifesto lines), then **holds on the last
 line — "Let's begin mapping." — with Yes / No beneath it**, the real
 threshold. Press this first, every time — it also arms browser audio.
-Cross the threshold by clicking **Yes** (or **No** — in the demo both
-dissolve the opener to the silent resting field; there's no client wired,
-so nothing fires on the backend). You can also just press the next number
-key, which dissolves the opener and plays the beat. The opener holds as
-long as you like — no timer.
+**Click Yes** and Tex begins mapping: the field holds for ~10 seconds on
+**"Mapping…"** (a growing ellipsis — it's showing its work, since it's been
+awake and watching all along), then settles into silence. **No** crosses
+straight to silence with no mapping. You can also skip ahead by pressing
+the next number key, which dissolves the opener and plays the beat. Nothing
+is on a timer except the mapping itself — the opener holds as long as you
+like.
 
 **`1`  — presence**
 You say: *"Tex, are you watching?"*

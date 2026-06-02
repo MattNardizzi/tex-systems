@@ -311,6 +311,13 @@ export default function Vigil() {
      then dissolves to silence so the number-key arc can begin. */
   const [presenterDoorOpen, setPresenterDoorOpen] = useState(false);
 
+  /* Presenter mode only: the "Mapping…" working state. Clicking Yes on the
+     opener sets this true; it holds the field for ~10s with a growing
+     ellipsis, then dissolves to silence. mapDots cycles 1→2→3→1 to read as
+     work in progress. */
+  const [mapping, setMapping] = useState(false);
+  const [mapDots, setMapDots] = useState(1);
+
   /* The resolved act, briefly shown as a seal before returning to
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
   const [sealed, setSealed] = useState(null);
@@ -428,14 +435,22 @@ export default function Vigil() {
     ignition.dismiss();
   }, [ignition]);
 
-  /* Presenter only: the opener's Yes/No both cross the threshold into the
-     silent vigil. The scripted demo has no client wired, so there is no
-     backend ignition to fire — the visible result either way is the
-     manifesto dissolving to the resting field, and the number-key arc
-     takes it from there. */
+  /* Presenter only — the opener's two acts.
+     No  → cross straight into the silent resting field (Tex defers; the
+           scripted demo has no backend ignition to fire).
+     Yes → Tex begins mapping: the manifesto gives way to a ~10s "Mapping…"
+           working state (see the mapping effect below), then settles into
+           silence. */
   const crossThreshold = useCallback(() => {
     stopSpeaking();
     setPresenterDoorOpen(false);
+  }, []);
+
+  const beginMapping = useCallback(() => {
+    stopSpeaking();
+    setPresenterDoorOpen(false);
+    setMapDots(1);
+    setMapping(true);
   }, []);
 
   /* Move focus to the primary act when the question line arrives (the
@@ -451,6 +466,24 @@ export default function Vigil() {
       beginButtonRef.current.focus();
     }
   }, [ignition.ready, ignition.doorOpen, manifestoStep]);
+
+  /* The "Mapping…" working state (presenter, after Yes). While it runs, the
+     ellipsis grows 1→2→3→1 on a steady tick to read as work in progress;
+     after ~10s the state clears and the field settles into silence.
+     ── HOOK: to have Tex SAY what it found when mapping completes, render
+     the estate clip in place of the bare setMapping(false) below, e.g.
+       setSpoken({ kind: "ignite", text: "Forty-seven agents. Three of them move money. None needs you right now." });
+       texPlayClip("estate");
+     then clear `spoken` on a timer. Words stay authored — doctrine holds. */
+  useEffect(() => {
+    if (!mapping) return;
+    const tick = setInterval(() => setMapDots((d) => (d % 3) + 1), 450);
+    const done = setTimeout(() => setMapping(false), 10_000);
+    return () => {
+      clearInterval(tick);
+      clearTimeout(done);
+    };
+  }, [mapping]);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
   const listenerRef = useRef(null);
@@ -597,6 +630,7 @@ export default function Vigil() {
       setDemoDecision(null);
       setSpoken(null);
       setSurfaced(null);
+      setMapping(false);
       setPresenterDoorOpen(false);
     };
 
@@ -858,7 +892,7 @@ export default function Vigil() {
                 data-act="begin"
                 className="tex-act tex-act--approve"
                 disabled={!PRESENTER && ignition.igniting}
-                onClick={PRESENTER ? crossThreshold : beginDiscovery}
+                onClick={PRESENTER ? beginMapping : beginDiscovery}
               >
                 Yes
               </button>
@@ -873,6 +907,27 @@ export default function Vigil() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* The mapping working state (presenter, after Yes). Tex is already
+          awake and watching, so "mapping" is it showing its work, not a
+          cold scan: the field holds with a growing ellipsis, then settles
+          into silence. Layout/typography borrow the door so it rises and
+          centers the same way the manifesto did. */}
+      {PRESENTER && mapping && (
+        <div
+          className="tex-door"
+          role="status"
+          aria-live="polite"
+          aria-label="Mapping the estate"
+        >
+          <p className="tex-door-sentence tex-mapping">
+            Mapping
+            <span className="tex-mapping-dots" aria-hidden="true">
+              {".".repeat(mapDots)}
+            </span>
+          </p>
         </div>
       )}
 

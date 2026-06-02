@@ -240,6 +240,16 @@
   letter-spacing: -0.012em;
   color: var(--tex-ink);
 }
+/* The "Mapping…" working state. The dots span reserves a fixed width so
+   the word never shifts as the ellipsis grows; the dots sit a touch
+   lighter than the word, breathing on the same slow rhythm as the field. */
+.tex-mapping-dots {
+  display: inline-block;
+  width: 1.1em;
+  text-align: left;
+  color: var(--tex-ink);
+  opacity: 0.55;
+}
 /* The manifesto cycle — each declarative line rotates in, holds, then
    rotates out as the next takes its place. A whisper of rotateX, like a
    page turning toward you — never a spin: the glass stays calm. The line
