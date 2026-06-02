@@ -195,6 +195,27 @@ export async function texSpeak(text) {
   }
 }
 
+/* Demo only: play a pre-rendered clip in Tex's voice from /public/audio/demo.
+   The scripted demo speaks AUTHORED lines — exactly the product's doctrine
+   (words are authored, never machine-written) — so playing them as audio is
+   the product behaving as designed, not a stand-in for it. Same _activeAudio
+   slot as texSpeak, so stopSpeaking() cuts a clip mid-play like any line. */
+export function texPlayClip(name) {
+  if (!name) return;
+  stopSpeaking();
+  try {
+    const audio = new Audio(`/audio/demo/${name}.mp3`);
+    audio.preload = "auto";
+    _activeAudio = audio;
+    audio.onended = () => {
+      if (_activeAudio === audio) _activeAudio = null;
+    };
+    audio.play().catch(() => {});
+  } catch {
+    /* No audio context (autoplay blocked until first gesture). Stay quiet. */
+  }
+}
+
 export function stopSpeaking() {
   if (_activeAudio) {
     try {

@@ -5,7 +5,31 @@ import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
 import { askTex } from "../../lib/texApi";
-import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
+import {
+  TexListener,
+  texSpeak,
+  texPlayClip,
+  stopSpeaking,
+} from "../../lib/texVoiceClient";
+
+/* ------------------------------------------------------------------ */
+/* PRESENTER MODE — the live demo, driven by number keys.              */
+/*                                                                     */
+/* For walking someone through Tex with no client wired. Opens on      */
+/* silence (the cold open), hides the day-one door, and maps 1–5 to    */
+/* the demo beats — each plays the matching authored clip in Tex's     */
+/* voice. No dev panel, no visible mechanism: you speak the question    */
+/* aloud ("Tex, ...") and press the key as you finish, and Tex answers.*/
+/*                                                                     */
+/*   1  "Tex, are you watching?"            → "I am here."             */
+/*   2  "Tex, show me the disbursement agent." → ap-disbursement-03    */
+/*   3  (the $48k hold surfaces — the reveal)  → then click Approve    */
+/*   4  "Tex, prove it."                    → the anchor rises         */
+/*   5  (the faltering confession — the close)                         */
+/*   0 / Esc  → back to silence (reset between runs)                   */
+/*                                                                     */
+/* Set to false to restore the real surface.                          */
+const PRESENTER = true;
 
 /* ==================================================================
    Vigil — the entire product surface.
@@ -203,12 +227,12 @@ const DEMO_ABSTAIN_AFTER_HERE_MS = 5_000;
    contract. */
 const DEMO_ABSTAIN = {
   id: "dec_9f3a71c2",
-  sentence: "I'm holding this. There's one thing I need to know.",
+  sentence: "I'm holding this.",
   detail:
-    "$48,000 to an account I'm seeing for the first time today. The payments agent asked to send it four seconds ago. I froze it.",
+    "$48,000 to an account I'm seeing for the first time today. AP-disbursement-03 tried to move it moments ago. I froze it.",
   /* The sealed facts the proof rests on. */
   anchor_sha256: "b7e23ec29af22b0b4e0d8f6c1a93d5f8c2e1a04d9b3f7c6e",
-  agent: "payments-agent-03",
+  agent: "ap-disbursement-03",
   dimension: "execution",
   requires_human: true,
   /* The first-class hold — exactly the shape /v1/vigil delivers. This one is
@@ -418,6 +442,9 @@ export default function Vigil() {
 
   const beginHold = useCallback(
     (e) => {
+      /* Presenter mode drives everything from number keys; a stray press on
+         the surface must do nothing (no mic, no re-speak). */
+      if (PRESENTER) return;
       /* Don't start a hold when pressing an actual decision button. */
       if (e && e.target && e.target.closest && e.target.closest("[data-act]")) {
         return;
@@ -540,6 +567,74 @@ export default function Vigil() {
     [liveDecision]
   );
 
+  /* ---------------- Presenter mode: number keys drive the demo ---------------- */
+  useEffect(() => {
+    if (!PRESENTER) return;
+
+    /* Clear whatever beat is on screen before the next one lands, so beats
+       can be fired in any order without bleeding into each other. */
+    const reset = () => {
+      stopSpeaking();
+      clearLineTimer();
+      clearObjectTimer();
+      setSealed(null);
+      setOverride(null);
+      setDemoDecision(null);
+      setSpoken(null);
+      setSurfaced(null);
+    };
+
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      switch (e.key) {
+        case "1": /* "Tex, are you watching?" */
+          e.preventDefault();
+          reset();
+          setSpoken({ kind: "here", text: "I am here." });
+          texPlayClip("here");
+          lineTimer.current = setTimeout(() => setSpoken(null), 4_000);
+          break;
+        case "2": /* "Tex, show me the disbursement agent." */
+          e.preventDefault();
+          reset();
+          texPlayClip("agent");
+          /* The spoken worry lands by voice; the handle is the one thing the
+             glass holds — it rises, then dissolves. */
+          surfaceObject("ap-disbursement-03", "name");
+          break;
+        case "3": /* the $48k hold surfaces — the reveal */
+          e.preventDefault();
+          reset();
+          setDemoDecision(DEMO_ABSTAIN);
+          texPlayClip("held");
+          break;
+        case "4": /* "Tex, prove it." — the anchor rises */
+          e.preventDefault();
+          reset();
+          texPlayClip("prove");
+          surfaceObject(DEMO_ABSTAIN.anchor_sha256, "hash");
+          break;
+        case "5": /* the faltering confession — the close */
+          e.preventDefault();
+          reset();
+          setOverride("faltering");
+          texPlayClip("faltering");
+          break;
+        case "0":
+        case "Escape": /* back to silence between runs */
+          e.preventDefault();
+          reset();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ---------------- Dev panel (⌘. / Ctrl+.) ---------------- */
   const [devOpen, setDevOpen] = useState(false);
   useEffect(() => {
@@ -623,7 +718,7 @@ export default function Vigil() {
      broken chain, which Tex must confess first (you don't greet over a
      faltering witness). */
   const doorOpen =
-    ignition.ready && ignition.doorOpen && state !== "faltering";
+    ignition.ready && ignition.doorOpen && state !== "faltering" && !PRESENTER;
 
   /* The manifesto plays while the door is open: advance through the
      declarative lines on a steady beat, then stop on the question and let
@@ -791,9 +886,11 @@ export default function Vigil() {
               {heldCertifiedWatermark(heldHold(decision))}
             </p>
           )}
-          <p className="tex-held-ask" aria-hidden="true">
-            press and hold anywhere to ask Tex about it
-          </p>
+          {!PRESENTER && (
+            <p className="tex-held-ask" aria-hidden="true">
+              press and hold anywhere to ask Tex about it
+            </p>
+          )}
         </div>
       )}
 
