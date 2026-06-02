@@ -225,6 +225,11 @@ const ESTATE_LINE =
 /* The clip runs ~5.7s; the line lingers a breath past it, then dissolves. */
 const ESTATE_LINE_MS = 6_800;
 
+/* Presenter only: the longest the listening ring will stay up if a release
+   is somehow missed. Generous, so it never cuts off a long spoken question;
+   a normal release clears it well before this. */
+const PRESENTER_HOLD_MAX_MS = 15_000;
+
 /* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
    paper goes empty, then this long after the word clears a held decision
    arrives — so the full arc (presence → silence → a real decision →
@@ -382,6 +387,14 @@ export default function Vigil() {
     if (objectTimer.current) clearTimeout(objectTimer.current);
     objectTimer.current = null;
   };
+
+  /* Presenter only: a safety timer so the listening ring never hangs if a
+     pointer release is somehow missed (it normally clears on release). */
+  const holdTimer = useRef(null);
+  const clearHoldTimer = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  };
   const surfaceObject = useCallback((value, kind) => {
     if (!value) return;
     clearObjectTimer();
@@ -504,13 +517,27 @@ export default function Vigil() {
 
   const beginHold = useCallback(
     (e) => {
-      /* Presenter mode drives everything from number keys; a stray press on
-         the surface must do nothing (no mic, no re-speak). */
-      if (PRESENTER) return;
       /* Don't start a hold when pressing an actual decision button. */
       if (e && e.target && e.target.closest && e.target.closest("[data-act]")) {
         return;
       }
+
+      /* Presenter mode answers from number keys, but the press-and-hold
+         gesture still raises the listening ring as theater — it reads as
+         "addressing Tex" while you speak your question. No mic opens and
+         nothing is re-spoken; the ring is purely visual and clears on
+         release. Never over the opener or the mapping screen. */
+      if (PRESENTER) {
+        if (presenterDoorOpen || mapping) return;
+        setHolding(true);
+        clearHoldTimer();
+        holdTimer.current = setTimeout(
+          () => setHolding(false),
+          PRESENTER_HOLD_MAX_MS
+        );
+        return;
+      }
+
       /* The ask gesture is inert until the day-one door is resolved and
          closed. There is nothing sealed to ask about before discovery has
          begun, and holding must not open a mic over the greeting. */
@@ -538,12 +565,19 @@ export default function Vigil() {
         listenerRef.current = null;
       });
     },
-    [state, liveDecision, snapshot, ignition.ready, ignition.doorOpen]
+    [state, liveDecision, snapshot, ignition.ready, ignition.doorOpen, presenterDoorOpen, mapping]
   );
 
   const endHold = useCallback(() => {
     if (!holding) return;
     setHolding(false);
+
+    /* Presenter: the ring is theater only — no mic opened, nothing to stop,
+       and release must not speak. Clear the safety timer and we're done. */
+    if (PRESENTER) {
+      clearHoldTimer();
+      return;
+    }
 
     const listener = listenerRef.current;
     listenerRef.current = null;
@@ -649,6 +683,8 @@ export default function Vigil() {
       setSpoken(null);
       setSurfaced(null);
       setMapping(false);
+      setHolding(false);
+      clearHoldTimer();
       setPresenterDoorOpen(false);
     };
 
