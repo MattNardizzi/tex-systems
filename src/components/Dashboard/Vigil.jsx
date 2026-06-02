@@ -217,16 +217,11 @@ const MANIFESTO_BEAT_MS = 2_400;
    (see the mapping effect). Tex states the scale, the active claim (it
    rules on every move — permit/forbid/abstain, never named), and the
    payoff (you only hear from it when one needs you), then the field
-   settles into the silence that IS the all-clear. Each sentence sits on
-   its own line, typeset like the manifesto (see .tex-estate-line).
+   settles into the silence that IS the all-clear.
    ⚠ MUST MATCH /audio/demo/estate.mp3 WORD FOR WORD — text and voice are
-   the same authored line; if the render differs, change these strings. */
-const ESTATE_LINES = [
-  "Forty-seven agents.",
-  "Every move they make, I rule on.",
-  "You only hear from me when one needs you.",
-];
-const ESTATE_LINE = ESTATE_LINES.join(" ");
+   the same authored line; if the render differs, change this string. */
+const ESTATE_LINE =
+  "Forty-seven agents. Every move they make, I rule on. You only hear from me when one needs you.";
 /* The clip runs ~5.7s; the line lingers a breath past it, then dissolves. */
 const ESTATE_LINE_MS = 6_800;
 
@@ -493,7 +488,7 @@ export default function Vigil() {
     const tick = setInterval(() => setMapDots((d) => (d % 3) + 1), 450);
     const done = setTimeout(() => {
       setMapping(false);
-      setSpoken({ kind: "estate", text: ESTATE_LINE });
+      setSpoken({ kind: "ignite", text: ESTATE_LINE });
       texPlayClip("estate");
       clearLineTimer();
       lineTimer.current = setTimeout(() => setSpoken(null), ESTATE_LINE_MS);
@@ -1037,20 +1032,6 @@ export default function Vigil() {
                 {spoken.text}
               </p>
             )}
-        </div>
-      )}
-
-      {/* The estate report — Tex's spoken summary after mapping. Typeset
-          like the manifesto (one prominent serif size), each sentence on
-          its own line, then it dissolves to the silence that is the
-          all-clear. */}
-      {!doorOpen && state !== "held" && !sealed && spoken?.kind === "estate" && (
-        <div className="tex-estate" role="status" aria-live="polite">
-          {ESTATE_LINES.map((line) => (
-            <p className="tex-estate-line" key={line}>
-              {line}
-            </p>
-          ))}
         </div>
       )}
 
