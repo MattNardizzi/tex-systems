@@ -213,6 +213,18 @@ const MANIFESTO = [
    Keep in sync with the tex-door-cycle duration in Vigil.css. */
 const MANIFESTO_BEAT_MS = 2_400;
 
+/* The estate report — spoken when the presenter's "Mapping…" resolves
+   (see the mapping effect). Tex states the scale, the active claim (it
+   rules on every move — permit/forbid/abstain, never named), and the
+   payoff (you only hear from it when one needs you), then the field
+   settles into the silence that IS the all-clear.
+   ⚠ MUST MATCH /audio/demo/estate.mp3 WORD FOR WORD — text and voice are
+   the same authored line; if the render differs, change this string. */
+const ESTATE_LINE =
+  "Forty-seven agents. Every move they make, I rule on. You only hear from me when one needs you.";
+/* The clip runs ~5.7s; the line lingers a breath past it, then dissolves. */
+const ESTATE_LINE_MS = 6_800;
+
 /* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
    paper goes empty, then this long after the word clears a held decision
    arrives — so the full arc (presence → silence → a real decision →
@@ -469,16 +481,18 @@ export default function Vigil() {
 
   /* The "Mapping…" working state (presenter, after Yes). While it runs, the
      ellipsis grows 1→2→3→1 on a steady tick to read as work in progress;
-     after ~10s the state clears and the field settles into silence.
-     ── HOOK: to have Tex SAY what it found when mapping completes, render
-     the estate clip in place of the bare setMapping(false) below, e.g.
-       setSpoken({ kind: "ignite", text: "Forty-seven agents. Three of them move money. None needs you right now." });
-       texPlayClip("estate");
-     then clear `spoken` on a timer. Words stay authored — doctrine holds. */
+     after ~10s mapping clears and Tex speaks the estate report (ESTATE_LINE
+     + the estate clip), then the field settles into silence. */
   useEffect(() => {
     if (!mapping) return;
     const tick = setInterval(() => setMapDots((d) => (d % 3) + 1), 450);
-    const done = setTimeout(() => setMapping(false), 10_000);
+    const done = setTimeout(() => {
+      setMapping(false);
+      setSpoken({ kind: "ignite", text: ESTATE_LINE });
+      texPlayClip("estate");
+      clearLineTimer();
+      lineTimer.current = setTimeout(() => setSpoken(null), ESTATE_LINE_MS);
+    }, 10_000);
     return () => {
       clearInterval(tick);
       clearTimeout(done);
