@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import "./Vigil.css";
 import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
-import { askTex, sealDecision, explainLine } from "../../lib/texApi";
+import { askTex, sealDecision, explainLine, approveProposal, rejectProposal } from "../../lib/texApi";
 import {
   TexListener,
   texSpeak,
@@ -131,11 +131,45 @@ function heldHold(decision) {
   return decision?.hold || null;
 }
 
+/* A calibration hold is the second kind of held card: not a frozen action,
+   but Tex asking to sharpen its own policy after an anytime-valid crossing.
+   Distinguished only by hold.kind; it renders with the same gesture and the
+   same seal — the meaning is spoken, the proposed numbers stay a pull-only
+   handle. */
+function isCalibration(decision) {
+  return decision?.hold?.kind === "calibration";
+}
+
+/* The proposed change, as the one handle the glass may hold when reached for:
+   a compact "permit 0.34 → 0.32" the operator reads and takes, never a table.
+   Returns null when the change carries no movement to show. */
+function proposedChangeHandle(decision) {
+  const c = decision?.hold?.proposed_change;
+  if (!c) return null;
+  const fmt = (n) => Number(n).toFixed(2);
+  const parts = [];
+  if (c.permit_before !== c.permit_after) {
+    parts.push(`permit ${fmt(c.permit_before)} → ${fmt(c.permit_after)}`);
+  }
+  if (c.forbid_before !== c.forbid_after) {
+    parts.push(`forbid ${fmt(c.forbid_before)} → ${fmt(c.forbid_after)}`);
+  }
+  if (c.min_confidence_before !== c.min_confidence_after) {
+    parts.push(
+      `min-conf ${fmt(c.min_confidence_before)} → ${fmt(c.min_confidence_after)}`
+    );
+  }
+  return parts.length ? parts.join("   ·   ") : null;
+}
+
 /* The typed line: one short, plain phrase. Epistemic = a fact would settle
    it; aleatoric = the call is genuinely the human's; mixed = both pull. Kept
    to the voice's register — never a dashboard label. */
 function heldTypeLine(hold) {
   if (!hold) return null;
+  /* A calibration hold's grounding is its safety bound (carried in detail),
+     not the epistemic/aleatoric type — don't borrow the decision-hold line. */
+  if (hold.kind === "calibration") return null;
   switch (hold.hold_type) {
     case "EPISTEMIC":
       return "There's one thing I'd need to know.";
@@ -271,11 +305,62 @@ const DEMO_ABSTAIN = {
   },
 };
 
+/* Demo: the calibration hold — the second kind of hold. Tex has watched
+   enough outcomes that its anytime-valid e-process crossed, the off-policy
+   confidence bound cleared, and it now asks to sharpen its own policy. This
+   is exactly the shape a real /v1/vigil human_decision carries when
+   hold.kind === "calibration"; here it's summoned by key 6 / the dev panel to
+   review the learning flow. Remove the demo wiring before ship; the shape is
+   the contract. */
+const DEMO_PROPOSAL = {
+  id: "cal_7c4e1f90",
+  sentence:
+    "I've watched enough of your decisions to want to loosen when I permit. The change is mine to propose, yours to allow.",
+  detail:
+    "Across 1,240 of your decisions, I can bound the unsafe-release rate of this change at no more than 3% — and prove it. 0 I currently hold would have reached the world.",
+  agent: null,
+  dimension: "learning",
+  requires_human: true,
+  proof_ref: { kind: "proposal", id: "cal_7c4e1f90" },
+  anchor_sha256: null,
+  /* The calibration hold — exactly the shape /v1/vigil delivers. The proposed
+     change and the safety bound travel as pull-only handles; the resolving
+     question frames the three verbs. */
+  hold: {
+    kind: "calibration",
+    hold_type: "EPISTEMIC",
+    resolution_mode: "HUMAN_JUDGMENT",
+    resolving_question: "Do you want me to sharpen this way?",
+    proposal_id: "cal_7c4e1f90",
+    proposed_change: {
+      permit_before: 0.34,
+      permit_after: 0.32,
+      forbid_before: 0.72,
+      forbid_after: 0.7,
+      min_confidence_before: 0.62,
+      min_confidence_after: 0.63,
+    },
+    safety_bound: {
+      counterfactual_permits: 1240,
+      upper_bound: 0.03,
+      point_estimate: 0.018,
+      alpha: 0.05,
+      newly_released_unsafe: 0,
+    },
+    epistemic_score: 0.5,
+    aleatoric_score: 0.5,
+    band_certified: false,
+    band_lower: 0.0,
+    band_upper: 1.0,
+    final_score: 0.0,
+  },
+};
+
 /* ------------------------------------------------------------------ */
 /* Breath / state derivation                                           */
 /* ------------------------------------------------------------------ */
 
-function deriveState(vigil, snapshot, demoDecision, override) {
+function deriveState(liveDecision, snapshot, override) {
   if (override) return override;
 
   const chain = snapshot?.chain ?? {};
@@ -284,7 +369,7 @@ function deriveState(vigil, snapshot, demoDecision, override) {
     (chain.snapshot_chain_intact ?? true);
   if (snapshot && !intact) return "faltering";
 
-  if (vigil?.human_decision || demoDecision) return "held";
+  if (liveDecision) return "held";
 
   return "silent";
 }
@@ -339,8 +424,31 @@ export default function Vigil() {
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
   const [sealed, setSealed] = useState(null);
 
-  const liveDecision = vigil?.human_decision || demoDecision || null;
-  const state = deriveState(vigil, snapshot, demoDecision, override);
+  /* Optimistic dismissal, reconciled by the stream. When the operator
+     resolves a calibration proposal (approve / refuse / keep holding), we add
+     its id here so the card clears instantly — no spinner, the surface's
+     whole posture. The next /v1/vigil frame is the authoritative truth:
+     approve/refuse make the backend drop the proposal (it stays gone);
+     keep-holding writes nothing, so this session-local set is what keeps Tex
+     from re-raising it (pull-only, never nags). A ref so it survives frames;
+     a tick to force the one re-render that drops the card. */
+  const dismissedRef = useRef(new Set());
+  const [, bumpDismissed] = useState(0);
+  /* Pending boundary for the resolve mutation. React 18.3 stable: useTransition
+     (not useOptimistic, which is React 19) marks the approve/reject write as a
+     non-urgent transition so the optimistic dismiss stays responsive. */
+  const [, startTransition] = useTransition();
+
+  const rawHumanDecision = vigil?.human_decision || null;
+  const humanDecisionLive =
+    rawHumanDecision &&
+    isCalibration(rawHumanDecision) &&
+    dismissedRef.current.has(rawHumanDecision.hold?.proposal_id)
+      ? null
+      : rawHumanDecision;
+
+  const liveDecision = humanDecisionLive || demoDecision || null;
+  const state = deriveState(liveDecision, snapshot, override);
 
   /* Interaction state. */
   const [holding, setHolding] = useState(false);
@@ -577,6 +685,17 @@ export default function Vigil() {
   const pullEvidence = useCallback(
     (decision) => {
       if (!decision) return;
+      /* A calibration hold's proof is its own sealed math, already on the
+         wire: speak the safety bound (meaning), and raise the proposed change
+         as the one handle the glass may hold — the numbers rise only because
+         you reached, then dissolve. No explain round-trip needed. */
+      if (isCalibration(decision)) {
+        const detail = heldDetail(decision);
+        if (detail) texSpeak(detail);
+        const handle = proposedChangeHandle(decision);
+        if (handle) surfaceObject(handle, "name");
+        return;
+      }
       explainLine(decision.dimension || null, heldSentence(decision))
         .then((res) => {
           const story = res?.explanation || res?.facts?.headline || null;
@@ -683,6 +802,62 @@ export default function Vigil() {
       const decision = liveDecision;
       stopSpeaking();
       setSpoken(null);
+
+      /* The calibration hold resolves through the learning layer, not /seal:
+         approving/rejecting a proposal IS its sealed act. Approve → activate
+         the new policy; Refuse → reject with a reason; Keep holding → write
+         nothing (it lapses on supersession). All three dismiss the card
+         optimistically; the next /v1/vigil frame reconciles. */
+      if (isCalibration(decision)) {
+        const proposalId = decision.hold?.proposal_id;
+        const fromWire = Boolean(humanDecisionLive);
+
+        /* Optimistic dismiss — instant, no spinner. */
+        if (proposalId) {
+          dismissedRef.current.add(proposalId);
+          bumpDismissed((n) => n + 1);
+        }
+        setSealed({
+          verdict,
+          at: new Date(),
+          anchor: null,
+          signature: null,
+          calibration: true,
+          pending: fromWire && verdict !== "held",
+        });
+        if (PRESENTER && verdict === "approved") texPlayClip("sealed");
+        setDemoDecision(null);
+        setOverride(null);
+        clearLineTimer();
+        lineTimer.current = setTimeout(() => setSealed(null), 4_200);
+
+        /* Write side — only a real wire proposal, and only approve/refuse.
+           Best-effort and silent: if the call fails the optimistic dismiss
+           stays for this session and the next frame re-asserts truth. */
+        if (fromWire && proposalId && verdict !== "held") {
+          startTransition(() => {
+            const call =
+              verdict === "approved"
+                ? approveProposal(proposalId, { approver: "operator" })
+                : rejectProposal(proposalId, {
+                    rejecter: "operator",
+                    reason: "declined by operator",
+                  });
+            call
+              .then(() => {
+                setSealed((prev) =>
+                  prev ? { ...prev, pending: false } : prev
+                );
+              })
+              .catch(() => {
+                /* Silent. The optimistic dismiss stands; the stream reconciles. */
+              });
+          });
+        }
+        return;
+      }
+
+      /* A held DECISION is sealed by a named human act (POST /seal). */
       setSealed({
         verdict,
         at: new Date(),
@@ -729,7 +904,7 @@ export default function Vigil() {
           });
       }
     },
-    [liveDecision]
+    [liveDecision, humanDecisionLive]
   );
 
   /* ---------------- Presenter mode: number keys drive the demo ---------------- */
@@ -806,6 +981,11 @@ export default function Vigil() {
           reset();
           setOverride("faltering");
           texPlayClip("faltering");
+          break;
+        case "6": /* the calibration hold — Tex asks to sharpen its policy */
+          e.preventDefault();
+          reset();
+          setDemoDecision(DEMO_PROPOSAL);
           break;
         case "0":
         case "Escape": /* back to silence between runs */
@@ -1109,6 +1289,17 @@ export default function Vigil() {
               Refuse
             </button>
           </div>
+          {/* The reached handle — the one thing the card may hold. On a
+              calibration hold it's the proposed change; on a decision it's the
+              sealed anchor. It rises only because you reached (press and hold)
+              and dissolves once taken. Meaning is spoken; this is shown. */}
+          {surfaced && (
+            <div className="tex-object tex-object--in-held" role="status" aria-live="polite">
+              <span className="tex-object-value" key={surfaced.value}>
+                {surfaced.value}
+              </span>
+            </div>
+          )}
           {/* The certified-band watermark — chrome, not decoration; rendered
               only when the two-sided CRC band carries a live guarantee. */}
           {heldCertifiedWatermark(heldHold(decision)) && (
@@ -1167,6 +1358,9 @@ export default function Vigil() {
           <span className="tex-dev-panel-label">demo</span>
           <button type="button" onClick={devReplayAbstain}>
             replay abstain
+          </button>
+          <button type="button" onClick={() => { setSealed(null); setOverride(null); setSpoken(null); setDemoDecision(DEMO_PROPOSAL); }}>
+            calibration
           </button>
           <button type="button" onClick={devSilence}>
             silence

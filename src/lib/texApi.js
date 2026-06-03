@@ -209,6 +209,53 @@ export const sealDecision = (decisionId, { verdict, resolvedBy, note } = {}) =>
   });
 
 /* ------------------------------------------------------------------ */
+/* Learning — the calibration hold (Layer 6).                          */
+/*                                                                     */
+/* A calibration proposal is the second kind of hold: not a frozen     */
+/* action, but Tex asking permission to sharpen its own policy after   */
+/* an anytime-valid e-process crossed and an off-policy confidence     */
+/* bound cleared. It rides in on the SAME /v1/vigil human_decision     */
+/* channel, distinguished only by hold.kind === "calibration".         */
+/*                                                                     */
+/* Approving / rejecting a proposal IS the sealed human act — these     */
+/* endpoints write the operator's choice into the proposal's audit      */
+/* trail (its own evidence), so a calibration hold resolves THROUGH     */
+/* these, never through /seal. "Keep holding" writes nothing: the       */
+/* proposal lapses on supersession when a newer crossing replaces it.   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * POST /v1/learning/proposals/{id}/approve — accept the calibration and
+ * activate the new policy snapshot. Returns the applied proposal. The
+ * approver identity is sealed into the record; the key carries the tenant.
+ */
+export const approveProposal = (proposalId, { approver } = {}) =>
+  request(
+    `/v1/learning/proposals/${encodeURIComponent(proposalId)}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ approver: approver || "operator" }),
+    }
+  );
+
+/**
+ * POST /v1/learning/proposals/{id}/reject — decline the calibration with a
+ * structured reason (required by the contract). The rejection is sealed into
+ * the proposal's audit trail. Tex keeps the current policy.
+ */
+export const rejectProposal = (proposalId, { rejecter, reason } = {}) =>
+  request(
+    `/v1/learning/proposals/${encodeURIComponent(proposalId)}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        rejecter: rejecter || "operator",
+        reason: reason || "declined by operator",
+      }),
+    }
+  );
+
+/* ------------------------------------------------------------------ */
 /* Voice — the push-to-talk loop.                                      */
 /*                                                                     */
 /* The recognizer stream is a direct browser→gateway WebSocket (a      */

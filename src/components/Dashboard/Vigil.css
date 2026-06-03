@@ -438,6 +438,23 @@
   to   { opacity: 0; }
 }
 
+/* The reached handle when it rises INSIDE the held card (calibration's
+   proposed change, or a decision's anchor): it flows under the acts rather
+   than centering on the whole field, but keeps the same monospace object
+   treatment and rise. The fade is suppressed here — it lives only as long as
+   the surfaced object does, then unmounts with it. */
+.tex-object--in-held {
+  position: static;
+  transform: none;
+  margin: 18px auto 0;
+  max-width: 30em;
+}
+.tex-object--in-held .tex-object-value {
+  font-size: clamp(13px, 1.4vw, 16px);
+  color: var(--tex-ink-soft, var(--tex-ink));
+  animation: tex-object-rise 560ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
 /* Faltering tints the whole field a hair toward the sick taupe, on an
    uneven period so it never resolves into a calm loop. */
 .tex-field--faltering {
