@@ -177,6 +177,37 @@ export const getDecisionReplay = (decisionId) =>
 export const getEvidenceBundle = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/evidence-bundle`);
 
+/**
+ * POST /decisions/{id}/seal — resolve a held decision by a NAMED human act
+ * and seal it into the evidence chain.
+ *
+ * A held decision is not approved by a spoken "yes" — it is sealed by a named
+ * human act the evidence layer can prove. This writes the operator's
+ * approve / hold / refuse choice as its own hash-chained, post-quantum-signed
+ * evidence row and returns the anchor the operator walks away with:
+ *
+ *   {
+ *     decision_id, human_verdict, resolved_by, sealed_at,
+ *     evidence_id, anchor_sha256, previous_hash,
+ *     pq_signature: {
+ *       algorithm, key_id, signature_b64, public_key_b64, signed_at,
+ *       post_quantum            // true only when the seal is ML-DSA-backed
+ *     } | null
+ *   }
+ *
+ * ``verdict`` is the human verdict on the hold — "approved" / "held" /
+ * "refused". ``resolvedBy`` is the operator identity sealed into the record.
+ */
+export const sealDecision = (decisionId, { verdict, resolvedBy, note } = {}) =>
+  request(`/decisions/${encodeURIComponent(decisionId)}/seal`, {
+    method: "POST",
+    body: JSON.stringify({
+      verdict,
+      resolved_by: resolvedBy || "operator",
+      note: note ?? null,
+    }),
+  });
+
 /* ------------------------------------------------------------------ */
 /* Voice — the push-to-talk loop.                                      */
 /*                                                                     */

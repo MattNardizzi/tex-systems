@@ -4,7 +4,7 @@ import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
-import { askTex } from "../../lib/texApi";
+import { askTex, sealDecision, explainLine } from "../../lib/texApi";
 import {
   TexListener,
   texSpeak,
@@ -568,6 +568,34 @@ export default function Vigil() {
     [state, liveDecision, snapshot, ignition.ready, ignition.doorOpen, presenterDoorOpen, mapping]
   );
 
+  /* ---------------- Pulling the evidence ----------------
+     The proof depth: when the operator reaches for a held line, Tex finishes
+     the story from SEALED facts (/v1/vigil/explain) — meaning is spoken — and
+     the one thing the glass is allowed to hold, the sealed anchor, rises as an
+     object, then dissolves. Falls back to the anchor the decision already
+     carries if the explain wire is unreachable. */
+  const pullEvidence = useCallback(
+    (decision) => {
+      if (!decision) return;
+      explainLine(decision.dimension || null, heldSentence(decision))
+        .then((res) => {
+          const story = res?.explanation || res?.facts?.headline || null;
+          if (story) texSpeak(story);
+          const anchor =
+            res?.facts?.anchors?.[0]?.sha256 ||
+            decision.anchor_sha256 ||
+            null;
+          if (anchor) surfaceObject(anchor, "hash");
+        })
+        .catch(() => {
+          if (decision.anchor_sha256) {
+            surfaceObject(decision.anchor_sha256, "hash");
+          }
+        });
+    },
+    [surfaceObject]
+  );
+
   const endHold = useCallback(() => {
     if (!holding) return;
     setHolding(false);
@@ -585,11 +613,15 @@ export default function Vigil() {
     /* Whether this release should be answered with "Here": only a reach
        made in silence, and only while Tex is actually alive to answer. */
     const reachInSilence = state === "silent" && alive;
+    /* A reach made while a decision is held is a request for the proof —
+       pull the sealed evidence behind the line. */
+    const reachInHeld = state === "held" && alive && Boolean(liveDecision);
 
     /* The mic never opened (denied, no grant, unsupported). The gesture
        still happened, so a silent reach is still answered. */
     if (!listener) {
-      if (reachInSilence) sayHere();
+      if (reachInHeld) pullEvidence(liveDecision);
+      else if (reachInSilence) sayHere();
       return;
     }
 
@@ -599,8 +631,10 @@ export default function Vigil() {
       .then((transcript) => {
         setThinking(false);
         if (!transcript) {
-          /* Held, said nothing. Answer the reach. */
-          if (reachInSilence) sayHere();
+          /* Held, said nothing. A reach during a hold pulls the proof; a
+             reach in silence is answered with "Here." */
+          if (reachInHeld) pullEvidence(liveDecision);
+          else if (reachInSilence) sayHere();
           return undefined;
         }
         return askTex(transcript).then((res) => {
@@ -621,7 +655,7 @@ export default function Vigil() {
         });
       })
       .catch(() => setThinking(false));
-  }, [holding, state, alive, sayHere, surfaceObject]);
+  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -638,11 +672,12 @@ export default function Vigil() {
   };
 
   /* ---------------- Resolving a held decision ----------------
-     A wire transfer is sealed by a named human act, not a spoken
-     maybe. Approve / hold / refuse each write a sealed decision the
-     evidence layer can prove. Here it shows the seal briefly, then the
-     surface returns to silence. A real build POSTs the verdict and the
-     backend writes the ledger entry the hash signs. */
+     A held decision is not approved by a spoken "maybe" — it is sealed by a
+     NAMED human act the evidence layer can prove. The seal shows instantly
+     (optimistic, no spinner — silence is the failure mode, never a toast),
+     then the backend's real anchor + post-quantum signature replace it the
+     moment POST /decisions/{id}/seal returns. Demo / offline decisions keep
+     the instant local seal and simply never upgrade. */
   const resolve = useCallback(
     (verdict) => {
       const decision = liveDecision;
@@ -652,6 +687,8 @@ export default function Vigil() {
         verdict,
         at: new Date(),
         anchor: decision?.anchor_sha256 || null,
+        signature: null,
+        pending: Boolean(decision?.id),
       });
       /* Presenter: Tex says the seal aloud as the line lands. The clip is
          the approved verdict ("Sealed. You approved it."), so it fires only
@@ -663,6 +700,34 @@ export default function Vigil() {
       /* The seal lingers, then silence reclaims the screen. */
       clearLineTimer();
       lineTimer.current = setTimeout(() => setSealed(null), 4_200);
+
+      /* Write side: seal the named human act into the backend evidence chain
+         and surface the REAL anchor + signature. Best-effort — if the wire is
+         unreachable the optimistic seal stands; Tex never says "connection
+         lost." */
+      if (decision?.id) {
+        sealDecision(decision.id, { verdict, resolvedBy: "operator" })
+          .then((res) => {
+            if (!res) return;
+            setSealed((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    anchor: res.anchor_sha256 || prev.anchor,
+                    signature: res.pq_signature || null,
+                    at: res.sealed_at ? new Date(res.sealed_at) : prev.at,
+                    pending: false,
+                  }
+                : prev
+            );
+            /* Give the real, verifiable anchor a beat longer to be read. */
+            clearLineTimer();
+            lineTimer.current = setTimeout(() => setSealed(null), 6_000);
+          })
+          .catch(() => {
+            /* Silent. The optimistic seal stays; the backend was unreachable. */
+          });
+      }
     },
     [liveDecision]
   );
@@ -909,6 +974,14 @@ export default function Vigil() {
             <p className="tex-seal-hash">
               {sealed.anchor.slice(0, 16)}…&nbsp;·&nbsp;
               {sealed.at.toLocaleTimeString()}
+            </p>
+          )}
+          {sealed.signature && (
+            <p className="tex-seal-sig">
+              {sealed.signature.post_quantum
+                ? "post-quantum sealed"
+                : "sealed"}
+              &nbsp;·&nbsp;{sealed.signature.algorithm}
             </p>
           )}
         </div>
