@@ -23,6 +23,27 @@
 /* Same-origin proxy prefix. The proxy holds TEX_API_BASE / TEX_API_KEY. */
 const BASE = "/api/tex";
 
+/* Sandbox tenant.
+ *
+ * In a real, keyed deployment the API key carries the tenant, so the
+ * tenant-scoped calls below send no tenant_id and the backend resolves it
+ * from the principal. The sandbox has no key: the simulator drives a synthetic
+ * estate under an explicit tenant (`meridian-<seed>`, e.g. reference = 200
+ * agents under `meridian-7`). For the interface to watch the SAME estate the
+ * simulator populates and governs, every tenant-scoped call must name that
+ * tenant — discovery status, ignition, the vigil poll, and the vigil stream
+ * alike, so Tex maps, counts, and then speaks the holds the simulator's agents
+ * trigger, all under one tenant.
+ *
+ * Set via VITE_TEX_TENANT. It is read from `.env.development`, which Vite loads
+ * only for `npm run dev` and NEVER for `npm run build` — so a production build
+ * ships with this empty and the keyed posture (no tenant_id) is untouched. */
+const SANDBOX_TENANT = import.meta.env.VITE_TEX_TENANT || "";
+
+/* Resolve the tenant for a scoped call: an explicit argument wins; otherwise
+   fall back to the sandbox tenant (empty in production → omitted). */
+const scopedTenant = (tenantId) => tenantId || SANDBOX_TENANT || undefined;
+
 /* The fetch wrapper is intentionally small. No retries, no backoff, no
    error envelopes. If a call fails, the hook surfaces null and the vigil
    keeps speaking the last known truth. Silence is Tex's failure mode —
@@ -72,10 +93,10 @@ async function request(path, init = {}) {
  * The key carries the tenant in keyed posture, so tenant_id is usually
  * left unset; pass it only when a privileged key needs to scope a read.
  */
-export const getVigil = (tenantId) =>
-  request(
-    `/v1/vigil${tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : ""}`
-  );
+export const getVigil = (tenantId) => {
+  const t = scopedTenant(tenantId);
+  return request(`/v1/vigil${t ? `?tenant_id=${encodeURIComponent(t)}` : ""}`);
+};
 
 /**
  * /v1/vigil/stream — the live voice as a Server-Sent Events stream.
@@ -91,10 +112,12 @@ export const getVigil = (tenantId) =>
  * Returned as a URL (EventSource takes a URL, not a fetch init). Same-origin,
  * so the proxy attaches the key server-side exactly as it does for the poll.
  */
-export const vigilStreamUrl = (tenantId) =>
-  `${BASE}/v1/vigil/stream${
-    tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : ""
+export const vigilStreamUrl = (tenantId) => {
+  const t = scopedTenant(tenantId);
+  return `${BASE}/v1/vigil/stream${
+    t ? `?tenant_id=${encodeURIComponent(t)}` : ""
   }`;
+};
 
 /**
  * POST /v1/vigil/explain — finish the story behind one spoken line,
@@ -112,7 +135,7 @@ export const explainLine = (dimension, claimText, tenantId) =>
     body: JSON.stringify({
       dimension,
       claim_text: claimText ?? null,
-      tenant_id: tenantId ?? null,
+      tenant_id: scopedTenant(tenantId) ?? null,
     }),
   });
 
@@ -139,12 +162,14 @@ export const getSystemState = () => request("/v1/system/state");
  * GET /v1/surface/discovery/status — has ignition fired for this tenant?
  * Pure read, no side effect. Returns { ignited, ignited_at }.
  */
-export const getDiscoveryStatus = (tenantId) =>
-  request(
+export const getDiscoveryStatus = (tenantId) => {
+  const t = scopedTenant(tenantId);
+  return request(
     `/v1/surface/discovery/status${
-      tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : ""
+      t ? `?tenant_id=${encodeURIComponent(t)}` : ""
     }`
   );
+};
 
 /**
  * POST /v1/surface/discovery/ignite — begin watching the estate.
@@ -161,13 +186,15 @@ export const getDiscoveryStatus = (tenantId) =>
  * The preview surface passes a fresh per-session tenant so each visit runs
  * the real pipeline and the day-one door replays.
  */
-export const igniteDiscovery = (tenantId) =>
-  request(
+export const igniteDiscovery = (tenantId) => {
+  const t = scopedTenant(tenantId);
+  return request(
     `/v1/surface/discovery/ignite${
-      tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : ""
+      t ? `?tenant_id=${encodeURIComponent(t)}` : ""
     }`,
     { method: "POST" }
   );
+};
 
 /** GET /decisions/{id}/replay — full Decision record for a prior eval. */
 export const getDecisionReplay = (decisionId) =>
@@ -303,7 +330,7 @@ export const askTex = (transcript, tenantId) =>
     method: "POST",
     body: JSON.stringify({
       transcript: transcript ?? "",
-      tenant_id: tenantId ?? null,
+      tenant_id: scopedTenant(tenantId) ?? null,
     }),
   });
 

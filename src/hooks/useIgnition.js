@@ -48,7 +48,7 @@ import { getDiscoveryStatus, igniteDiscovery } from "../lib/texApi";
  * Flip back to `false` to restore the real, server-authoritative,
  * fires-once-ever behaviour for ship.
  * -------------------------------------------------------------------- */
-const PREVIEW_FIRST_RUN = true;
+const PREVIEW_FIRST_RUN = false;
 
 /* A fresh tenant per page load. In preview, ignition runs for real against
    this throwaway tenant, so the full discovery pipeline executes and the
