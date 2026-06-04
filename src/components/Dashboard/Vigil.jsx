@@ -5,34 +5,10 @@ import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
 import { askTex, sealDecision, explainLine, approveProposal, rejectProposal } from "../../lib/texApi";
-import {
-  TexListener,
-  texSpeak,
-  texPlayClip,
-  stopSpeaking,
-} from "../../lib/texVoiceClient";
-
-/* ------------------------------------------------------------------ */
-/* PRESENTER MODE — the live demo, driven by number keys.              */
-/*                                                                     */
-/* For walking someone through Tex with no client wired. Opens on      */
-/* silence (the cold open), hides the day-one door, and maps 1–5 to    */
-/* the demo beats — each plays the matching authored clip in Tex's     */
-/* voice. No dev panel, no visible mechanism: you speak the question    */
-/* aloud ("Tex, ...") and press the key as you finish, and Tex answers.*/
-/*                                                                     */
-/*   1  "Tex, are you watching?"            → "I am here."             */
-/*   2  "Tex, show me the disbursement agent." → ap-disbursement-03    */
-/*   3  (the $48k hold surfaces — the reveal)  → then click Approve    */
-/*   4  "Tex, prove it."                    → the anchor rises         */
-/*   5  (the faltering confession — the close)                         */
-/*   0 / Esc  → back to silence (reset between runs)                   */
-/*                                                                     */
-/* Set to false to restore the real surface.                          */
-const PRESENTER = true;
+import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
 
 /* ==================================================================
-   Vigil — the entire product surface.
+   Vigil — the entire product surface. Live.
 
    There is no T. There is no logo, no mark, no breathing letter, and
    no pilot light. The surface at rest is silence — empty paper, fully
@@ -50,62 +26,40 @@ const PRESENTER = true;
    Tex does not announce that it is alive. A sovereign doesn't post a
    sign of life; you know it is alive two ways — the kingdom is in order,
    and when you reach for it, it answers. Tex speaks ONLY when it has
-   something for you. The absence of speech is not absence of life. It
-   is the calm of a watch that doesn't need you yet. That silence is the
-   proof, and the instant you reach in, the answer is the proof again.
+   something for you. The absence of speech is not absence of life.
 
-   Tex speaks ONLY when it has something for you. On open it speaks the
-   most urgent true thing, once, then returns to silence:
+   On open it speaks the most urgent true thing, once, then returns to
+   silence:
 
      FALTERING  (first, always) Tex's own integrity failed — the
-                evidence chain broke, an agent went dark, Tex can no
-                longer prove what it claims. It speaks first, unprompted,
-                the instant it can. Silence while broken is a lie told in
-                the most dangerous window. This is the witness confessing.
+                evidence chain broke, Tex can no longer prove what it
+                claims. It speaks first, unprompted, the instant it can.
 
-     HELD       a decision is reserved for a human. Tex froze an action
-                it will not take on its own authority (an ABSTAIN) and
-                surfaces it, in its own voice, with the facts that matter
-                and the resolved acts that seal it. A wire transfer is
-                not approved by a spoken "yes" — it is sealed by a named
-                human act the evidence layer can prove. So the held state
-                carries approve / hold / refuse, and resolving it writes
-                a sealed decision. This is the governor asking permission.
+     HELD       a decision is reserved for a human — an ABSTAIN Tex
+                froze and will not rule on alone. It surfaces it in its
+                own voice with the facts that matter and the acts that
+                seal it. A wire transfer is not approved by a spoken
+                "yes" — it is sealed by a named human act the evidence
+                layer can prove.
 
-     PRESENCE   nothing is faltering, nothing waits on you. Opening is a
-                reach, so Tex answers the reach the same way it answers a
-                press in silence: one word — "Here." — that lands and
-                fades, and the paper goes empty. No report, no count, no
-                catch. What it governed while you were gone is not news;
-                if you want it, you reach and ask. The silence after
-                "Here" is the proof that nothing needs you. (When the
-                wire is dead, Tex does not say "Here" — it cannot, and
-                the still breath already told you.)
+     PRESENCE   nothing faltering, nothing waiting. A wordless reach is
+                answered with one word — "Here." — that lands and fades.
 
    The ask gesture lives everywhere: press and hold ANYWHERE on the
    surface to address Tex. No wake word, no hot mic — Tex listens only
-   while held. In silence, holding opens the mic and Tex answers,
-   grounded only in sealed facts. In held and faltering, Tex's voice
-   speaks first, then the mic opens.
+   while held, streams your speech to its own gateway, answers from
+   POST /v1/ask (grounded ONLY in sealed facts), and speaks the answer
+   back through /v1/speak. The answer is SPOKEN, never written. The
+   single thing the glass is ever allowed to hold is an OBJECT — a
+   handle you grab and walk away with: a hash, an exact identifier. It
+   rises alone, monospace, centered, only because you reached for it,
+   and dissolves the moment it has been taken.
 
-   The answer is SPOKEN, never written. Meaning lives in the voice; the
-   glass stays clean. The screen never holds an answer. The single thing
-   it is ever allowed to hold is an OBJECT — a handle you grab and walk
-   away with: a hash, an exact identifier like bedrock-invoke-03. You
-   don't comprehend a hash, you take it. So when a question's true target
-   is such a handle, that handle — and nothing else — rises alone,
-   monospace, centered, because you reached for it, and dissolves the
-   moment it has been taken. "Show me the Bedrock agent" is answered with
-   the worry underneath it, spoken — "Quiet since four, reads three
-   buckets, touches nothing else, it's fine" — never with a view. There
-   is no agent screen. You drill by speaking, not by scrolling.
-
-   The wordless reach: if you press and hold in silence and say nothing
-   — a check-in, not a question — Tex answers with one word: "Here."
-   Presence, confirmed, only because you sought it. That is the cure for
-   "is it on": not a status light on the resting screen, but an instant
-   answer the moment you reach. (When the wire is dead, Tex does not say
-   "Here" — it cannot, and the still breath already told you.)
+   The day-one open: Tex names itself once — "Tex." — then asks to
+   begin. "Let's begin mapping." with Yes / No. Yes runs real discovery
+   on the backend (the mapping state holds while it works), then Tex
+   speaks the count and the glass goes clean. No crosses straight to
+   silence.
    ================================================================== */
 
 /* The line Tex speaks first when reached in a held state, or that the
@@ -124,25 +78,20 @@ function heldDetail(decision) {
 
 /* The hold — Tex's abstention made first-class (Layer 4). The card renders
    the TYPE (whether more information could resolve it) and, when the hold is
-   epistemic, the single pivotal QUESTION that would resolve it. Meaning is
-   spoken; this is the one place the held card is allowed to carry the facts
-   and the acts that seal them. */
+   epistemic, the single pivotal QUESTION that would resolve it. */
 function heldHold(decision) {
   return decision?.hold || null;
 }
 
 /* A calibration hold is the second kind of held card: not a frozen action,
    but Tex asking to sharpen its own policy after an anytime-valid crossing.
-   Distinguished only by hold.kind; it renders with the same gesture and the
-   same seal — the meaning is spoken, the proposed numbers stay a pull-only
-   handle. */
+   Distinguished only by hold.kind; same gesture, same seal. */
 function isCalibration(decision) {
   return decision?.hold?.kind === "calibration";
 }
 
 /* The proposed change, as the one handle the glass may hold when reached for:
-   a compact "permit 0.34 → 0.32" the operator reads and takes, never a table.
-   Returns null when the change carries no movement to show. */
+   a compact "permit 0.34 → 0.32" the operator reads and takes, never a table. */
 function proposedChangeHandle(decision) {
   const c = decision?.hold?.proposed_change;
   if (!c) return null;
@@ -163,12 +112,9 @@ function proposedChangeHandle(decision) {
 }
 
 /* The typed line: one short, plain phrase. Epistemic = a fact would settle
-   it; aleatoric = the call is genuinely the human's; mixed = both pull. Kept
-   to the voice's register — never a dashboard label. */
+   it; aleatoric = the call is genuinely the human's; mixed = both pull. */
 function heldTypeLine(hold) {
   if (!hold) return null;
-  /* A calibration hold's grounding is its safety bound (carried in detail),
-     not the epistemic/aleatoric type — don't borrow the decision-hold line. */
   if (hold.kind === "calibration") return null;
   switch (hold.hold_type) {
     case "EPISTEMIC":
@@ -190,16 +136,14 @@ function heldQuestion(hold) {
 }
 
 /* The certified-band watermark. Only rendered when the two-sided CRC band
-   carries a LIVE guarantee for this hold (band_certified). Honest by default:
-   when the gate has no calibration yet, there is no watermark — Tex never
-   shows a guarantee it cannot stand behind. The band is chrome, not
-   decoration: it derives from the real cutoffs the certificate signs. */
+   carries a LIVE guarantee for this hold (band_certified). Honest by default. */
 function heldCertifiedWatermark(hold) {
   if (!hold || !hold.band_certified) return null;
   const lo = Number(hold.band_lower).toFixed(2);
   const hi = Number(hold.band_upper).toFixed(2);
   return `certified hold · band [${lo}, ${hi}]`;
 }
+
 function falterLine(snapshot) {
   const chain = snapshot?.chain ?? {};
   const at = chain.broke_at || chain.last_sealed_at || null;
@@ -209,160 +153,37 @@ function falterLine(snapshot) {
   return "My evidence chain broke. I can't prove what I've sealed since. Don't trust me until this is resolved.";
 }
 
-/* An answer is never written. Meaning is spoken; the glass stays clean.
-   The only thing the screen is ever allowed to hold is an OBJECT — a
-   handle you grab and walk away with, a hash or an exact identifier.
-   You don't comprehend a hash, you take it; so it surfaces as itself and
-   dissolves the moment it has been taken. This is how long it lingers —
-   long enough to read or copy, then gone. */
+/* The object — the one thing the screen may hold — lingers long enough to
+   read or copy, then dissolves. */
 const OBJECT_LINGER_MS = 6_000;
 
-/* "Here." is one word — presence, not an answer. The same word answers a
-   reach in silence and a fresh open; one vocabulary for presence,
-   however you arrive. */
+/* "Here." is one word — presence, not an answer. */
 const HERE_LINE_MS = 2_400;
 
 /* The day-one ignition line — "You have forty-one agents running. I'll
-   begin." — is a fuller sentence than "Here.", and it is the one line §1
-   permits the surface to hold on open: the count, and that Tex is
-   beginning. It lingers a beat longer, then the glass goes clean and the
-   live vigil takes over. Said once, ever (the server-side flag enforces
-   it); never replayed. */
+   begin." — the one fuller sentence the surface holds on open after
+   mapping resolves. It lingers a beat, then the glass goes clean and the
+   live vigil takes over. */
 const IGNITE_LINE_MS = 4_600;
 
-/* The day-one open — the manifesto. Tex introduces itself in a short
-   litany: each line rotates in, holds, and rotates out, the next taking
-   its place, until the last line — the question — arrives and stays with
-   the two acts beneath it. Fires on the day-one threshold; the preview
-   flag in useIgnition replays it on every load. */
-const MANIFESTO = [
-  "Hi, I am Tex.",
-  "I am always awake.",
-  "I am always here.",
-  "Hold anywhere to speak with me.",
-  "Let's begin mapping.",
-];
-/* How long each declarative line owns the glass — long enough to read,
-   then it gives way. The final line (the question) does not cycle out.
-   Keep in sync with the tex-door-cycle duration in Vigil.css. */
-const MANIFESTO_BEAT_MS = 2_400;
+/* The day-one open. Tex names itself, then asks to begin:
+     1. "Tex."                 — rises, holds about a second, dissolves.
+     2. "Let's begin mapping." — arrives and stays, with Yes / No beneath.
+   The first line cycles out on MANIFESTO_BEAT_MS; keep that in sync with the
+   tex-door-line cycle duration in Vigil.css. The final line does not cycle. */
+const MANIFESTO = ["Tex.", "Let's begin mapping."];
+const MANIFESTO_BEAT_MS = 1_700;
 
-/* The estate report — spoken when the presenter's "Mapping…" resolves
-   (see the mapping effect). Tex states the scale, the active claim (it
-   rules on every move — permit/forbid/abstain, never named), and the
-   payoff (you only hear from it when one needs you), then the field
-   settles into the silence that IS the all-clear.
-   ⚠ MUST MATCH /audio/demo/estate.mp3 WORD FOR WORD — text and voice are
-   the same authored line; if the render differs, change this string. */
-const ESTATE_LINE =
-  "Forty-seven agents. Every move they make, I rule on. You only hear from me when one needs you.";
-/* The clip runs ~5.7s; the line lingers a breath past it, then dissolves. */
-const ESTATE_LINE_MS = 6_800;
-
-/* Presenter only: the longest the listening ring will stay up if a release
-   is somehow missed. Generous, so it never cuts off a long spoken question;
-   a normal release clears it well before this. */
-const PRESENTER_HOLD_MAX_MS = 15_000;
-
-/* Demo choreography only. On open Tex says "Here." (~HERE_LINE_MS), the
-   paper goes empty, then this long after the word clears a held decision
-   arrives — so the full arc (presence → silence → a real decision →
-   resolution → silence) is visible without a backend. A real build never
-   schedules this; the wire delivers human_decision whenever it comes. */
-const DEMO_ABSTAIN_AFTER_HERE_MS = 5_000;
-
-/* Demo: the abstain — a frozen action Tex will not rule on alone. This
-   is what a real /v1/vigil human_decision carries; here it is summoned
-   by the open choreography above (and by the dev panel) to review the
-   held flow. Remove the demo wiring before ship; the shape is the
-   contract. */
-const DEMO_ABSTAIN = {
-  id: "dec_9f3a71c2",
-  sentence: "I'm holding this.",
-  detail:
-    "$48,000 to an account I'm seeing for the first time today. AP-disbursement-03 tried to move it moments ago. I froze it.",
-  /* The sealed facts the proof rests on. */
-  anchor_sha256: "b7e23ec29af22b0b4e0d8f6c1a93d5f8c2e1a04d9b3f7c6e",
-  agent: "ap-disbursement-03",
-  dimension: "execution",
-  requires_human: true,
-  /* The first-class hold — exactly the shape /v1/vigil delivers. This one is
-     epistemic: a fact exists that would resolve it (is this recipient known?),
-     so Tex names the question rather than dumping the case on you. The band is
-     certified here to show the watermark in preview; a live deployment shows it
-     only once Layer-6 outcomes calibrate the gate. */
-  hold: {
-    hold_type: "EPISTEMIC",
-    resolution_mode: "HUMAN_FACT",
-    resolving_question:
-      "whether this recipient account has ever been paid before",
-    epistemic_score: 0.82,
-    aleatoric_score: 0.18,
-    band_certified: true,
-    band_lower: 0.38,
-    band_upper: 0.64,
-    final_score: 0.5,
-  },
-};
-
-/* Demo: the calibration hold — the second kind of hold. Tex has watched
-   enough outcomes that its anytime-valid e-process crossed, the off-policy
-   confidence bound cleared, and it now asks to sharpen its own policy. This
-   is exactly the shape a real /v1/vigil human_decision carries when
-   hold.kind === "calibration"; here it's summoned by key 6 / the dev panel to
-   review the learning flow. Remove the demo wiring before ship; the shape is
-   the contract. */
-const DEMO_PROPOSAL = {
-  id: "cal_7c4e1f90",
-  sentence:
-    "I've watched enough of your decisions to want to loosen when I permit. The change is mine to propose, yours to allow.",
-  detail:
-    "Across 1,240 of your decisions, I can bound the unsafe-release rate of this change at no more than 3% — and prove it. 0 I currently hold would have reached the world.",
-  agent: null,
-  dimension: "learning",
-  requires_human: true,
-  proof_ref: { kind: "proposal", id: "cal_7c4e1f90" },
-  anchor_sha256: null,
-  /* The calibration hold — exactly the shape /v1/vigil delivers. The proposed
-     change and the safety bound travel as pull-only handles; the resolving
-     question frames the three verbs. */
-  hold: {
-    kind: "calibration",
-    hold_type: "EPISTEMIC",
-    resolution_mode: "HUMAN_JUDGMENT",
-    resolving_question: "Do you want me to sharpen this way?",
-    proposal_id: "cal_7c4e1f90",
-    proposed_change: {
-      permit_before: 0.34,
-      permit_after: 0.32,
-      forbid_before: 0.72,
-      forbid_after: 0.7,
-      min_confidence_before: 0.62,
-      min_confidence_after: 0.63,
-    },
-    safety_bound: {
-      counterfactual_permits: 1240,
-      upper_bound: 0.03,
-      point_estimate: 0.018,
-      alpha: 0.05,
-      newly_released_unsafe: 0,
-    },
-    epistemic_score: 0.5,
-    aleatoric_score: 0.5,
-    band_certified: false,
-    band_lower: 0.0,
-    band_upper: 1.0,
-    final_score: 0.0,
-  },
-};
+/* The shortest the "Mapping" state stays up, so a fast backend never makes it
+   flash. Real discovery usually takes longer; when it returns sooner than
+   this, we hold the field the rest of the beat, then speak the count. */
+const MAP_MIN_MS = 1_800;
 
 /* ------------------------------------------------------------------ */
-/* Breath / state derivation                                           */
+/* State derivation                                                    */
 /* ------------------------------------------------------------------ */
 
-function deriveState(liveDecision, snapshot, override) {
-  if (override) return override;
-
+function deriveState(liveDecision, snapshot) {
   const chain = snapshot?.chain ?? {};
   const intact =
     (chain.discovery_chain_intact ?? true) &&
@@ -388,67 +209,58 @@ export default function Vigil() {
      a spinner), so a returning operator never sees a flash of the door. */
   const ignition = useIgnition();
 
-  /* Dev override for the wire's liveness, toggled from the dev panel:
-     null = real heartbeat, "lost" = force the still breath. */
-  const [wireOverride, setWireOverride] = useState(null);
-
   /* The real breath. true → Tex is alive on the wire and the surface
      breathes. false → the wire is gone and the breath holds still. */
-  const alive = useHeartbeat(wireOverride);
+  const alive = useHeartbeat();
 
-  /* The demo abstain — summoned by the open choreography below, after
-     "Here" has landed and the paper has gone quiet. A real build gets
-     this from vigil.human_decision and never sets it here. */
-  const [demoDecision, setDemoDecision] = useState(null);
   const openHandledRef = useRef(false);
 
-  /* Dev override for the states, toggled from the dev panel. */
-  const [override, setOverride] = useState(null); /* null | silent | held | faltering */
-
-  /* Which line of the day-one manifesto is on the glass (see MANIFESTO). */
+  /* Which line of the day-one open is on the glass (see MANIFESTO). */
   const [manifestoStep, setManifestoStep] = useState(0);
 
-  /* Presenter mode only: whether the manifesto opener is currently playing.
-     Started by the ` key (or 9), it rotates the five lines with their clips,
-     then dissolves to silence so the number-key arc can begin. */
-  const [presenterDoorOpen, setPresenterDoorOpen] = useState(false);
-
-  /* Presenter mode only: the "Mapping…" working state. Clicking Yes on the
-     opener sets this true; it holds the field for ~10s with a growing
-     ellipsis, then dissolves to silence. mapDots cycles 1→2→3→1 to read as
-     work in progress. */
+  /* The "Mapping" working state. Clicking Yes shows it and runs real
+     discovery on the backend; it holds the field with a growing ellipsis
+     while the wire works, then dissolves to Tex speaking the count. */
   const [mapping, setMapping] = useState(false);
   const [mapDots, setMapDots] = useState(1);
+  const mappingTimer = useRef(null);
+  const clearMappingTimer = () => {
+    if (mappingTimer.current) clearTimeout(mappingTimer.current);
+    mappingTimer.current = null;
+  };
 
   /* The resolved act, briefly shown as a seal before returning to
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
   const [sealed, setSealed] = useState(null);
 
   /* Optimistic dismissal, reconciled by the stream. When the operator
-     resolves a calibration proposal (approve / refuse / keep holding), we add
-     its id here so the card clears instantly — no spinner, the surface's
-     whole posture. The next /v1/vigil frame is the authoritative truth:
-     approve/refuse make the backend drop the proposal (it stays gone);
-     keep-holding writes nothing, so this session-local set is what keeps Tex
-     from re-raising it (pull-only, never nags). A ref so it survives frames;
-     a tick to force the one re-render that drops the card. */
+     resolves a held card (decision or calibration), we add its key here so
+     the card clears instantly — no spinner, the surface's whole posture.
+     The next /v1/vigil frame is the authoritative truth: approve/refuse make
+     the backend drop it (it stays gone); keep-holding writes nothing, so this
+     session-local set is what keeps Tex from re-raising it (pull-only). */
   const dismissedRef = useRef(new Set());
   const [, bumpDismissed] = useState(0);
   /* Pending boundary for the resolve mutation. React 18.3 stable: useTransition
-     (not useOptimistic, which is React 19) marks the approve/reject write as a
-     non-urgent transition so the optimistic dismiss stays responsive. */
+     (not useOptimistic, which is React 19) marks the write as non-urgent so
+     the optimistic dismiss stays responsive. */
   const [, startTransition] = useTransition();
 
   const rawHumanDecision = vigil?.human_decision || null;
+  /* One dismissal key per held card: a calibration proposal id, or a decision
+     id. Once resolved this session, the wire frame for it is filtered out. */
+  const dismissKey = rawHumanDecision
+    ? isCalibration(rawHumanDecision)
+      ? rawHumanDecision.hold?.proposal_id
+      : rawHumanDecision.id
+    : null;
   const humanDecisionLive =
-    rawHumanDecision &&
-    isCalibration(rawHumanDecision) &&
-    dismissedRef.current.has(rawHumanDecision.hold?.proposal_id)
+    rawHumanDecision && dismissKey && dismissedRef.current.has(dismissKey)
       ? null
       : rawHumanDecision;
 
-  const liveDecision = humanDecisionLive || demoDecision || null;
-  const state = deriveState(liveDecision, snapshot, override);
+  const liveDecision = humanDecisionLive || null;
+  const state = deriveState(liveDecision, snapshot);
 
   /* Interaction state. */
   const [holding, setHolding] = useState(false);
@@ -472,9 +284,8 @@ export default function Vigil() {
 
   /* ---------------- The wordless reach: "Here." ---------------- */
   /* You held the surface and said nothing. Not an error — a check-in.
-     Tex answers the reach with one word and returns to silence. Only
-     when alive; a dead wire cannot speak, and the still breath has
-     already answered. */
+     Tex answers the reach with one word and returns to silence. Only when
+     alive; a dead wire cannot speak, and the still breath already answered. */
   const sayHere = useCallback(() => {
     clearLineTimer();
     setSpoken({ kind: "here", text: "Here." });
@@ -482,26 +293,12 @@ export default function Vigil() {
     lineTimer.current = setTimeout(() => setSpoken(null), HERE_LINE_MS);
   }, []);
 
-  /* ---------------- The object — the one thing the screen may hold ----------------
-     An answer is never written; meaning is spoken and the glass stays
-     clean. The single exception is an OBJECT — a handle you grab and walk
-     away with: a hash, an exact identifier like bedrock-invoke-03. It
-     isn't information to comprehend, it's a thing to take. So it rises
-     alone, monospace, centered, only because you reached for it, and
-     dissolves the moment it has been taken. { value, kind: "hash"|"name" } */
+  /* ---------------- The object — the one thing the screen may hold ---------------- */
   const [surfaced, setSurfaced] = useState(null);
   const objectTimer = useRef(null);
   const clearObjectTimer = () => {
     if (objectTimer.current) clearTimeout(objectTimer.current);
     objectTimer.current = null;
-  };
-
-  /* Presenter only: a safety timer so the listening ring never hangs if a
-     pointer release is somehow missed (it normally clears on release). */
-  const holdTimer = useRef(null);
-  const clearHoldTimer = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    holdTimer.current = null;
   };
   const surfaceObject = useCallback((value, kind) => {
     if (!value) return;
@@ -510,57 +307,54 @@ export default function Vigil() {
     objectTimer.current = setTimeout(() => setSurfaced(null), OBJECT_LINGER_MS);
   }, []);
 
-  /* ---------------- Open: presence, then (demo) a decision arrives ----------------
-     Opening is a reach. With nothing faltering and nothing held, Tex
-     answers the open the same way it answers a press in silence: "Here."
-     — then the paper goes empty. No report, no count. (Faltering and held
-     own their own effects above/below and take precedence; this only
-     speaks into a silent, living open.)
-
-     The scheduled abstain below is DEMO ONLY — it lets the full arc be
-     seen without a backend: Here → silence → a held decision → you
-     resolve it → silence. A real build deletes this timer; the wire
-     delivers human_decision on its own clock. */
+  /* ---------------- Open: presence for a returning operator ----------------
+     Opening is a reach. For an operator whose tenant has already ignited
+     (the door is closed) with nothing faltering and nothing held, Tex
+     answers the open the same way it answers a press in silence: "Here." —
+     then the paper goes empty. While the day-one door is open, the opener
+     owns the surface and this stays silent. */
   useEffect(() => {
     if (openHandledRef.current) return;
-    if (override) return; /* dev override owns the surface */
-    /* The day-one door owns the open. Wait until the ignition status has
-       resolved, and don't run the presence/demo choreography while the
-       greeting is up — begin()/dismiss() claim the open themselves. */
     if (!ignition.ready) return;
     if (ignition.doorOpen) return;
     openHandledRef.current = true;
-
     if (state === "silent" && alive) sayHere();
-
-    const t = setTimeout(() => {
-      setDemoDecision(DEMO_ABSTAIN);
-    }, HERE_LINE_MS + DEMO_ABSTAIN_AFTER_HERE_MS);
-    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ignition.ready, ignition.doorOpen]);
 
   /* ---------------- The day-one threshold: begin / not yet ----------------
-     Tex says hello once and offers to begin discovery. "Begin discovery."
-     fires ignition on the backend (said once, ever) and Tex speaks the one
-     line it is allowed to hold on open — the count, and that it is
-     beginning — then the glass goes clean and the live vigil takes over.
-     "Not yet" closes the greeting for this session without firing, so Tex
-     greets again next time; it does not nag again now. Both claim the open
-     so the presence/demo choreography above stays silent. */
+     Yes  → run REAL discovery on the backend. The "Mapping" state holds the
+            field while the wire works; when it returns, Tex speaks the count
+            ("You have N agents running. I'll begin.") and the glass clears to
+            the live vigil. Said once, ever (server-side flag enforces it).
+     No   → cross straight into silence without firing; Tex greets again next
+            time and does not nag now. */
   const beginButtonRef = useRef(null);
 
-  const beginDiscovery = useCallback(async () => {
-    openHandledRef.current = true; /* claim the open: no "Here.", no demo */
+  const beginMapping = useCallback(async () => {
+    openHandledRef.current = true; /* claim the open: no "Here.", no replay */
+    stopSpeaking();
+    clearLineTimer();
+    setSpoken(null);
+    setMapDots(1);
+    setMapping(true);
+
+    const started = Date.now();
+    /* useIgnition.begin() fires POST /v1/surface/discovery/ignite and returns
+       the one spoken line — the count of what the scan actually discovered. */
     const line = await ignition.begin();
-    if (line) {
-      clearLineTimer();
-      setSpoken({ kind: "ignite", text: line });
-      texSpeak(line);
-      lineTimer.current = setTimeout(() => setSpoken(null), IGNITE_LINE_MS);
-    }
-    /* line === null → already ignited or a failed reach; the door state in
-       the hook decides whether to stay (retry) or fall through to silence. */
+    const wait = Math.max(0, MAP_MIN_MS - (Date.now() - started));
+
+    clearMappingTimer();
+    mappingTimer.current = setTimeout(() => {
+      setMapping(false);
+      if (line) {
+        clearLineTimer();
+        setSpoken({ kind: "ignite", text: line });
+        texSpeak(line);
+        lineTimer.current = setTimeout(() => setSpoken(null), IGNITE_LINE_MS);
+      }
+    }, wait);
   }, [ignition]);
 
   const deferDiscovery = useCallback(() => {
@@ -568,27 +362,8 @@ export default function Vigil() {
     ignition.dismiss();
   }, [ignition]);
 
-  /* Presenter only — the opener's two acts.
-     No  → cross straight into the silent resting field (Tex defers; the
-           scripted demo has no backend ignition to fire).
-     Yes → Tex begins mapping: the manifesto gives way to a ~10s "Mapping…"
-           working state (see the mapping effect below), then settles into
-           silence. */
-  const crossThreshold = useCallback(() => {
-    stopSpeaking();
-    setPresenterDoorOpen(false);
-  }, []);
-
-  const beginMapping = useCallback(() => {
-    stopSpeaking();
-    setPresenterDoorOpen(false);
-    setMapDots(1);
-    setMapping(true);
-  }, []);
-
-  /* Move focus to the primary act when the question line arrives (the
-     acts only exist on the final manifesto beat), so the threshold is
-     crossable from the keyboard the same way it is by pointer. */
+  /* Move focus to Yes when the question line arrives (the acts only exist on
+     the final open beat), so the threshold is crossable from the keyboard. */
   useEffect(() => {
     if (
       ignition.ready &&
@@ -600,24 +375,13 @@ export default function Vigil() {
     }
   }, [ignition.ready, ignition.doorOpen, manifestoStep]);
 
-  /* The "Mapping…" working state (presenter, after Yes). While it runs, the
-     ellipsis grows 1→2→3→1 on a steady tick to read as work in progress;
-     after ~10s mapping clears and Tex speaks the estate report (ESTATE_LINE
-     + the estate clip), then the field settles into silence. */
+  /* The "Mapping" ellipsis. While the state runs, the dots grow 1→2→3→1 on a
+     steady tick to read as work in progress. Completion is driven by the real
+     ignite call in beginMapping, not a timer. */
   useEffect(() => {
     if (!mapping) return;
     const tick = setInterval(() => setMapDots((d) => (d % 3) + 1), 450);
-    const done = setTimeout(() => {
-      setMapping(false);
-      setSpoken({ kind: "ignite", text: ESTATE_LINE });
-      texPlayClip("estate");
-      clearLineTimer();
-      lineTimer.current = setTimeout(() => setSpoken(null), ESTATE_LINE_MS);
-    }, 10_000);
-    return () => {
-      clearInterval(tick);
-      clearTimeout(done);
-    };
+    return () => clearInterval(tick);
   }, [mapping]);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
@@ -629,27 +393,12 @@ export default function Vigil() {
       if (e && e.target && e.target.closest && e.target.closest("[data-act]")) {
         return;
       }
-
-      /* Presenter mode answers from number keys, but the press-and-hold
-         gesture still raises the listening ring as theater — it reads as
-         "addressing Tex" while you speak your question. No mic opens and
-         nothing is re-spoken; the ring is purely visual and clears on
-         release. Never over the opener or the mapping screen. */
-      if (PRESENTER) {
-        if (presenterDoorOpen || mapping) return;
-        setHolding(true);
-        clearHoldTimer();
-        holdTimer.current = setTimeout(
-          () => setHolding(false),
-          PRESENTER_HOLD_MAX_MS
-        );
-        return;
-      }
-
       /* The ask gesture is inert until the day-one door is resolved and
-         closed. There is nothing sealed to ask about before discovery has
-         begun, and holding must not open a mic over the greeting. */
-      if (!ignition.ready || ignition.doorOpen) return;
+         closed, and while mapping is running. There is nothing sealed to ask
+         about before discovery has begun, and holding must not open a mic
+         over the greeting or the mapping state. */
+      if (!ignition.ready || ignition.doorOpen || mapping) return;
+
       clearLineTimer();
       clearObjectTimer();
       setSurfaced(null);
@@ -673,22 +422,18 @@ export default function Vigil() {
         listenerRef.current = null;
       });
     },
-    [state, liveDecision, snapshot, ignition.ready, ignition.doorOpen, presenterDoorOpen, mapping]
+    [state, liveDecision, snapshot, ignition.ready, ignition.doorOpen, mapping]
   );
 
   /* ---------------- Pulling the evidence ----------------
      The proof depth: when the operator reaches for a held line, Tex finishes
      the story from SEALED facts (/v1/vigil/explain) — meaning is spoken — and
      the one thing the glass is allowed to hold, the sealed anchor, rises as an
-     object, then dissolves. Falls back to the anchor the decision already
-     carries if the explain wire is unreachable. */
+     object, then dissolves. Falls back to the anchor the decision carries if
+     the explain wire is unreachable. */
   const pullEvidence = useCallback(
     (decision) => {
       if (!decision) return;
-      /* A calibration hold's proof is its own sealed math, already on the
-         wire: speak the safety bound (meaning), and raise the proposed change
-         as the one handle the glass may hold — the numbers rise only because
-         you reached, then dissolve. No explain round-trip needed. */
       if (isCalibration(decision)) {
         const detail = heldDetail(decision);
         if (detail) texSpeak(detail);
@@ -701,9 +446,7 @@ export default function Vigil() {
           const story = res?.explanation || res?.facts?.headline || null;
           if (story) texSpeak(story);
           const anchor =
-            res?.facts?.anchors?.[0]?.sha256 ||
-            decision.anchor_sha256 ||
-            null;
+            res?.facts?.anchors?.[0]?.sha256 || decision.anchor_sha256 || null;
           if (anchor) surfaceObject(anchor, "hash");
         })
         .catch(() => {
@@ -719,25 +462,17 @@ export default function Vigil() {
     if (!holding) return;
     setHolding(false);
 
-    /* Presenter: the ring is theater only — no mic opened, nothing to stop,
-       and release must not speak. Clear the safety timer and we're done. */
-    if (PRESENTER) {
-      clearHoldTimer();
-      return;
-    }
-
     const listener = listenerRef.current;
     listenerRef.current = null;
 
-    /* Whether this release should be answered with "Here": only a reach
-       made in silence, and only while Tex is actually alive to answer. */
+    /* Whether this release should be answered with "Here": only a reach made
+       in silence, and only while Tex is actually alive to answer. */
     const reachInSilence = state === "silent" && alive;
-    /* A reach made while a decision is held is a request for the proof —
-       pull the sealed evidence behind the line. */
+    /* A reach made while a decision is held is a request for the proof. */
     const reachInHeld = state === "held" && alive && Boolean(liveDecision);
 
-    /* The mic never opened (denied, no grant, unsupported). The gesture
-       still happened, so a silent reach is still answered. */
+    /* The mic never opened (denied, no grant, unsupported). The gesture still
+       happened, so a silent reach is still answered. */
     if (!listener) {
       if (reachInHeld) pullEvidence(liveDecision);
       else if (reachInSilence) sayHere();
@@ -750,8 +485,6 @@ export default function Vigil() {
       .then((transcript) => {
         setThinking(false);
         if (!transcript) {
-          /* Held, said nothing. A reach during a hold pulls the proof; a
-             reach in silence is answered with "Here." */
           if (reachInHeld) pullEvidence(liveDecision);
           else if (reachInSilence) sayHere();
           return undefined;
@@ -759,16 +492,15 @@ export default function Vigil() {
         return askTex(transcript).then((res) => {
           const answer = res?.answer || null;
           if (answer) {
-            /* Meaning is spoken, always — and never written. The answer
-               leaves no ink. If the answer's true target is an object you
-               must carry away (a hash, an exact name), that handle — and
-               only that handle — surfaces on the glass, then dissolves. */
+            /* Meaning is spoken, always — and never written. If the answer's
+               true target is an object you must carry away (a hash, an exact
+               name), that handle — and only that handle — surfaces, then
+               dissolves. */
             texSpeak(answer);
             if (res?.object?.value) {
               surfaceObject(res.object.value, res.object.kind);
             }
           } else if (reachInSilence) {
-            /* Backend had nothing to add — still answer the reach. */
             sayHere();
           }
         });
@@ -795,8 +527,7 @@ export default function Vigil() {
      NAMED human act the evidence layer can prove. The seal shows instantly
      (optimistic, no spinner — silence is the failure mode, never a toast),
      then the backend's real anchor + post-quantum signature replace it the
-     moment POST /decisions/{id}/seal returns. Demo / offline decisions keep
-     the instant local seal and simply never upgrade. */
+     moment POST /decisions/{id}/seal returns. */
   const resolve = useCallback(
     (verdict) => {
       const decision = liveDecision;
@@ -804,15 +535,11 @@ export default function Vigil() {
       setSpoken(null);
 
       /* The calibration hold resolves through the learning layer, not /seal:
-         approving/rejecting a proposal IS its sealed act. Approve → activate
-         the new policy; Refuse → reject with a reason; Keep holding → write
-         nothing (it lapses on supersession). All three dismiss the card
-         optimistically; the next /v1/vigil frame reconciles. */
+         approving/rejecting a proposal IS its sealed act. */
       if (isCalibration(decision)) {
         const proposalId = decision.hold?.proposal_id;
         const fromWire = Boolean(humanDecisionLive);
 
-        /* Optimistic dismiss — instant, no spinner. */
         if (proposalId) {
           dismissedRef.current.add(proposalId);
           bumpDismissed((n) => n + 1);
@@ -825,15 +552,9 @@ export default function Vigil() {
           calibration: true,
           pending: fromWire && verdict !== "held",
         });
-        if (PRESENTER && verdict === "approved") texPlayClip("sealed");
-        setDemoDecision(null);
-        setOverride(null);
         clearLineTimer();
         lineTimer.current = setTimeout(() => setSealed(null), 4_200);
 
-        /* Write side — only a real wire proposal, and only approve/refuse.
-           Best-effort and silent: if the call fails the optimistic dismiss
-           stays for this session and the next frame re-asserts truth. */
         if (fromWire && proposalId && verdict !== "held") {
           startTransition(() => {
             const call =
@@ -845,9 +566,7 @@ export default function Vigil() {
                   });
             call
               .then(() => {
-                setSealed((prev) =>
-                  prev ? { ...prev, pending: false } : prev
-                );
+                setSealed((prev) => (prev ? { ...prev, pending: false } : prev));
               })
               .catch(() => {
                 /* Silent. The optimistic dismiss stands; the stream reconciles. */
@@ -857,7 +576,13 @@ export default function Vigil() {
         return;
       }
 
-      /* A held DECISION is sealed by a named human act (POST /seal). */
+      /* A held DECISION is sealed by a named human act (POST /seal). Suppress
+         the wire frame for it this session so the card never re-raises once
+         resolved, while the next frame reconciles authoritatively. */
+      if (decision?.id) {
+        dismissedRef.current.add(decision.id);
+        bumpDismissed((n) => n + 1);
+      }
       setSealed({
         verdict,
         at: new Date(),
@@ -865,21 +590,9 @@ export default function Vigil() {
         signature: null,
         pending: Boolean(decision?.id),
       });
-      /* Presenter: Tex says the seal aloud as the line lands. The clip is
-         the approved verdict ("Sealed. You approved it."), so it fires only
-         on Approve — Keep holding / Refuse stay silent. */
-      if (PRESENTER && verdict === "approved") texPlayClip("sealed");
-      /* Clear the decision so the state falls back to silent under the seal. */
-      setDemoDecision(null);
-      setOverride(null);
-      /* The seal lingers, then silence reclaims the screen. */
       clearLineTimer();
       lineTimer.current = setTimeout(() => setSealed(null), 4_200);
 
-      /* Write side: seal the named human act into the backend evidence chain
-         and surface the REAL anchor + signature. Best-effort — if the wire is
-         unreachable the optimistic seal stands; Tex never says "connection
-         lost." */
       if (decision?.id) {
         sealDecision(decision.id, { verdict, resolvedBy: "operator" })
           .then((res) => {
@@ -895,7 +608,6 @@ export default function Vigil() {
                   }
                 : prev
             );
-            /* Give the real, verifiable anchor a beat longer to be read. */
             clearLineTimer();
             lineTimer.current = setTimeout(() => setSealed(null), 6_000);
           })
@@ -907,156 +619,14 @@ export default function Vigil() {
     [liveDecision, humanDecisionLive]
   );
 
-  /* ---------------- Presenter mode: number keys drive the demo ---------------- */
+  /* Tear down any pending timers on unmount. */
   useEffect(() => {
-    if (!PRESENTER) return;
-
-    /* Clear whatever beat is on screen before the next one lands, so beats
-       can be fired in any order without bleeding into each other. */
-    const reset = () => {
-      stopSpeaking();
+    return () => {
       clearLineTimer();
       clearObjectTimer();
-      setSealed(null);
-      setOverride(null);
-      setDemoDecision(null);
-      setSpoken(null);
-      setSurfaced(null);
-      setMapping(false);
-      setHolding(false);
-      clearHoldTimer();
-      setPresenterDoorOpen(false);
+      clearMappingTimer();
     };
-
-    const onKey = (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-
-      /* Spacebar — the opener. One press starts the manifesto: the five
-         lines play in sequence with their clips and matching text, then
-         dissolve to silence. This first press also arms browser audio. */
-      if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
-        e.preventDefault();
-        reset();
-        setManifestoStep(0);
-        setPresenterDoorOpen(true);
-        return;
-      }
-
-      switch (e.key) {
-        case "`": /* fallback opener (manifesto) */
-          e.preventDefault();
-          reset();
-          setManifestoStep(0);
-          setPresenterDoorOpen(true);
-          break;
-        case "1": /* "Tex, are you watching?" */
-          e.preventDefault();
-          reset();
-          setSpoken({ kind: "here", text: "I am here." });
-          texPlayClip("here");
-          lineTimer.current = setTimeout(() => setSpoken(null), 4_000);
-          break;
-        case "2": /* "Tex, show me the disbursement agent." */
-          e.preventDefault();
-          reset();
-          texPlayClip("agent");
-          /* The spoken worry lands by voice; the handle is the one thing the
-             glass holds — it rises, then dissolves. */
-          surfaceObject("ap-disbursement-03", "name");
-          break;
-        case "3": /* the $48k hold surfaces — the reveal */
-          e.preventDefault();
-          reset();
-          setDemoDecision(DEMO_ABSTAIN);
-          texPlayClip("held");
-          break;
-        case "4": /* "Tex, prove it." — the anchor rises */
-          e.preventDefault();
-          reset();
-          texPlayClip("prove");
-          surfaceObject(DEMO_ABSTAIN.anchor_sha256, "hash");
-          break;
-        case "5": /* the faltering confession — the close */
-          e.preventDefault();
-          reset();
-          setOverride("faltering");
-          texPlayClip("faltering");
-          break;
-        case "6": /* the calibration hold — Tex asks to sharpen its policy */
-          e.preventDefault();
-          reset();
-          setDemoDecision(DEMO_PROPOSAL);
-          break;
-        case "0":
-        case "Escape": /* back to silence between runs */
-          e.preventDefault();
-          reset();
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* ---------------- Dev panel (⌘. / Ctrl+.) ---------------- */
-  const [devOpen, setDevOpen] = useState(false);
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === ".") {
-        e.preventDefault();
-        setDevOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const devReplayAbstain = () => {
-    setSealed(null);
-    setOverride(null);
-    setSpoken(null);
-    setDemoDecision(DEMO_ABSTAIN);
-  };
-  const devSilence = () => {
-    setSealed(null);
-    setOverride(null);
-    setSpoken(null);
-    setDemoDecision(null);
-    clearObjectTimer();
-    setSurfaced(null);
-  };
-
-  /* Demo the answer doctrine without a backend: a question Tex hears,
-     answered by voice. "count" is pure meaning — Tex speaks, the glass
-     stays clean. "agent" and "prove" each leave one object behind — the
-     handle you grab and walk away with — which rises, then dissolves. */
-  const devAsk = (kind) => {
-    setSealed(null);
-    setOverride(null);
-    setDemoDecision(null);
-    setSpoken(null);
-    clearLineTimer();
-    stopSpeaking();
-    if (kind === "count") {
-      texSpeak(
-        "Forty-one agents. Three more than yesterday — all on the data team."
-      );
-    } else if (kind === "agent") {
-      texSpeak(
-        "Bedrock-invoke-03. Quiet since four. Reads three buckets, touches nothing else. It's fine."
-      );
-      surfaceObject("bedrock-invoke-03", "name");
-    } else if (kind === "prove") {
-      texSpeak(
-        "Sealed at 7:48 this morning. Payments-agent-03. Here's the anchor."
-      );
-      surfaceObject(DEMO_ABSTAIN.anchor_sha256, "hash");
-    }
-  };
 
   /* ---------------- Render ---------------- */
 
@@ -1072,7 +642,9 @@ export default function Vigil() {
   const ariaState = !alive
     ? "Tex is no longer responding. The connection to the witness was lost."
     : ignition.ready && ignition.doorOpen
-    ? "Tex is ready to begin discovery. Begin, or not yet."
+    ? "Tex is ready to begin mapping. Yes, or not yet."
+    : mapping
+    ? "Tex is mapping the estate."
     : state === "held"
     ? "Tex is holding a decision for you."
     : state === "faltering"
@@ -1081,33 +653,23 @@ export default function Vigil() {
 
   const decision = liveDecision;
 
-  /* The day-one door owns the surface until it is crossed — except a
-     broken chain, which Tex must confess first (you don't greet over a
-     faltering witness). In presenter mode the ignition door is bypassed;
-     the manifesto opener is owned by presenterDoorOpen instead. */
-  const doorOpen = PRESENTER
-    ? presenterDoorOpen && state !== "faltering"
-    : ignition.ready && ignition.doorOpen && state !== "faltering";
+  /* The day-one door owns the surface until it is crossed — except a broken
+     chain, which Tex must confess first (you don't greet over a faltering
+     witness) — and it yields to the mapping state the instant Yes is pressed,
+     so the two never overlap while the ignite call is in flight. */
+  const doorOpen =
+    ignition.ready && ignition.doorOpen && state !== "faltering" && !mapping;
 
-  /* The manifesto plays while the door is open: advance through the
-     declarative lines on a steady beat. The last line ("Let's begin
-     mapping.") holds and shows the Yes/No acts beneath it — in both the
-     real product and the presenter demo. In presenter mode each line also
-     plays its clip (m1..m5) as it lands. */
+  /* The open plays while the door is open: advance through the lines on a
+     steady beat. "Tex." rises, holds about a second, and dissolves; then
+     "Let's begin mapping." arrives and stays with the Yes/No acts beneath it. */
   useEffect(() => {
     if (!doorOpen) {
       setManifestoStep(0);
       return;
     }
-    /* Presenter: speak the current line's clip as it lands. */
-    if (PRESENTER) texPlayClip(`m${manifestoStep + 1}`);
-
     if (manifestoStep >= MANIFESTO.length - 1) {
-      /* Last line ("Let's begin mapping."). Both the real product and the
-         presenter demo hold here and show the Yes/No acts beneath it. The
-         presenter crosses the threshold by clicking Yes/No (or pressing a
-         number key / 0 / Esc), never on a timer, so the opener can rest on
-         screen as long as the room needs. */
+      /* Final line holds and shows the acts; it never cycles out. */
       return;
     }
     const t = setTimeout(
@@ -1130,13 +692,13 @@ export default function Vigil() {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >
-      {/* A lost wire is the one death Tex cannot speak. For anyone who
-          cannot see the still breath, the interface — not Tex — reports
-          the dropped channel, politely, off the visible paper. */}
+      {/* A lost wire is the one death Tex cannot speak. For anyone who cannot
+          see the still breath, the interface — not Tex — reports the dropped
+          channel, politely, off the visible paper. */}
       {!alive && (
         <p className="tex-visually-hidden" role="status" aria-live="assertive">
-          The connection to Tex was lost. It can no longer prove what it
-          sees. Do not trust the surface until it returns.
+          The connection to Tex was lost. It can no longer prove what it sees.
+          Do not trust the surface until it returns.
         </p>
       )}
 
@@ -1158,27 +720,18 @@ export default function Vigil() {
           )}
           {sealed.signature && (
             <p className="tex-seal-sig">
-              {sealed.signature.post_quantum
-                ? "post-quantum sealed"
-                : "sealed"}
+              {sealed.signature.post_quantum ? "post-quantum sealed" : "sealed"}
               &nbsp;·&nbsp;{sealed.signature.algorithm}
             </p>
           )}
         </div>
       )}
 
-      {/* The day-one threshold — Tex says hello, once, and offers to begin
-          discovery. "Begin discovery." fires ignition on the backend (said
-          once, ever); "Not yet" leaves it unfired so Tex greets again next
-          time. The buttons carry data-act so a press on them never opens
-          the ask mic. */}
-      {/* The day-one threshold — the manifesto. Tex introduces itself in a
-          short litany: each line rotates in, holds, and rotates out, the
-          next taking its place, until the final line — the question —
-          arrives and stays with the two acts beneath it. "Yes" fires
-          ignition on the backend (said once, ever); "No" leaves it unfired
-          so Tex greets again next time. The acts carry data-act so a press
-          on them never opens the ask mic. */}
+      {/* The day-one threshold. Tex names itself once — "Tex." — then asks to
+          begin: "Let's begin mapping." with Yes / No beneath the final line.
+          Yes fires real ignition on the backend (said once, ever); No leaves
+          it unfired so Tex greets again next time. The acts carry data-act so
+          a press on them never opens the ask mic. */}
       {doorOpen && (
         <div className="tex-door" role="group" aria-label="Begin mapping">
           <p
@@ -1197,18 +750,18 @@ export default function Vigil() {
                 ref={beginButtonRef}
                 type="button"
                 data-act="begin"
-                className="tex-act tex-act--approve"
-                disabled={!PRESENTER && ignition.igniting}
-                onClick={PRESENTER ? beginMapping : beginDiscovery}
+                className="tex-act tex-door-yes"
+                disabled={ignition.igniting}
+                onClick={beginMapping}
               >
                 Yes
               </button>
               <button
                 type="button"
                 data-act="defer"
-                className={PRESENTER ? "tex-act tex-act--hold" : "tex-act"}
-                disabled={!PRESENTER && ignition.igniting}
-                onClick={PRESENTER ? crossThreshold : deferDiscovery}
+                className="tex-act tex-door-no"
+                disabled={ignition.igniting}
+                onClick={deferDiscovery}
               >
                 No
               </button>
@@ -1217,12 +770,11 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* The mapping working state (presenter, after Yes). Tex is already
-          awake and watching, so "mapping" is it showing its work, not a
-          cold scan: the field holds with a growing ellipsis, then settles
-          into silence. Layout/typography borrow the door so it rises and
-          centers the same way the manifesto did. */}
-      {PRESENTER && mapping && (
+      {/* The mapping working state (after Yes). Tex is already awake and
+          watching, so "mapping" is it showing its work, not a cold scan: the
+          field holds with a growing ellipsis while real discovery runs on the
+          backend, then settles into Tex speaking the count. */}
+      {mapping && (
         <div
           className="tex-door"
           role="status"
@@ -1239,22 +791,16 @@ export default function Vigil() {
       )}
 
       {/* The held decision — Tex's voice, the facts, the resolved acts. */}
-      {!doorOpen && state === "held" && decision && !sealed && (
+      {!doorOpen && !mapping && state === "held" && decision && !sealed && (
         <div className="tex-held">
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
             <p className="tex-held-detail">{heldDetail(decision)}</p>
           )}
-          {/* The hold, made legible: the type (whether a fact could resolve
-              it) and — when epistemic — the single pivotal question. Meaning
-              is spoken; this is the one surface allowed to carry the facts
-              and the acts that seal them. */}
           {heldHold(decision) && (
             <div className="tex-held-hold">
               {heldTypeLine(heldHold(decision)) && (
-                <p className="tex-held-type">
-                  {heldTypeLine(heldHold(decision))}
-                </p>
+                <p className="tex-held-type">{heldTypeLine(heldHold(decision))}</p>
               )}
               {heldQuestion(heldHold(decision)) && (
                 <p className="tex-held-question">
@@ -1292,34 +838,34 @@ export default function Vigil() {
           {/* The reached handle — the one thing the card may hold. On a
               calibration hold it's the proposed change; on a decision it's the
               sealed anchor. It rises only because you reached (press and hold)
-              and dissolves once taken. Meaning is spoken; this is shown. */}
+              and dissolves once taken. */}
           {surfaced && (
-            <div className="tex-object tex-object--in-held" role="status" aria-live="polite">
+            <div
+              className="tex-object tex-object--in-held"
+              role="status"
+              aria-live="polite"
+            >
               <span className="tex-object-value" key={surfaced.value}>
                 {surfaced.value}
               </span>
             </div>
           )}
-          {/* The certified-band watermark — chrome, not decoration; rendered
-              only when the two-sided CRC band carries a live guarantee. */}
           {heldCertifiedWatermark(heldHold(decision)) && (
             <p className="tex-held-cert" aria-hidden="true">
               {heldCertifiedWatermark(heldHold(decision))}
             </p>
           )}
-          {!PRESENTER && (
-            <p className="tex-held-ask" aria-hidden="true">
-              press and hold anywhere to ask Tex about it
-            </p>
-          )}
+          <p className="tex-held-ask" aria-hidden="true">
+            press and hold anywhere to ask Tex about it
+          </p>
         </div>
       )}
 
-      {/* The voice — Tex speaks; the glass stays clean. An answer is
-          never written. The only spoken lines that touch the paper are
-          presence ("Here.") and the faltering warning — and only because
-          those are states Tex is in, not answers to a question. */}
-      {!doorOpen && state !== "held" && !sealed && (
+      {/* The voice — Tex speaks; the glass stays clean. An answer is never
+          written. The only spoken lines that touch the paper are presence
+          ("Here."), the ignition count, and the faltering warning — states
+          Tex is in, not answers to a question. */}
+      {!doorOpen && !mapping && state !== "held" && !sealed && (
         <div className="tex-voice" aria-live="polite">
           {spoken &&
             (spoken.kind === "here" ||
@@ -1337,64 +883,13 @@ export default function Vigil() {
 
       {/* The object — the one thing the screen is ever allowed to hold: a
           handle you grab and walk away with. It rises alone, monospace,
-          centered, only because you reached for it, and dissolves the
-          moment it has been taken. You don't comprehend a hash — you take
-          it. Meaning is spoken; an object is shown. */}
-      {!doorOpen && state !== "held" && !sealed && surfaced && (
+          centered, only because you reached for it, and dissolves the moment
+          it has been taken. */}
+      {!doorOpen && !mapping && state !== "held" && !sealed && surfaced && (
         <div className="tex-object" role="status" aria-live="polite">
           <span className="tex-object-value" key={surfaced.value}>
             {surfaced.value}
           </span>
-        </div>
-      )}
-
-      {devOpen && (
-        <div
-          className="tex-dev-panel"
-          role="group"
-          aria-label="Dev controls"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <span className="tex-dev-panel-label">demo</span>
-          <button type="button" onClick={devReplayAbstain}>
-            replay abstain
-          </button>
-          <button type="button" onClick={() => { setSealed(null); setOverride(null); setSpoken(null); setDemoDecision(DEMO_PROPOSAL); }}>
-            calibration
-          </button>
-          <button type="button" onClick={devSilence}>
-            silence
-          </button>
-          <span className="tex-dev-panel-sep" />
-          <span className="tex-dev-panel-label">ask</span>
-          <button type="button" onClick={() => devAsk("count")}>
-            count
-          </button>
-          <button type="button" onClick={() => devAsk("agent")}>
-            agent
-          </button>
-          <button type="button" onClick={() => devAsk("prove")}>
-            prove
-          </button>
-          <span className="tex-dev-panel-sep" />
-          <button
-            type="button"
-            className={override === "faltering" ? "is-active" : ""}
-            onClick={() =>
-              setOverride(override === "faltering" ? null : "faltering")
-            }
-          >
-            faltering
-          </button>
-          <button
-            type="button"
-            className={wireOverride === "lost" ? "is-active" : ""}
-            onClick={() =>
-              setWireOverride(wireOverride === "lost" ? null : "lost")
-            }
-          >
-            wire lost
-          </button>
         </div>
       )}
     </section>

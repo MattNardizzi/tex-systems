@@ -89,16 +89,16 @@ npm run build && npm run preview
 
 `src/lib/texApi.js` talks to the Tex backend (FastAPI, `github.com/MattNardizzi/tex`) through a same-origin proxy — the browser never holds the API key. Override the base with `VITE_TEX_API_BASE` for local dev or preview deploys.
 
-## The demo
+## The opener
 
-The frontend ships with demo wiring so the full arc is visible without a live backend. Open `tex.systems` and:
+On every visit, Tex names itself, then asks to begin:
 
-1. *"Here."* lands, holds, and fades.
-2. The paper is empty for ~5 seconds.
-3. A held wire-transfer decision rises. Click Approve / Keep holding / Refuse.
-4. The seal shows briefly, then the surface returns to empty white, reachable.
+1. **"Tex."** rises, holds about a second, and dissolves.
+2. **"Let's begin mapping."** arrives and stays, with **Yes / No** beneath it (plain words, no pill — Yes in full ink).
+3. **Yes** runs real discovery on the backend (`POST /v1/surface/discovery/ignite`). The field holds on **"Mapping…"** with a growing ellipsis while the scan runs, then Tex speaks the count it found — *"You have N agents running. I'll begin."* — and the glass goes clean to the live vigil.
+4. **No** crosses straight to silence without firing; Tex greets again next time and does not nag.
 
-Press **⌘. / Ctrl+.** for the dev panel. The **ask** row demonstrates the output doctrine without speaking aloud: *count* answers by voice and leaves the glass clean; *agent* speaks a verdict and lifts an exact name, which then dissolves; *prove* speaks a verdict and lifts a hash, which then dissolves. The demo timer and these controls are clearly marked and a real build removes them; the wire delivers decisions on its own clock.
+On `tex.systems` (the public preview surface) the opener replays every visit against a fresh throwaway tenant, so the full discovery pipeline runs for real each time and the spoken count is genuine — see `PREVIEW_FIRST_RUN` in `src/hooks/useIgnition.js`. A real operator console (`PREVIEW_FIRST_RUN = false`) ignites once, ever, for its own tenant.
 
 ## What this is not
 
@@ -108,10 +108,9 @@ It is Tex: watching, ruling, proving — and silent until it has something only 
 
 ## Current state
 
-Everything above is **locked** and reflects what the code actually does today.
+Everything above is **locked** and reflects what the code actually does today. The scripted demo — presenter number keys, the dev panel, and the pre-rendered `/audio/demo/*` clips — has been **removed**. The surface is the live system: it streams/polls `/v1/vigil`, holds on real ABSTAINs, confesses on a real broken chain, and answers held speech through the grounded cascade (`/v1/voice/token` → `/v1/ask` → `/v1/speak`). The opener runs real ignition on the backend.
 
 Still **open**, for a future thread to settle:
 
-- **Demo vs live.** The spoken answers and the held decision are demo-wired so the surface can be felt without a backend. Wiring `/v1/ask`, `/v1/voice/token`, and `/v1/speak` to the live grounded backend is not yet done.
-- **"Here" — spoken or shown.** Presence currently renders the word *"Here."* on the glass briefly. By the strict letter of the doctrine (only objects touch the glass) it could become audio-only with the screen staying white. Not yet decided.
-- **The last T.** `public/favicon.svg` is still a "T" — the browser-tab icon. It's outside the rendered surface, so it was kept; whether to replace or drop it is open.
+- **"Here" — spoken or shown.** A wordless reach renders the word *"Here."* on the glass briefly. By the strict letter of the doctrine (only objects touch the glass) it could become audio-only with the screen staying white. Not yet decided.
+- **The last T.** `public/favicon.svg` is the brand mark — the browser-tab icon. It's outside the rendered surface, so it was kept; whether to evolve it is open.
