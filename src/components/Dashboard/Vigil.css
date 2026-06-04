@@ -200,38 +200,6 @@
   color: var(--tex-ink);
 }
 
-/* The day-one opener acts. These are not the sealed held-card acts — they are
-   a plain Yes / No under the greeting, so they shed the pill entirely: no
-   bubble, no border, no fill. Yes is full ink (black); No is quiet, a touch
-   muted. Just two words to cross the threshold. (Defined after .tex-act so
-   these resets win at equal specificity.) */
-.tex-door-yes,
-.tex-door-no {
-  border: 0;
-  background: none;
-  border-radius: 0;
-  padding: 6px 6px;
-}
-.tex-door-yes {
-  color: var(--tex-ink);
-  font-weight: 600;
-}
-.tex-door-no {
-  color: var(--tex-ink-mute);
-  font-weight: 500;
-}
-.tex-door-yes:hover {
-  color: #000;
-}
-.tex-door-no:hover {
-  color: var(--tex-ink-soft);
-}
-.tex-door-yes:focus-visible,
-.tex-door-no:focus-visible {
-  outline: 2px solid var(--tex-ink-soft);
-  outline-offset: 4px;
-}
-
 .tex-held-ask {
   margin: 3.4em 0 0;
   font-family: var(--tex-mono);
@@ -282,30 +250,31 @@
   color: var(--tex-ink);
   opacity: 0.55;
 }
-/* The opener cycle — "Tex." rises, holds about a second, then dissolves as
-   the next line takes its place. A whisper of rotateX, like a page turning
-   toward you — never a spin: the glass stays calm. The line is keyed by step
-   in the JSX, so each beat replays this from the top. Duration must track
-   MANIFESTO_BEAT_MS in Vigil.jsx so the line finishes fading out exactly as
-   the step advances. */
+/* The opener cycle — "Tex." rises, holds a couple of seconds, then fades out
+   slowly as the next line takes its place. A whisper of rotateX, like a page
+   turning toward you — never a spin: the glass stays calm. The line is keyed
+   by step in the JSX, so each beat replays this from the top. Duration must
+   track MANIFESTO_BEAT_MS in Vigil.jsx so the line finishes its fade exactly
+   as the step advances. */
 .tex-door-line {
   transform-origin: 50% 0;
-  animation: tex-door-cycle 1700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-door-cycle 2700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-/* The final line — the question — only arrives; it does not leave. */
+/* The final line — the question — only arrives; it does not leave. It eases
+   in slowly, so the cross from "Tex." never feels abrupt. */
 .tex-door-line--hold {
-  animation: tex-door-arrive 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-door-arrive 1300ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 @keyframes tex-door-cycle {
   0% {
     opacity: 0;
     transform: translateY(10px) rotateX(7deg);
   }
-  16% {
+  14% {
     opacity: 1;
     transform: translateY(0) rotateX(0deg);
   }
-  80% {
+  64% {
     opacity: 1;
     transform: translateY(0) rotateX(0deg);
   }

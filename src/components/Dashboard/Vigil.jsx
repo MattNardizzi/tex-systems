@@ -167,12 +167,14 @@ const HERE_LINE_MS = 2_400;
 const IGNITE_LINE_MS = 4_600;
 
 /* The day-one open. Tex names itself, then asks to begin:
-     1. "Tex."                 — rises, holds about a second, dissolves.
-     2. "Let's begin mapping." — arrives and stays, with Yes / No beneath.
+     1. "Tex."                 — rises, holds a couple of seconds, then fades
+                                  out slowly.
+     2. "Let's begin mapping." — eases in and stays, with Yes / No beneath.
    The first line cycles out on MANIFESTO_BEAT_MS; keep that in sync with the
-   tex-door-line cycle duration in Vigil.css. The final line does not cycle. */
+   tex-door-line cycle duration in Vigil.css so the line finishes its slow
+   fade exactly as the step advances. The final line does not cycle. */
 const MANIFESTO = ["Tex.", "Let's begin mapping."];
-const MANIFESTO_BEAT_MS = 1_700;
+const MANIFESTO_BEAT_MS = 2_700;
 
 /* The shortest the "Mapping" state stays up, so a fast backend never makes it
    flash. Real discovery usually takes longer; when it returns sooner than
@@ -750,7 +752,7 @@ export default function Vigil() {
                 ref={beginButtonRef}
                 type="button"
                 data-act="begin"
-                className="tex-act tex-door-yes"
+                className="tex-act tex-act--approve"
                 disabled={ignition.igniting}
                 onClick={beginMapping}
               >
@@ -759,7 +761,7 @@ export default function Vigil() {
               <button
                 type="button"
                 data-act="defer"
-                className="tex-act tex-door-no"
+                className="tex-act"
                 disabled={ignition.igniting}
                 onClick={deferDiscovery}
               >
