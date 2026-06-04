@@ -331,8 +331,6 @@ export default function Vigil() {
             the live vigil. Said once, ever (server-side flag enforces it).
      No   → cross straight into silence without firing; Tex greets again next
             time and does not nag now. */
-  const beginButtonRef = useRef(null);
-
   const beginMapping = useCallback(async () => {
     openHandledRef.current = true; /* claim the open: no "Here.", no replay */
     stopSpeaking();
@@ -363,19 +361,6 @@ export default function Vigil() {
     openHandledRef.current = true; /* rest in silence; Tex does not nag */
     ignition.dismiss();
   }, [ignition]);
-
-  /* Move focus to Yes when the question line arrives (the acts only exist on
-     the final open beat), so the threshold is crossable from the keyboard. */
-  useEffect(() => {
-    if (
-      ignition.ready &&
-      ignition.doorOpen &&
-      manifestoStep >= MANIFESTO.length - 1 &&
-      beginButtonRef.current
-    ) {
-      beginButtonRef.current.focus();
-    }
-  }, [ignition.ready, ignition.doorOpen, manifestoStep]);
 
   /* The "Mapping" ellipsis. While the state runs, the dots grow 1→2→3→1 on a
      steady tick to read as work in progress. Completion is driven by the real
@@ -749,7 +734,6 @@ export default function Vigil() {
           {manifestoStep >= MANIFESTO.length - 1 && (
             <div className="tex-acts tex-door-acts">
               <button
-                ref={beginButtonRef}
                 type="button"
                 data-act="begin"
                 className="tex-act tex-act--approve"
