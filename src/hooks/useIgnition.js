@@ -50,12 +50,6 @@ import { getDiscoveryStatus, igniteDiscovery } from "../lib/texApi";
  * -------------------------------------------------------------------- */
 const PREVIEW_FIRST_RUN = true;
 
-/* The line spoken only if a real ignition call fails (backend asleep). In
-   preview, begin() now calls the real backend so the count is whatever the
-   ignition scan actually discovered — this canned line is just the
-   graceful fallback so the door never dead-ends on a cold backend. */
-const PREVIEW_IGNITION_LINE = "You have forty-one agents running. I'll begin.";
-
 /* A fresh tenant per page load. In preview, ignition runs for real against
    this throwaway tenant, so the full discovery pipeline executes and the
    spoken count is genuine — and because the tenant is new each visit, the
@@ -123,20 +117,21 @@ export function useIgnition() {
 
     /* PREVIEW: run REAL ignition against a throwaway per-session tenant.
        The backend does the full multi-plane discovery, seals a behavioural
-       birth for every agent it finds, and returns the genuine count — so
-       the spoken line is real, not canned. The fresh tenant means the
-       server's once-only flag never blocks the door from replaying next
-       visit. If the backend is unreachable, fall back to the canned line so
-       the door still resolves rather than dead-ending. */
+       birth for every agent it finds, and returns the genuine spoken count —
+       whatever the scan actually mapped. The fresh tenant means the server's
+       once-only flag never blocks the door from replaying next visit. If the
+       backend is unreachable, return null: Tex stays silent rather than
+       speaking a number it cannot stand behind (silence is the failure mode,
+       never a fabricated count). */
     if (PREVIEW_FIRST_RUN) {
       setIgniting(true);
       try {
         const res = await igniteDiscovery(previewTenantRef.current);
         setIgnited(true);
-        return res?.spoken || PREVIEW_IGNITION_LINE;
+        return res?.spoken || null;
       } catch (_err) {
         setIgnited(true);
-        return PREVIEW_IGNITION_LINE;
+        return null;
       } finally {
         setIgniting(false);
       }

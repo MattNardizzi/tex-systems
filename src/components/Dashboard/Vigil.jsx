@@ -160,10 +160,11 @@ const OBJECT_LINGER_MS = 6_000;
 /* "Here." is one word — presence, not an answer. */
 const HERE_LINE_MS = 2_400;
 
-/* The day-one ignition line — "You have forty-one agents running. I'll
-   begin." — the one fuller sentence the surface holds on open after
-   mapping resolves. It lingers a beat, then the glass goes clean and the
-   live vigil takes over. */
+/* The day-one ignition line — e.g. "You have two hundred agents running.
+   I'll begin." — the one fuller sentence the surface holds on open after
+   mapping resolves. The count is whatever the backend's real discovery scan
+   mapped; the frontend never fabricates it. It lingers a beat, then the
+   glass goes clean and the live vigil takes over. */
 const IGNITE_LINE_MS = 4_600;
 
 /* The day-one open. Tex names itself, then asks to begin:
