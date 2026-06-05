@@ -24,11 +24,18 @@ proxy at `http://localhost:8000` and names the tenant the simulator uses
 From the Tex backend repo:
 
 ```
-TEX_SANDBOX=1 uvicorn tex.main:app --port 8000
+TEX_SANDBOX=1 TEX_SANDBOX_TENANT=meridian-7 TEX_SANDBOX_SEED=7 \
+  PYTHONPATH=src uvicorn tex.main:app --port 8000
 ```
 
 This populates the synthetic Meridian estate behind the real discovery
 pipeline. Nothing is "ignited" yet — Tex is waiting to be told to begin.
+
+`TEX_SANDBOX_TENANT=meridian-7` is the important one: it tells Tex that
+`meridian-7` is this deployment's OWN real estate, so pressing **Yes** doesn't
+just map it — it enrols the standing watch, switches the live PDP on, and
+surfaces holds. Without it, "Yes" maps the estate and then governs nothing, and
+no hold ever reaches the glass.
 
 ## 2 — Open tex.systems and click Yes
 
@@ -49,28 +56,55 @@ Open the dev URL. Tex greets you and offers to begin. Click **Yes**:
 From the Tex backend repo, drive the live estate:
 
 ```
-python -m tex.sim live reference --onboard standard
+PYTHONPATH=src python -m tex.sim live reference \
+  --wait-for-ignition --drive govern --onboard standard
 ```
 
-Every action the agents take hits the real PDP and comes back PERMIT, ABSTAIN,
-or FORBID, each sealed into the hash-chained evidence ledger. When Tex holds
-something — an agent reaching past what it was blessed to do — that hold
-surfaces in the vigil, spoken, unprompted.
+`--wait-for-ignition` means the driver sits silent until YOU press Yes — it
+never ignites the tenant itself, so it can't steal the day-one door. The moment
+ignition fires it onboards the governed cohort and starts driving.
 
-(`run reference` does a finite, asserted pass instead; `live` keeps the estate
-moving at wall-clock pace, which is what you want to watch. `--onboard standard`
-verifies the governed cohort to a trust tier so benign actions actually PERMIT
-rather than being held — without it the cold path holds almost everything.)
+`--drive govern` is essential: it sends each action through the live
+enforcement path (`POST /v1/govern/decide`), whose ABSTAINs are pushed to the
+held sink and surface on the glass. The `/evaluate` path (`--drive evaluate`)
+seals decisions but never surfaces a hold — you'd see verdicts in the terminal
+and nothing on the interface. Every action comes back PERMIT, ABSTAIN, or
+FORBID, each sealed into the hash-chained evidence ledger.
+
+`--onboard standard` verifies the governed cohort to a trust tier so benign
+actions actually PERMIT rather than being held — without it the cold path holds
+almost everything. (`run reference` instead does a finite, asserted pass; `live`
+keeps the estate moving at wall-clock pace, which is what you want to watch.)
+
+To run it deployed and unattended for days — a Render Background Worker that
+keeps the web service warm and self-heals across restarts — see
+**`SANDBOX_LIVE.md`** and **`render.yaml`** in the backend repo.
 
 ---
 
 ## Notes
 
-- **Order is forgiving.** If the driver starts first it may ignite the tenant
-  itself; then tex.systems opens straight into the live vigil (Tex has already
-  begun) instead of showing the door. To get the door back, restart the
-  backend — "has Tex begun?" is server-authoritative and resets with the
-  process, not with your browser.
+- **Recurring entrance (practice course).** The real opener fires once per
+  tenant and never again — correct for a live operator, wrong for a rig you
+  rehearse. Set **`VITE_TEX_SANDBOX_DOOR=1`** on Vercel (next to
+  `VITE_TEX_TENANT=meridian-7`) and the day-one door — "Tex." → "Let's begin
+  mapping." → Yes / No — holds open on EVERY start, and **Yes** ignites the
+  real `meridian-7` (idempotent): the first press runs discovery and speaks the
+  count, later presses speak the genuine current count and drop you straight
+  into the worker's live estate. Unset it and the fires-once-ever ship
+  behaviour returns untouched. (This is why the opener may not have appeared:
+  with the flag off and `meridian-7` already ignited from setup/testing, the
+  server-authoritative door correctly suppressed itself. The flag makes that
+  irrelevant; the `/reset` endpoint is the one-shot way to re-test the real
+  fires-once path.)
+- **The driver waits for you.** With `--wait-for-ignition` the driver never
+  ignites the tenant itself, so it can start in any order and will not steal the
+  day-one door. If the backend restarts mid-run (its ignition flag + inventory
+  are in-memory), the driver notices the tenant went un-ignited at its next
+  heartbeat and re-asserts ignition + re-onboards on its own.
+- **Re-stage the opener** without a redeploy (sandbox only):
+  `curl -X POST ".../v1/surface/discovery/reset?tenant_id=meridian-7"`. The
+  inventory is kept, so the next Yes re-scans it and the count stays genuine.
 - **Scenario ↔ tenant must match.** `reference` = 200 agents under `meridian-7`
   (the default in `.env.development`). `smoke` = 12 agents under `meridian-1`.
   If you run `smoke`, set `VITE_TEX_TENANT=meridian-1` and restart `npm run dev`.

@@ -196,6 +196,22 @@ export const igniteDiscovery = (tenantId) => {
   );
 };
 
+/**
+ * GET /v1/surface/discovery/count — how many agents now (pull-only, no side
+ * effect). Returns { spoken, object, count }. Used as the spoken fallback for
+ * the sandbox door: when the entrance replays against an already-ignited
+ * tenant, ignition returns already_ignited (spoken null), so Tex speaks the
+ * genuine current count instead of falling silent.
+ */
+export const getDiscoveryCount = (tenantId) => {
+  const t = scopedTenant(tenantId);
+  return request(
+    `/v1/surface/discovery/count${
+      t ? `?tenant_id=${encodeURIComponent(t)}` : ""
+    }`
+  );
+};
+
 /** GET /decisions/{id}/replay — full Decision record for a prior eval. */
 export const getDecisionReplay = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/replay`);

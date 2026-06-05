@@ -28,7 +28,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getDiscoveryStatus, igniteDiscovery } from "../lib/texApi";
+import { getDiscoveryStatus, igniteDiscovery, getDiscoveryCount } from "../lib/texApi";
 
 /* ----------------------------------------------------------------------
  * PREVIEW TOGGLE — the day-one threshold, on demand.
@@ -49,6 +49,29 @@ import { getDiscoveryStatus, igniteDiscovery } from "../lib/texApi";
  * fires-once-ever behaviour for ship.
  * -------------------------------------------------------------------- */
 const PREVIEW_FIRST_RUN = false;
+
+/* ----------------------------------------------------------------------
+ * SANDBOX DOOR — the practice course's recurring entrance.
+ *
+ * The real first-run is fires-once-ever and server-authoritative (left fully
+ * intact below). But the sandbox is a practice course you rehearse: you want
+ * "Tex." → "Let's begin mapping." on EVERY start, and you want "Yes" to ignite
+ * the deployment's OWN real estate (meridian-7) — not a throwaway — so the
+ * glass clears into the worker's living estate and its holds.
+ *
+ * Set VITE_TEX_SANDBOX_DOOR=1 on Vercel (alongside VITE_TEX_TENANT=meridian-7)
+ * to hold the day-one door open on every load and ignite the REAL scoped
+ * tenant. The first press runs the full discovery and speaks the count; every
+ * later press hits already_ignited (spoken null), so Tex speaks the genuine
+ * current count instead and the glass clears into the live estate.
+ *
+ * This differs from PREVIEW_FIRST_RUN in one decisive way: PREVIEW ignites a
+ * fresh throwaway tenant each load (so the count is genuine but the estate is
+ * empty and separate), whereas SANDBOX_DOOR ignites the SCOPED tenant — so the
+ * interface and the driver watch the same living estate. Empty in ship: the
+ * fires-once-ever threshold is never touched.
+ * -------------------------------------------------------------------- */
+const SANDBOX_DOOR = import.meta.env.VITE_TEX_SANDBOX_DOOR === "1";
 
 /* A fresh tenant per page load. In preview, ignition runs for real against
    this throwaway tenant, so the full discovery pipeline executes and the
@@ -82,10 +105,12 @@ export function useIgnition() {
   useEffect(() => {
     cancelledRef.current = false;
 
-    /* PREVIEW: hold the door open on every load. Skip the server read
-       entirely — no network, no side effect. The real read below is left
-       untouched for when PREVIEW_FIRST_RUN returns to false. */
-    if (PREVIEW_FIRST_RUN) {
+    /* PREVIEW or SANDBOX DOOR: hold the day-one door open on every load
+       without a server read — no network, no false-"ignited" from a cold
+       backend. PREVIEW ignites a throwaway tenant; SANDBOX_DOOR ignites the
+       real scoped tenant (begin(), below). The real server-authoritative read
+       is left untouched for ship (PREVIEW_FIRST_RUN = false, no sandbox flag). */
+    if (PREVIEW_FIRST_RUN || SANDBOX_DOOR) {
       setIgnited(false);
       return () => {
         cancelledRef.current = true;
@@ -131,6 +156,31 @@ export function useIgnition() {
         return res?.spoken || null;
       } catch (_err) {
         setIgnited(true);
+        return null;
+      } finally {
+        setIgniting(false);
+      }
+    }
+
+    /* SANDBOX DOOR: ignite the REAL scoped tenant (meridian-7), idempotently.
+       The first press runs the full discovery and speaks the count; every
+       later press hits already_ignited (spoken null), so Tex speaks the
+       genuine current count from the pull-only /count endpoint rather than
+       falling silent — and the glass clears into the worker's live estate
+       either way. */
+    if (SANDBOX_DOOR) {
+      setIgniting(true);
+      try {
+        const res = await igniteDiscovery(); // no arg → scopedTenant → meridian-7
+        setIgnited(true);
+        if (res?.spoken) return res.spoken;
+        try {
+          const c = await getDiscoveryCount();
+          return c?.spoken || null;
+        } catch (_e) {
+          return null;
+        }
+      } catch (_err) {
         return null;
       } finally {
         setIgniting(false);
