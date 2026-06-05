@@ -28,7 +28,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getDiscoveryStatus, igniteDiscovery, getDiscoveryCount } from "../lib/texApi";
+import { getDiscoveryStatus, igniteDiscovery, getDiscoveryCount, wakeBackend } from "../lib/texApi";
+
+/* A small delay, for retrying through a backend cold-boot window. */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ----------------------------------------------------------------------
  * PREVIEW TOGGLE — the day-one threshold, on demand.
@@ -165,15 +168,38 @@ export function useIgnition() {
     }
 
     /* SANDBOX DOOR: ignite the REAL scoped tenant (meridian-7), idempotently.
-       The first press runs the full discovery and speaks the count; every
-       later press hits already_ignited (spoken null), so Tex speaks the
-       genuine current count from the pull-only /count endpoint rather than
-       falling silent — and the glass clears into the worker's live estate
-       either way. */
+       The first contact with the backend in this mode is THIS heavy POST, so a
+       sleeping Render backend would 502 and the door would re-greet forever.
+       Guard against that: wake the backend, then retry ignition through the
+       cold-boot window (~30-60s). On success Tex speaks the count (or the
+       genuine current count if already ignited) and the glass clears into the
+       worker's live estate. On exhausted failure, log the real error and leave
+       ignited false so the door stays for a manual retry — never a silent
+       fabricated success. */
     if (SANDBOX_DOOR) {
       setIgniting(true);
       try {
-        const res = await igniteDiscovery(); // no arg → scopedTenant → meridian-7
+        await wakeBackend();
+        let res = null;
+        let lastErr = null;
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          try {
+            res = await igniteDiscovery(); // no arg → scopedTenant → meridian-7
+            lastErr = null;
+            break;
+          } catch (err) {
+            lastErr = err;
+            await sleep(Math.min(8000, 1500 * (attempt + 1)));
+          }
+        }
+        if (lastErr) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "[tex] ignition failed after retries:",
+            lastErr?.message || lastErr
+          );
+          return null; // ignited stays false; door remains so Yes can retry
+        }
         setIgnited(true);
         if (res?.spoken) return res.spoken;
         try {
@@ -182,8 +208,6 @@ export function useIgnition() {
         } catch (_e) {
           return null;
         }
-      } catch (_err) {
-        return null;
       } finally {
         setIgniting(false);
       }

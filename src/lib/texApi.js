@@ -212,6 +212,19 @@ export const getDiscoveryCount = (tenantId) => {
   );
 };
 
+/**
+ * Best-effort wake. A sleeping backend (Render free tier) needs a moment to
+ * boot; GET /health spins it up before a heavy call so the real request lands
+ * on a warm server. Never throws — the caller ignores the result.
+ */
+export const wakeBackend = async () => {
+  try {
+    await fetch(`${BASE}/health`, { method: "GET", cache: "no-store" });
+  } catch (_e) {
+    /* ignore — this is only a warm-up */
+  }
+};
+
 /** GET /decisions/{id}/replay — full Decision record for a prior eval. */
 export const getDecisionReplay = (decisionId) =>
   request(`/decisions/${encodeURIComponent(decisionId)}/replay`);
