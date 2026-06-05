@@ -5,41 +5,27 @@
    Pure paper. Three type sizes. One palette. One rhythm.
    ============================================================ */
 
-/* ── The voice face: Tiempos (licensed; self-host) ──────────────────
-   These point at files you must license from Klim (klim.co.nz) and place
-   in /public/fonts. They are intentionally referenced even before the
-   files exist — the browser simply falls back to Georgia until they do,
-   so nothing breaks. Headline is the display optical size (the big
-   sentence); Text is for smaller serif lines. Roman only — Tex never
-   speaks in italic. */
-@font-face {
-  font-family: "Tiempos Headline";
-  src: url("/fonts/TiemposHeadline-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Tiempos Text";
-  src: url("/fonts/TiemposText-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* ── The voice face: Fraunces (free, variable, optical) ─────────────
+   Loaded from Google Fonts in index.html. Fraunces is the carved,
+   high-contrast old-style serif that comes closest to Canela/Tiempos
+   without a license — variable across weight and optical size, run here
+   at the sharpest cut (WONK 0, SOFT 0, optical size maxed on the hero
+   lines). It states rather than performs, which is the whole Tex posture.
+   Roman only — Tex never speaks in italic except the one pivotal question.
+   If the webfont is slow, the browser falls through to New York / Georgia. */
 
 :root {
-  /* Type families — two, plus mono for real machine identifiers. */
-  --tex-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "Helvetica Neue", Arial, sans-serif;
-  /* The voice. Tiempos (Klim Type Foundry) — Times reborn for screens:
-     it states rather than performs, which is the whole Tex posture.
-     Tiempos is a LICENSED face — it is not on any free CDN. License it
-     from klim.co.nz, drop the woff2 files into /public/fonts (see the
-     @font-face block below), and this stack uses them. Until those files
-     exist the browser falls through to Georgia, the closest calm serif. */
-  --tex-serif: "Tiempos Headline", "Tiempos Text", "New York", Georgia,
-    "Times New Roman", serif;
-  --tex-mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
+  /* Type families — the voice (serif), the chrome (sans), and mono for
+     real machine identifiers. */
+  --tex-sans: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Inter", "Helvetica Neue", Arial, sans-serif;
+  /* The voice. Fraunces — a screen-native, optically-sized serif with an
+     inscriptional, stone-carved quality: letters that look made to stand,
+     which is exactly what Tex does. Free and shippable, so the surface
+     renders as intended with nothing to license. */
+  --tex-serif: "Fraunces", "New York", Georgia, "Times New Roman", serif;
+  --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
+    monospace;
 
   /* There is no mark. The surface at rest is silence — empty paper,
      fully empty. The slab-mark token was retired when the T was
@@ -86,6 +72,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
   font-feature-settings: "kern", "liga", "calt";
 }
 
