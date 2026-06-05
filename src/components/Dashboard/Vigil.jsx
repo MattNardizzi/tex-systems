@@ -55,15 +55,15 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    rises alone, monospace, centered, only because you reached for it,
    and dissolves the moment it has been taken.
 
-   The day-one open is an arc, shown once, then gone: Tex names itself —
-   "Tex." — then claims authority — "Nothing your agents do happens without
-   me." — then invites — "Show me your agents." with a single Begin act (no
-   opt-out). Begin runs discovery; the field holds a beat of empty white
-   (Tex taking in the estate, never a spinner), then Tex speaks the count and
-   the glass goes clean to the live vigil. With DEMO_OPENER on, the whole
-   sequence is local and replays every visit (a seed count, no backend), so it
-   can be shown to clients; flip it off to restore the real, server-
-   authoritative, fires-once-ever threshold.
+   The open is not a door. There is no name-card, no claim, no invitation,
+   no Begin act, no sign-in, and no mark — nothing to cross before the
+   product. Tex is a witness that is already watching, so it does not
+   introduce itself or ask permission to start; it opens by stating the
+   estate it holds, in one line, which rises, holds, and dissolves straight
+   into the live vigil. Arriving IS the demo — the absence of a start button
+   is the point. With DEMO_OPENER on, that one line is local and replays
+   every visit (a seed count, no backend) so it can be shown to clients;
+   flip it off and the surface simply rests live for a real deployment.
    ================================================================== */
 
 /* The line Tex speaks first when reached in a held state, or that the
@@ -287,12 +287,15 @@ export default function Vigil() {
   };
 
   /* The DEMO opener phase machine (only meaningful when DEMO_OPENER):
-       "door"   → the three-beat manifesto + Begin
-       "breath" → a held beat of empty white (Tex taking in the field)
-       "count"  → Tex speaks the seed count; it rises, holds, dissolves
+       "count"  → Tex states the estate it watches, in one line; it rises,
+                  holds, dissolves
        "live"   → the resting vigil
-     Driven locally so the whole sequence plays every visit with no backend. */
-  const [demoPhase, setDemoPhase] = useState(DEMO_OPENER ? "door" : "live");
+     There is no door and no Begin: the surface opens straight into the live
+     vigil. Tex does not introduce itself or ask permission to start — it is
+     already watching, so it opens by stating what it holds, once, then rests.
+     The newcomer never clicks to begin; arriving IS the demo. ("door" and
+     "breath" remain in beginDemo below as dormant phases, never entered.) */
+  const [demoPhase, setDemoPhase] = useState(DEMO_OPENER ? "count" : "live");
   const demoTimer = useRef(null);
   const clearDemoTimer = () => {
     if (demoTimer.current) clearTimeout(demoTimer.current);
@@ -454,9 +457,22 @@ export default function Vigil() {
     }, DEMO_BREATH_MS);
   }, []);
 
-  /* The "Mapping" ellipsis. While the state runs, the dots grow 1→2→3→1 on a
-     steady tick to read as work in progress. Completion is driven by the real
-     ignite call in beginMapping, not a timer. */
+  /* The open. There is no door to cross and no Begin to press: on arrival the
+     surface is already in the "count" phase, so Tex opens by stating the estate
+     it watches — one line — which rises, holds, and dissolves into the live
+     vigil. This is what "the door opens straight into the vigil" means: no
+     name-card, no claim, no invitation, no button. The timer-with-cleanup form
+     is StrictMode-safe (the dev double-invoke clears and re-arms the same
+     hand-off cleanly), and it is a no-op on a real deployment (DEMO_OPENER =
+     false), where the surface simply rests live. */
+  useEffect(() => {
+    if (!DEMO_OPENER) return undefined;
+    texSpeak(DEMO_COUNT_LINE);
+    clearDemoTimer();
+    demoTimer.current = setTimeout(() => setDemoPhase("live"), DEMO_COUNT_MS);
+    return () => clearDemoTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!mapping) return;
     const tick = setInterval(() => setMapDots((d) => (d % 3) + 1), 450);

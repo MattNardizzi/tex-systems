@@ -5,25 +5,27 @@
    Pure paper. Three type sizes. One palette. One rhythm.
    ============================================================ */
 
-/* ── The voice face: Fraunces (free, variable, optical) ─────────────
-   Loaded from Google Fonts in index.html. Fraunces is the carved,
-   high-contrast old-style serif that comes closest to Canela/Tiempos
-   without a license — variable across weight and optical size, run here
-   at the sharpest cut (WONK 0, SOFT 0, optical size maxed on the hero
-   lines). It states rather than performs, which is the whole Tex posture.
-   Roman only — Tex never speaks in italic except the one pivotal question.
-   If the webfont is slow, the browser falls through to New York / Georgia. */
+/* ── The voice face: Source Serif 4 (free, open-licensed, variable) ──
+   Loaded from Google Fonts in index.html. Source Serif 4 is a sober,
+   screen-native reading serif drawn by a real type designer (Adobe),
+   open-licensed and free to self-host. It reads like a record, not a
+   magazine: the witness states, it does not perform. Run at a quiet
+   optical size, never maxed — testimony, not a cover line. Where the old
+   voice borrowed glamour from fashion, this one borrows authority from
+   the printed page. Roman only — Tex never speaks in italic except the
+   one pivotal question. If the webfont is slow, the browser falls through
+   to New York / Georgia. */
 
 :root {
   /* Type families — the voice (serif), the chrome (sans), and mono for
      real machine identifiers. */
   --tex-sans: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Inter", "Helvetica Neue", Arial, sans-serif;
-  /* The voice. Fraunces — a screen-native, optically-sized serif with an
-     inscriptional, stone-carved quality: letters that look made to stand,
-     which is exactly what Tex does. Free and shippable, so the surface
-     renders as intended with nothing to license. */
-  --tex-serif: "Fraunces", "New York", Georgia, "Times New Roman", serif;
+  /* The voice. Source Serif 4 — a screen-native, optically-sized reading
+     serif: sober, sturdy, neutral, the kind of face that looks like it was
+     always there. It disappears so the words carry the weight, which is
+     exactly the witness posture. Free and shippable, nothing to license. */
+  --tex-serif: "Source Serif 4", "New York", Georgia, "Times New Roman", serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
     monospace;
 
@@ -37,8 +39,10 @@
   --tex-ink-mute: #9b9388;
   --tex-ink-hair: #d8d4cc;
 
-  /* Paper — the room. Pure white at rest. */
-  --tex-paper: #ffffff;
+  /* Paper — the room. Not clinical #fff (that reads like a blank
+     document); a hair warm, so the white reads like gallery paper while
+     still reading as white. Calibration, not decoration — no glass. */
+  --tex-paper: #fcfbf9;
   --tex-paper-2: #fafaf8;
   --tex-paper-3: #f4f3ef;
 
