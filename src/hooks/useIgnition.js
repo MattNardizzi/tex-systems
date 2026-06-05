@@ -51,27 +51,29 @@ import { getDiscoveryStatus, igniteDiscovery, getDiscoveryCount } from "../lib/t
 const PREVIEW_FIRST_RUN = false;
 
 /* ----------------------------------------------------------------------
- * SANDBOX DOOR — the practice course's recurring entrance.
+ * SANDBOX DOOR — the practice course's recurring entrance. ON BY DEFAULT.
  *
- * The real first-run is fires-once-ever and server-authoritative (left fully
- * intact below). But the sandbox is a practice course you rehearse: you want
- * "Tex." → "Let's begin mapping." on EVERY start, and you want "Yes" to ignite
- * the deployment's OWN real estate (meridian-7) — not a throwaway — so the
- * glass clears into the worker's living estate and its holds.
+ * Tex names itself ("Tex.") then asks to begin ("Let's begin mapping." with
+ * Yes / No) on EVERY arrival at tex.systems — no matter how many times the
+ * user has been here — and Yes ignites the deployment's OWN real estate
+ * (meridian-7), idempotently, so the glass clears into the worker's living
+ * estate and its holds.
  *
- * Set VITE_TEX_SANDBOX_DOOR=1 on Vercel (alongside VITE_TEX_TENANT=meridian-7)
- * to hold the day-one door open on every load and ignite the REAL scoped
- * tenant. The first press runs the full discovery and speaks the count; every
- * later press hits already_ignited (spoken null), so Tex speaks the genuine
- * current count instead and the glass clears into the live estate.
+ * This is intentionally ON with no configuration: it does not depend on a
+ * build-time Vercel env var (which is easy to set wrong or have silently not
+ * inline). The door decision is made locally — the hook does not even read the
+ * server's "already ignited?" flag — so a cold backend or a prior ignition can
+ * never suppress the entrance.
  *
- * This differs from PREVIEW_FIRST_RUN in one decisive way: PREVIEW ignites a
- * fresh throwaway tenant each load (so the count is genuine but the estate is
- * empty and separate), whereas SANDBOX_DOOR ignites the SCOPED tenant — so the
- * interface and the driver watch the same living estate. Empty in ship: the
- * fires-once-ever threshold is never touched.
+ * To restore the real, server-authoritative, fires-once-EVER ship behaviour,
+ * set VITE_TEX_SANDBOX_DOOR="0" at build time. Anything else (including unset)
+ * keeps the recurring entrance.
+ *
+ * Differs from PREVIEW_FIRST_RUN: PREVIEW ignites a fresh throwaway tenant each
+ * load (genuine count, but an empty separate estate); SANDBOX_DOOR ignites the
+ * SCOPED tenant, so the interface and the driver watch the same living estate.
  * -------------------------------------------------------------------- */
-const SANDBOX_DOOR = import.meta.env.VITE_TEX_SANDBOX_DOOR === "1";
+const SANDBOX_DOOR = import.meta.env.VITE_TEX_SANDBOX_DOOR !== "0";
 
 /* A fresh tenant per page load. In preview, ignition runs for real against
    this throwaway tenant, so the full discovery pipeline executes and the
@@ -210,6 +212,10 @@ export function useIgnition() {
     ready: ignited !== null,
     /* Show the day-one door: resolved, not yet ignited, not deferred. */
     doorOpen: ignited === false && !deferred,
+    /* Sandbox practice-course mode: the entrance plays on every arrival and
+       the door decision is local. Lets the surface keep the opener up even if
+       a cold backend transiently reads as faltering. */
+    sandboxDoor: SANDBOX_DOOR,
     igniting,
     begin,
     dismiss,

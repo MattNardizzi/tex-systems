@@ -84,19 +84,15 @@ keeps the web service warm and self-heals across restarts — see
 
 ## Notes
 
-- **Recurring entrance (practice course).** The real opener fires once per
-  tenant and never again — correct for a live operator, wrong for a rig you
-  rehearse. Set **`VITE_TEX_SANDBOX_DOOR=1`** on Vercel (next to
-  `VITE_TEX_TENANT=meridian-7`) and the day-one door — "Tex." → "Let's begin
-  mapping." → Yes / No — holds open on EVERY start, and **Yes** ignites the
+- **Recurring entrance (practice course) — ON by default.** Tex names itself
+  ("Tex.") then asks to begin ("Let's begin mapping." with Yes / No) on EVERY
+  arrival, no matter how many times you've been here, and **Yes** ignites the
   real `meridian-7` (idempotent): the first press runs discovery and speaks the
-  count, later presses speak the genuine current count and drop you straight
-  into the worker's live estate. Unset it and the fires-once-ever ship
-  behaviour returns untouched. (This is why the opener may not have appeared:
-  with the flag off and `meridian-7` already ignited from setup/testing, the
-  server-authoritative door correctly suppressed itself. The flag makes that
-  irrelevant; the `/reset` endpoint is the one-shot way to re-test the real
-  fires-once path.)
+  count, later presses speak the genuine current count and drop you into the
+  worker's live estate. This needs **no env var** — the door decision is made
+  locally, so a cold backend or a prior ignition can't suppress it. To restore
+  the real fires-once-EVER ship behaviour, set **`VITE_TEX_SANDBOX_DOOR=0`** at
+  build time.
 - **The driver waits for you.** With `--wait-for-ignition` the driver never
   ignites the tenant itself, so it can start in any order and will not steal the
   day-one door. If the backend restarts mid-run (its ignition flag + inventory

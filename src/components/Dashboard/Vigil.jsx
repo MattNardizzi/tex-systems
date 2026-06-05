@@ -646,7 +646,10 @@ export default function Vigil() {
      witness) — and it yields to the mapping state the instant Yes is pressed,
      so the two never overlap while the ignite call is in flight. */
   const doorOpen =
-    ignition.ready && ignition.doorOpen && state !== "faltering" && !mapping;
+    ignition.ready &&
+    ignition.doorOpen &&
+    (ignition.sandboxDoor || state !== "faltering") &&
+    !mapping;
 
   /* The open plays while the door is open: advance through the lines on a
      steady beat. "Tex." rises, holds about a second, and dissolves; then
