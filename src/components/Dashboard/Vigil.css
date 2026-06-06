@@ -226,7 +226,11 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 34em;
+  /* No width cap on the door: the manifesto beats are single, unbroken
+     declarations (see .tex-door-line) and the viewport — not a 34em column —
+     is the only thing allowed to bound them. The 24px side padding is the one
+     gutter, and the line scales down to honor it before it would ever clip. */
+  max-width: none;
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
@@ -240,9 +244,10 @@
   /* EB Garamond carries wght + ital only — no optical-size axis — so the
      display craft is here, not in opsz: full weight (never light; light
      Garamond goes wispy at size), warm near-black ink so cream paper takes
-     warm ink, tracking pulled a touch tighter than Garamond's text-tuned
-     default, and leading locked tight so any wrapped line reads as one mass.
-     Presence is the weight and the verb, not the point size. */
+     warm ink, and tracking pulled a touch tighter than Garamond's text-tuned
+     default. The manifesto beats are forced onto one line in .tex-door-line;
+     this base size + balance still governs the longer count line, which may
+     wrap. Presence is the weight and the verb, not the point size. */
   font-variation-settings: "wght" 400;
   font-size: clamp(32px, 4.6vw, 58px);
   line-height: 1.1;
@@ -280,6 +285,15 @@
    here is only a fallback if no inline duration is supplied. */
 .tex-door-line {
   transform-origin: 50% 0;
+  /* Each beat is one unbroken line — a declaration, not a sentence that ran
+     long. A wrap inserts a pause Tex never asked for, so we override the base
+     balance and refuse to wrap. The size is measured to the widest beat
+     ("Nothing happens without me." ≈ 11.6em): pinned at 58px on any real
+     desktop, and scaled by the viewport below ~795px so it stays on one line
+     down to a 320px phone without ever reaching the 24px gutter. */
+  white-space: nowrap;
+  text-wrap: nowrap;
+  font-size: clamp(22px, 7.3vw, 58px);
   animation: tex-door-cycle 2700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 /* The final line — the question — only arrives; it does not leave. It eases
