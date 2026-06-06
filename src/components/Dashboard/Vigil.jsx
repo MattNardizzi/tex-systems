@@ -56,8 +56,8 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    and dissolves the moment it has been taken.
 
    The open is the day-one arc, and for the client demo it replays on EVERY
-   visit: Tex names itself — "Tex." — then claims authority — "Nothing your
-   agents do happens without me." — then invites — "Show me your agents." with a
+   visit: Tex declares itself — "I am Tex." — then claims dominion — "Nothing
+   happens without me." — then takes the weight — "The weight is mine now." with a
    single Begin act beneath it. Begin runs discovery; the field holds a beat of
    empty white (Tex taking in the estate, never a spinner), then Tex speaks the
    count — "Two hundred and three agents. I have them." — in the voice, and the
@@ -172,33 +172,43 @@ const HERE_LINE_MS = 2_400;
    glass goes clean and the live vigil takes over. */
 const IGNITE_LINE_MS = 4_600;
 
-/* The day-one open — the threshold. An arc, shown once, then gone: a name,
-   a claim of authority, an invitation. Never a rotation — it progresses and
-   then ends, into the live surface.
-     1. "Tex."                                   — the name. Rises, holds,
-                                                    dissolves.
-     2. "Nothing your agents do happens          — the one claim the whole
-         without me."                              product rests on. Holds a
-                                                    beat longer, then dissolves.
-     3. "Show me your agents."                   — the invitation. Arrives and
-                                                    stays, with a single act
-                                                    (Begin) beneath it. No opt-
-                                                    out: after a line that
-                                                    absolute, asking permission
-                                                    to start would hand the
-                                                    power back.
+/* The day-one open — the threshold. An arc, shown once, then gone: a being
+   declares itself, claims dominion, and takes the weight. Never a rotation —
+   it progresses and then ends, into the live surface. Each beat lands on Tex's
+   own selfhood (Tex / me / mine): one voice, three self-assertions, escalating.
+   No category noun anywhere — Tex does not name "agents" or "networks" on the
+   threshold (that would be entering someone else's aisle); it names nothing and
+   so swallows everything.
+     1. "I am Tex."                — existence. The cognition speaks itself into
+                                      the room. Rises, holds, dissolves. Same
+                                      weight and warm ink as the lines that
+                                      follow, so it reads as the same being —
+                                      presence comes from the verb, not the size.
+     2. "Nothing happens without    — dominion. The one claim the whole product
+         me."                         rests on. "Nothing" (not "your agents")
+                                      makes Tex the condition for anything
+                                      occurring at all. Holds longest, dissolves.
+     3. "The weight is mine now."   — the handover. The arc finally turns to the
+                                      operator: your weight, carried by Tex. The
+                                      power move and the relief are the same four
+                                      words. Arrives and stays, with a single act
+                                      (Begin) beneath it — Begin is the gesture of
+                                      giving it over. No opt-out: after a line
+                                      that absolute, asking permission would hand
+                                      the weight back.
    Each cycling line's fade is timed to its own beat (MANIFESTO_BEATS), set
    inline on the line so the rotateX/rise/dissolve finishes exactly as the step
    advances. The final line does not cycle. */
 const MANIFESTO = [
-  "Tex.",
-  "Nothing your agents do happens without me.",
-  "Show me your agents.",
+  "I am Tex.",
+  "Nothing happens without me.",
+  "The weight is mine now.",
 ];
-/* Per-beat hold for the cycling lines (steps 0…n-2). The claim (step 1) holds
-   longest — it is the most important sentence Tex ever shows. The final step
-   does not cycle, so it needs no entry here. */
-const MANIFESTO_BEATS = [2_600, 4_200];
+/* Per-beat hold for the cycling lines (steps 0…n-2). The dominion claim
+   (step 1) holds longest — it is the most important sentence Tex ever shows.
+   The name (step 0) lands and breathes a beat. The final step does not cycle,
+   so it needs no entry here. */
+const MANIFESTO_BEATS = [2_800, 4_200];
 
 /* ------------------------------------------------------------------ */
 /* The demo opener — the scripted day-one sequence, replayed on EVERY  */
@@ -726,7 +736,7 @@ export default function Vigil() {
   const ariaState = !aliveEffective
     ? "Tex is no longer responding. The connection to the witness was lost."
     : demoOpenerActive || (ignitionReady && ignitionDoorOpen)
-    ? "Tex. Press Begin to have Tex map your agents."
+    ? "I am Tex. Nothing happens without me. Press Begin."
     : mapping
     ? "Tex is mapping the estate."
     : state === "held"
@@ -750,9 +760,9 @@ export default function Vigil() {
       !mapping;
 
   /* The open plays while the door is open: advance through the lines, each on
-     its own beat (the claim holds longest). "Tex." rises, holds, and dissolves;
-     then the claim; then "Show me your agents." arrives and stays with Begin
-     beneath it (the final line never cycles out). */
+     its own beat (the dominion claim holds longest). "I am Tex." rises, holds,
+     and dissolves; then the claim; then "The weight is mine now." arrives and
+     stays with Begin beneath it (the final line never cycles out). */
   useEffect(() => {
     if (!doorOpen) {
       setManifestoStep(0);
@@ -815,8 +825,8 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* The day-one threshold — an arc shown once, then gone: the name, the
-          one claim, the invitation. The final line stays and shows a single
+      {/* The day-one threshold — an arc shown once, then gone: the declaration,
+          the one claim, the handover. The final line stays and shows a single
           act, Begin (no opt-out). Each cycling line's fade is timed to its own
           beat. The act carries data-act so a press on it never opens the mic. */}
       {doorOpen && (

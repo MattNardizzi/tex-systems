@@ -5,27 +5,32 @@
    Pure paper. Three type sizes. One palette. One rhythm.
    ============================================================ */
 
-/* ── The voice face: Source Serif 4 (free, open-licensed, variable) ──
-   Loaded from Google Fonts in index.html. Source Serif 4 is a sober,
-   screen-native reading serif drawn by a real type designer (Adobe),
-   open-licensed and free to self-host. It reads like a record, not a
-   magazine: the witness states, it does not perform. Run at a quiet
-   optical size, never maxed — testimony, not a cover line. Where the old
-   voice borrowed glamour from fashion, this one borrows authority from
-   the printed page. Roman only — Tex never speaks in italic except the
-   one pivotal question. If the webfont is slow, the browser falls through
-   to New York / Georgia. */
+/* ── The voice face: EB Garamond (free, open-licensed, variable) ──
+   Loaded from Google Fonts in index.html. EB Garamond is a faithful revival
+   of the 1592 Egenolff-Berner specimen cut from Claude Garamont's punches —
+   the same source the costly Garamonds (Adobe's included) trace back to, so
+   "free" here is not the compromise: for a voice set huge on cream in silence,
+   it IS the real one. It is also Apple's old well: from 1984 to 2002 Apple
+   spoke in Garamond, and when a thing needs to SPEAK rather than label, it
+   speaks in a serif with four centuries behind it. Roman, upright — a
+   declaration stands straight; italic is reserved for the one pivotal
+   question. Google's cut carries wght + ital only (no opsz axis), so the
+   display craft is in weight, tracking, leading, and warm ink. If the webfont
+   is slow, the browser falls through to an old-style serif (Iowan / Palatino),
+   never Times. */
 
 :root {
   /* Type families — the voice (serif), the chrome (sans), and mono for
      real machine identifiers. */
   --tex-sans: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Inter", "Helvetica Neue", Arial, sans-serif;
-  /* The voice. Source Serif 4 — a screen-native, optically-sized reading
-     serif: sober, sturdy, neutral, the kind of face that looks like it was
-     always there. It disappears so the words carry the weight, which is
-     exactly the witness posture. Free and shippable, nothing to license. */
-  --tex-serif: "Source Serif 4", "New York", Georgia, "Times New Roman", serif;
+  /* The voice. EB Garamond — a four-century-old-style serif: warm, humane,
+     authoritative, the kind of face that looks like it was always there. It
+     carries the words instead of performing them, which is the posture a
+     sovereign cognition speaks from. Free and shippable, nothing to license.
+     Fallbacks are old-style serifs close to Garamond's color, never Times. */
+  --tex-serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino,
+    Georgia, "Times New Roman", serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
     monospace;
 
