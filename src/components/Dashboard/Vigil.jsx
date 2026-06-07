@@ -58,11 +58,11 @@ import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
    The open is the day-one arc, and for the client demo it replays on EVERY
    visit: Tex declares itself — "I am Tex." — then claims dominion — "Nothing
    happens without me." — then takes the weight — "The weight is mine now." with a
-   single Begin act beneath it. Begin runs discovery; the field holds a beat of
-   empty white (Tex taking in the estate, never a spinner), then Tex speaks the
-   count — "Two hundred and three agents. I have them." — in the voice, and the
-   glass clears to the live vigil. With DEMO_OPENER on the whole sequence is
-   local and replays every visit (a seed count, no backend) so it can be shown
+   single Begin act beneath it. Begin is the summons; the field holds a beat of
+   empty white (Tex taking in the estate, never a spinner), then Tex turns to the
+   operator — "Then show me your agents." — in the voice, and the glass clears to
+   the live vigil. With DEMO_OPENER on the whole sequence is local and replays
+   every visit (no backend) so it can be shown
    to clients; flip it off to restore the real, server-authoritative,
    fires-once-ever threshold.
    ================================================================== */
@@ -223,8 +223,10 @@ const MANIFESTO_BEATS = [2_800, 4_200];
 /* authoritative, fires-once-ever threshold.                           */
 /* ------------------------------------------------------------------ */
 const DEMO_OPENER = true;
-/* The seed count Tex speaks after the scan, in its own voice. */
-const DEMO_COUNT_LINE = "Two hundred and three agents. I have them.";
+/* After Begin, Tex turns to the operator and asks to be pointed at something
+   real — the summons, in its own voice. (Not a fabricated count: the witness
+   never shows a number it cannot prove.) */
+const DEMO_COUNT_LINE = "Then show me your agents.";
 /* The held beat of empty white after Begin — Tex taking the field in at once,
    before it speaks. A pause, never a progress bar. */
 const DEMO_BREATH_MS = 1_500;
@@ -300,7 +302,7 @@ export default function Vigil() {
   /* The DEMO opener phase machine (only meaningful when DEMO_OPENER):
        "door"   → the three-beat manifesto + Begin
        "breath" → a held beat of empty white (Tex taking in the estate)
-       "count"  → Tex speaks the seed count; it rises, holds, dissolves
+       "count"  → Tex turns and asks for the agents; it rises, holds, dissolves
        "live"   → the resting vigil
      Driven locally so the whole sequence plays on EVERY visit with no backend.
      This is the client demo: name, claim, invitation + Begin, then the count
