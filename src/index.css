@@ -44,12 +44,11 @@
   --tex-ink-mute: #9b9388;
   --tex-ink-hair: #d8d4cc;
 
-  /* Paper — the room. Not clinical #fff (that reads like a blank
-     document); a hair warm, so the white reads like gallery paper while
-     still reading as white. Calibration, not decoration — no glass. */
-  --tex-paper: #fcfbf9;
-  --tex-paper-2: #fafaf8;
-  --tex-paper-3: #f4f3ef;
+  /* Paper — the room. Clean white. The two ticks below are neutral
+     (not warm), so nothing on the surface carries a cream cast. */
+  --tex-paper: #ffffff;
+  --tex-paper-2: #ffffff;
+  --tex-paper-3: #f5f5f5;
 
   /* There is no glass. There is no orb. The page is paper, ink, and
      one monospace hash. If a soft glowing object ever feels necessary,
