@@ -74,7 +74,11 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 34em;
+  /* Widened from 34em so the held sentence can speak at the same display scale
+     as the threshold and the voice without wrapping into a tall stack. The
+     supporting detail and question keep their own narrower measures (their own
+     max-widths below), so only the headline ever uses the full width. */
+  max-width: min(92vw, 56rem);
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
@@ -85,9 +89,14 @@
   font-family: var(--tex-serif);
   font-weight: 400;
   font-variation-settings: "wght" 400;
-  font-size: clamp(28px, 3.9vw, 46px);
-  line-height: 1.28;
-  letter-spacing: -0.02em;
+  /* The held sentence is the same voice as the threshold and the count: the
+     identical EB Garamond display scale and tracking, so a held wire transfer
+     is announced with the same presence as "I am Tex.", never as a smaller
+     card headline. line-height stays a hair open for the wrap. */
+  font-size: clamp(32px, 4.6vw, 58px);
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  max-width: 17em;
   color: var(--tex-ink);
   text-wrap: balance;
 }
