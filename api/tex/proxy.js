@@ -10,11 +10,18 @@
  * One hop, one secret, never in the client. Same-origin, so there is no
  * CORS surface. Node.js runtime on Fluid compute (the Vercel default; the
  * Edge runtime was folded into Vercel Functions on 2025-06-25). Written to
- * the current Web-standard `fetch`
- * handler signature, and streaming-ready: the upstream body is piped
- * through untouched, so when the backend grows a `text/event-stream`
- * endpoint (the SSE voice-push), this same proxy carries it with no
- * change — only the interface switches from polling to EventSource.
+ * the current Web-standard `fetch` handler signature, and streaming-ready:
+ * the upstream body is piped through untouched, so when the backend grows a
+ * `text/event-stream` endpoint (the SSE voice-push), this same proxy carries
+ * it with no change — only the interface switches from polling to EventSource.
+ *
+ * ROUTING: a single plain function, NOT a `[...path]` catch-all. On a
+ * non-Next project Vercel only routes a catch-all's *single*-segment paths,
+ * so `/api/tex/v1/vigil` (and every real endpoint) 404'd at the edge. Instead
+ * `vercel.json` rewrites `/api/tex/:path*` (any depth) to
+ * `/api/tex/proxy?__path=:path*`, and this function reads `__path` to rebuild
+ * the upstream path. A direct hit (no rewrite) falls back to stripping the
+ * `/api/tex` prefix from the pathname.
  *
  * Env (set in the Vercel project, NOT in the bundle):
  *   TEX_API_BASE  — backend origin. Defaults to the live Render deploy.
@@ -25,7 +32,7 @@
  *                   for /v1/vigil and additionally `evidence:read` for
  *                   /v1/vigil/explain.
  *
- * Catch-all: `/api/tex/v1/vigil?tenant_id=acme` forwards verbatim to
+ * `/api/tex/v1/vigil?tenant_id=acme` forwards verbatim to
  * `${TEX_API_BASE}/v1/vigil?tenant_id=acme`.
  */
 
@@ -37,12 +44,23 @@ export default {
     const base = (process.env.TEX_API_BASE || DEFAULT_BASE).replace(/\/$/, "");
     const key = process.env.TEX_API_KEY;
 
-    // Forward the path + query that follow the /api/tex prefix, verbatim.
     const url = new URL(request.url);
-    const i = url.pathname.indexOf(PREFIX);
-    const tail =
-      i === -1 ? url.pathname : url.pathname.slice(i + PREFIX.length) || "/";
-    const upstreamUrl = `${base}${tail}${url.search}`;
+
+    // The rewrite injects the upstream path as `__path` (one value joined by
+    // "/", or repeated values — handle both). Fall back to stripping the
+    // /api/tex prefix from the pathname for a direct, un-rewritten hit.
+    let tail = url.searchParams.getAll("__path").join("/");
+    if (!tail) {
+      const i = url.pathname.indexOf(PREFIX);
+      tail = i === -1 ? url.pathname : url.pathname.slice(i + PREFIX.length);
+    }
+    tail = "/" + tail.replace(/^\/+/, ""); // exactly one leading slash ("/" if empty)
+
+    // Forward the original query, minus our internal routing param.
+    const params = new URLSearchParams(url.search);
+    params.delete("__path");
+    const qs = params.toString();
+    const upstreamUrl = `${base}${tail === "/" ? "" : tail}${qs ? `?${qs}` : ""}`;
 
     const headers = { "Content-Type": "application/json" };
     if (key) headers["Authorization"] = `Bearer ${key}`;

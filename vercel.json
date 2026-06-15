@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/tex/:path*", "destination": "/api/tex/proxy?__path=:path*" },
     { "source": "/((?!api/).*)", "destination": "/" }
   ]
 }
