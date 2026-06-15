@@ -8,8 +8,9 @@
  * browser renders what Tex chose.
  *
  * One hop, one secret, never in the client. Same-origin, so there is no
- * CORS surface. Node.js runtime (the Vercel default; the Edge runtime was
- * deprecated April 2026). Written to the current Web-standard `fetch`
+ * CORS surface. Node.js runtime on Fluid compute (the Vercel default; the
+ * Edge runtime was folded into Vercel Functions on 2025-06-25). Written to
+ * the current Web-standard `fetch`
  * handler signature, and streaming-ready: the upstream body is piped
  * through untouched, so when the backend grows a `text/event-stream`
  * endpoint (the SSE voice-push), this same proxy carries it with no
