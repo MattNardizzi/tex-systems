@@ -567,3 +567,43 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ------------------------------------------------------------------ */
+/* Word-sync — Tex's words light up in step with its voice. As it       */
+/* speaks a line, the words it has not yet reached sit faint, and ink   */
+/* fills in on each as it is voiced (SpokenLine drives `is-ahead` off    */
+/* the per-word timing from /v1/speak/timed). With no active highlight   */
+/* — the fallback voice (local Kokoro, no timing), or before audio —     */
+/* every word is full, so the line reads identically to plain text.     */
+/* ------------------------------------------------------------------ */
+.tex-word {
+  transition: opacity 200ms ease;
+}
+.tex-word.is-ahead {
+  opacity: 0.26;
+}
+
+/* The interactive answer — the one transient exception to "spoken, never
+   written". It rises in on the shared voice cadence (.tex-voice-line), is lit
+   word-by-word while Tex voices it, then dissolves the instant speech ends. */
+.tex-voice-line--answer {
+  color: var(--tex-ink);
+}
+.tex-voice-line--answer.is-leaving {
+  animation: tex-object-fade 700ms ease both;
+}
+
+/* The wake — a quiet invitation before the day-one manifesto. Smaller and
+   fainter than a declaration: an offer to reach, not a claim Tex is making. */
+.tex-door-wake {
+  font-size: clamp(20px, 3vw, 30px);
+  letter-spacing: 0.01em;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No ink-fill transition; the words are simply full or faint, never moving. */
+  .tex-word {
+    transition: none;
+  }
+}

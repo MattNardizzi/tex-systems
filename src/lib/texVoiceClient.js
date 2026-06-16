@@ -38,7 +38,7 @@
  * never a toast.
  */
 
-import { mintVoiceToken, speakStreamUrl } from "./texApi";
+import { mintVoiceToken, speakStreamUrl, speakTimedUrl } from "./texApi";
 
 const WORKLET_URL = "/tex-mic-worklet.js";
 
@@ -167,14 +167,70 @@ export class TexListener {
 
 /* ------------------------------------------------------------------ */
 /* Speaking — Tex's one voice, streamed.                               */
+/*                                                                     */
+/* Two paths, same voice:                                              */
+/*   texSpeak       — the universal fallback: stream /v1/speak into an  */
+/*                    <audio> element. Always works (ElevenLabs, the    */
+/*                    local Kokoro, or the honest tone), no highlight.  */
+/*   texSpeakTimed  — the alive path: fetch /v1/speak/timed (ElevenLabs */
+/*                    only) for the audio + per-word timing, play it    */
+/*                    through Web Audio on ONE clock, and call onWord    */
+/*                    so the on-screen text lights up in step. Falls     */
+/*                    back to texSpeak the instant timing is 503/absent. */
+/*                                                                     */
+/* Everything still degrades to silence: if nothing is reachable, Tex   */
+/* stays quiet — it never announces its own plumbing.                  */
 /* ------------------------------------------------------------------ */
 
-let _activeAudio = null;
+let _activeAudio = null; // the <audio> fallback element
+let _activeSource = null; // the Web Audio source for the timed path
+let _activeRaf = null; // the highlight rAF handle
+let _voiceCtx = null; // ONE shared AudioContext for the page lifetime
 
-/* Synthesize and play a grounded line in Tex's single voice. Streams
-   from the gateway via /v1/speak so first audio is fast. Returns a
-   promise that resolves when playback finishes (or immediately, quietly,
-   if synthesis is unreachable — Tex does not announce its own plumbing). */
+function _ctx() {
+  if (_voiceCtx) return _voiceCtx;
+  const AC =
+    typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+  if (!AC) return null;
+  _voiceCtx = new AC();
+  /* iOS/Safari re-suspends the context on background/lock; re-resume on return
+     so Tex can keep speaking without another gesture. */
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (_voiceCtx && document.visibilityState === "visible" && _voiceCtx.state === "suspended") {
+        _voiceCtx.resume().catch(() => {});
+      }
+    });
+  }
+  return _voiceCtx;
+}
+
+/* The one-time autoplay unlock. Browsers refuse to play audio until a user
+   gesture; call this INSIDE the first real interaction (the first ask/hold, a
+   "wake" tap) to resume the shared context and prime it with a silent buffer
+   (the WebKit unlock). After this, every later answer/decline/line plays
+   programmatically with no further gesture. Returns whether the context is
+   running (honest: read state, don't assume). */
+export async function unlockVoice() {
+  const ctx = _ctx();
+  if (!ctx) return false;
+  try {
+    if (ctx.state === "suspended") await ctx.resume();
+    const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    /* ignore — state check below is the truth */
+  }
+  return ctx.state === "running";
+}
+
+/* Synthesize and play a grounded line in Tex's single voice. Streams from the
+   gateway via /v1/speak so first audio is fast. Returns a promise that resolves
+   when playback finishes (or immediately, quietly, if synthesis is unreachable
+   — Tex does not announce its own plumbing). */
 export async function texSpeak(text) {
   if (!text) return;
   stopSpeaking();
@@ -195,6 +251,106 @@ export async function texSpeak(text) {
   }
 }
 
+/* Decode the raw little-endian s16le PCM (base64) the timed endpoint returns
+   into the Float32 Web Audio wants. */
+function _b64PcmToFloat32(b64) {
+  const bin = atob(b64 || "");
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+  const i16 = new Int16Array(bytes.buffer, 0, len >> 1);
+  const f32 = new Float32Array(i16.length);
+  for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768;
+  return f32;
+}
+
+/* Speak a sealed line AND drive an in-sync highlight. onWord(index, word) is
+   called as each word begins (index -1 clears the highlight); onEnd() fires when
+   playback finishes. If the word-timed endpoint is unavailable (503 / no
+   ElevenLabs / decode failure) this transparently falls back to texSpeak — same
+   voice, no highlight — so callers can always use it. The text passed here is a
+   line Tex already sealed; this never authors or alters it. */
+export async function texSpeakTimed(text, { onWord, onEnd } = {}) {
+  if (!text) return;
+  stopSpeaking();
+  const ctx = _ctx();
+  const done = () => {
+    if (onWord) onWord(-1, null);
+    if (onEnd) onEnd();
+  };
+  if (!ctx) {
+    await texSpeak(text);
+    done();
+    return;
+  }
+
+  let data;
+  try {
+    const res = await fetch(speakTimedUrl(text), {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error("timed-unavailable"); // 503 → fall back
+    data = await res.json();
+  } catch {
+    await texSpeak(text); // real voice, just without the highlight
+    done();
+    return;
+  }
+
+  let src = null;
+  try {
+    if (ctx.state === "suspended") await ctx.resume();
+    const f32 = _b64PcmToFloat32(data.audio_b64);
+    if (!f32.length) {
+      done();
+      return;
+    }
+    const buf = ctx.createBuffer(1, f32.length, data.sample_rate || 24000);
+    buf.copyToChannel(f32, 0);
+    src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    _activeSource = src;
+
+    const words = Array.isArray(data.words) ? data.words : [];
+    const startAt = ctx.currentTime;
+    let lastIdx = -1;
+    const tick = () => {
+      if (_activeSource !== src) return; // superseded by a newer utterance / stop
+      const t = ctx.currentTime - startAt + 0.04; // small lead so it reads in-sync
+      let idx = -1;
+      for (let i = 0; i < words.length; i++) {
+        if (t >= words[i].start) idx = i;
+        if (t < words[i].end) break;
+      }
+      if (idx !== lastIdx) {
+        lastIdx = idx;
+        if (onWord) onWord(idx, words[idx] || null);
+      }
+      _activeRaf = requestAnimationFrame(tick);
+    };
+    _activeRaf = requestAnimationFrame(tick);
+    src.start(0);
+    await new Promise((resolve) => {
+      src.onended = () => resolve();
+    });
+  } catch {
+    await texSpeak(text); // decode/playback failed → universal fallback
+  } finally {
+    if (_activeRaf) {
+      cancelAnimationFrame(_activeRaf);
+      _activeRaf = null;
+    }
+    if (src && _activeSource === src) {
+      try {
+        src.disconnect();
+      } catch {}
+      _activeSource = null;
+    }
+    done();
+  }
+}
+
 export function stopSpeaking() {
   if (_activeAudio) {
     try {
@@ -202,5 +358,16 @@ export function stopSpeaking() {
       _activeAudio.src = "";
     } catch {}
     _activeAudio = null;
+  }
+  if (_activeRaf) {
+    cancelAnimationFrame(_activeRaf);
+    _activeRaf = null;
+  }
+  if (_activeSource) {
+    try {
+      _activeSource.stop(); // fires onended → resolves any pending playback await
+      _activeSource.disconnect();
+    } catch {}
+    _activeSource = null;
   }
 }

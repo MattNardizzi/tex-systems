@@ -372,4 +372,18 @@ export const askTex = (transcript, tenantId) =>
 export const speakStreamUrl = (text) =>
   `${BASE}/v1/speak?text=${encodeURIComponent(text || "")}`;
 
+/**
+ * GET /v1/speak/timed?text=... — the SAME sealed line in Tex's ONE voice, but
+ * returned as JSON WITH per-word timing so the on-screen text can light up in
+ * step with the voice:
+ *   { backend, sample_rate, audio_b64 (raw s16le PCM), words:[{text,start,end}] }
+ *
+ * Word timing is an ElevenLabs-only capability; when it isn't configured the
+ * route answers 503 and the caller falls back to speakStreamUrl — a real voice,
+ * just without the highlight. Normal same-origin GET through the proxy (not a
+ * streaming socket), so it rides the existing /api/tex/* path unchanged.
+ */
+export const speakTimedUrl = (text) =>
+  `${BASE}/v1/speak/timed?text=${encodeURIComponent(text || "")}`;
+
 export const TEX_API_BASE = BASE;

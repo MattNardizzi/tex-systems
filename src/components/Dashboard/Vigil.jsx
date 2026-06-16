@@ -5,7 +5,14 @@ import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
 import { askTex, sealDecision, explainLine, approveProposal, rejectProposal } from "../../lib/texApi";
-import { TexListener, texSpeak, stopSpeaking } from "../../lib/texVoiceClient";
+import {
+  TexListener,
+  texSpeak,
+  texSpeakTimed,
+  stopSpeaking,
+  unlockVoice,
+} from "../../lib/texVoiceClient";
+import SpokenLine from "./SpokenLine";
 
 /* ==================================================================
    Vigil — the entire product surface. Live.
@@ -164,6 +171,12 @@ const OBJECT_LINGER_MS = 6_000;
 
 /* "Here." is one word — presence, not an answer. */
 const HERE_LINE_MS = 2_400;
+
+/* The interactive answer — shown + lit word-by-word as Tex speaks it, then it
+   lingers a beat and dissolves. The one transient exception to "answers are
+   spoken, never written": it is never persisted, only voiced-and-gone. */
+const ANSWER_LINGER_MS = 2_200;
+const ANSWER_FADE_MS = 720;
 
 /* The day-one ignition line — e.g. "You have two hundred agents running.
    I'll begin." — the one fuller sentence the surface holds on open after
@@ -362,6 +375,61 @@ export default function Vigil() {
     lineTimer.current = null;
   };
 
+  /* Word-sync — the index of the word Tex is currently speaking in the manifesto
+     line on the glass (-1 = none). Drives the in-step highlight (SpokenLine). */
+  const [manifestoWord, setManifestoWord] = useState(-1);
+
+  /* The interactive answer, surfaced + lit as Tex speaks it, then faded. The one
+     transient exception to "answers are spoken, never written". */
+  const [answer, setAnswer] = useState(null); // { text } | null
+  const [answerWord, setAnswerWord] = useState(-1);
+  const [answerLeaving, setAnswerLeaving] = useState(false);
+  const answerTimer = useRef(null);
+  const clearAnswerTimer = () => {
+    if (answerTimer.current) clearTimeout(answerTimer.current);
+    answerTimer.current = null;
+  };
+  const clearAnswer = useCallback(() => {
+    clearAnswerTimer();
+    setAnswer(null);
+    setAnswerWord(-1);
+    setAnswerLeaving(false);
+  }, []);
+
+  /* Day-one wake — the first reach unlocks Tex's voice so the manifesto can
+     speak (browsers block audio until a user gesture). Until then the opener
+     waits, silent, on a quiet invitation. */
+  const [awake, setAwake] = useState(false);
+
+  /* Speak an answer in Tex's voice AND surface it on the glass, lit word-by-word,
+     then linger and dissolve. The text is whatever /v1/ask sealed — this never
+     authors or edits it. texSpeakTimed falls back to plain voice (no highlight)
+     when ElevenLabs word-timing is unavailable; the line still shows and fades,
+     so the behavior is graceful either way. */
+  const speakAnswer = useCallback(
+    (text) => {
+      if (!text) return;
+      clearLineTimer();
+      clearAnswerTimer();
+      setSpoken(null);
+      setAnswerLeaving(false);
+      setAnswerWord(-1);
+      setAnswer({ text });
+      texSpeakTimed(text, {
+        onWord: (i) => setAnswerWord(i),
+        onEnd: () => {
+          clearAnswerTimer();
+          answerTimer.current = setTimeout(() => {
+            setAnswerLeaving(true);
+            clearAnswerTimer();
+            answerTimer.current = setTimeout(() => clearAnswer(), ANSWER_FADE_MS);
+          }, ANSWER_LINGER_MS);
+        },
+      });
+    },
+    [clearAnswer]
+  );
+
   /* ---------------- Faltering speaks first, unprompted ---------------- */
   useEffect(() => {
     if (state !== "faltering") return;
@@ -484,6 +552,17 @@ export default function Vigil() {
 
   const beginHold = useCallback(
     (e) => {
+      /* Prime Tex's voice on the very first user gesture — browsers block audio
+         until then. Safe to call on every press; it no-ops once unlocked, and
+         covers the Begin press too (the section's pointerdown fires first). */
+      unlockVoice();
+      /* Day-one wake: the first reach during the opening door wakes Tex's voice
+         and starts the manifesto (which the speak effect voices). No mic — just
+         the wake; the manifesto begins now that audio is unlocked. */
+      if (ignitionDoorOpen && !awake) {
+        setAwake(true);
+        return;
+      }
       /* Don't start a hold when pressing an actual decision button. */
       if (e && e.target && e.target.closest && e.target.closest("[data-act]")) {
         return;
@@ -497,6 +576,7 @@ export default function Vigil() {
       clearLineTimer();
       clearObjectTimer();
       setSurfaced(null);
+      clearAnswer();
       stopSpeaking();
       setThinking(false);
       setHolding(true);
@@ -517,7 +597,7 @@ export default function Vigil() {
         listenerRef.current = null;
       });
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, demoOpenerActive]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, demoOpenerActive, awake, clearAnswer]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -585,13 +665,13 @@ export default function Vigil() {
           return undefined;
         }
         return askTex(transcript).then((res) => {
-          const answer = res?.answer || null;
-          if (answer) {
-            /* Meaning is spoken, always — and never written. If the answer's
-               true target is an object you must carry away (a hash, an exact
-               name), that handle — and only that handle — surfaces, then
-               dissolves. */
-            texSpeak(answer);
+          const spokenAnswer = res?.answer || null;
+          if (spokenAnswer) {
+            /* Meaning is spoken — and now surfaced word-by-word as Tex voices it,
+               then dissolved (never persisted). If the answer's true target is an
+               object you must carry away (a hash, an exact name), that handle —
+               and only that handle — also surfaces, then dissolves. */
+            speakAnswer(spokenAnswer);
             if (res?.object?.value) {
               surfaceObject(res.object.value, res.object.kind);
             }
@@ -601,7 +681,7 @@ export default function Vigil() {
         });
       })
       .catch(() => setThinking(false));
-  }, [holding, state, aliveEffective, sayHere, surfaceObject, pullEvidence, liveDecision]);
+  }, [holding, state, aliveEffective, sayHere, surfaceObject, pullEvidence, liveDecision, speakAnswer]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -721,6 +801,7 @@ export default function Vigil() {
       clearObjectTimer();
       clearMappingTimer();
       clearDemoTimer();
+      clearAnswerTimer();
     };
   }, []);
 
@@ -770,6 +851,7 @@ export default function Vigil() {
       setManifestoStep(0);
       return;
     }
+    if (!awake) return; /* the manifesto waits for the wake gesture */
     if (manifestoStep >= MANIFESTO.length - 1) {
       /* Final line holds and shows the act; it never cycles out. */
       return;
@@ -778,7 +860,20 @@ export default function Vigil() {
     const t = setTimeout(() => setManifestoStep((s) => s + 1), beat);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doorOpen, manifestoStep]);
+  }, [doorOpen, manifestoStep, awake]);
+
+  /* The manifesto, in Tex's voice: once awake, each beat SPEAKS as it lands, lit
+     word-by-word (SpokenLine + manifestoWord). Resets the highlight at each step.
+     Falls back (inside texSpeakTimed) to plain voice if ElevenLabs word-timing
+     isn't available — the line still shows, just without the fill. */
+  useEffect(() => {
+    if (!doorOpen || !awake) return;
+    const line = MANIFESTO[manifestoStep];
+    if (!line) return;
+    setManifestoWord(-1);
+    texSpeakTimed(line, { onWord: (i) => setManifestoWord(i) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doorOpen, awake, manifestoStep]);
 
   return (
     <section
@@ -833,22 +928,28 @@ export default function Vigil() {
           beat. The act carries data-act so a press on it never opens the mic. */}
       {doorOpen && (
         <div className="tex-door" role="group" aria-label="Tex">
-          <p
-            key={manifestoStep}
-            style={
-              manifestoStep < MANIFESTO.length - 1
-                ? { animationDuration: `${MANIFESTO_BEATS[manifestoStep] ?? 2700}ms` }
-                : undefined
-            }
-            className={
-              manifestoStep >= MANIFESTO.length - 1
-                ? "tex-door-sentence tex-door-line tex-door-line--hold"
-                : "tex-door-sentence tex-door-line"
-            }
-          >
-            {MANIFESTO[manifestoStep]}
-          </p>
-          {manifestoStep >= MANIFESTO.length - 1 && (
+          {!awake ? (
+            /* The wake — a quiet invitation. The first reach (anywhere) unlocks
+               audio and starts the manifesto in Tex's own voice. */
+            <p className="tex-door-sentence tex-door-wake">touch to wake Tex</p>
+          ) : (
+            <p
+              key={manifestoStep}
+              style={
+                manifestoStep < MANIFESTO.length - 1
+                  ? { animationDuration: `${MANIFESTO_BEATS[manifestoStep] ?? 2700}ms` }
+                  : undefined
+              }
+              className={
+                manifestoStep >= MANIFESTO.length - 1
+                  ? "tex-door-sentence tex-door-line tex-door-line--hold"
+                  : "tex-door-sentence tex-door-line"
+              }
+            >
+              <SpokenLine text={MANIFESTO[manifestoStep]} active={manifestoWord} />
+            </p>
+          )}
+          {awake && manifestoStep >= MANIFESTO.length - 1 && (
             <div className="tex-acts tex-door-acts">
               <button
                 type="button"
@@ -971,7 +1072,18 @@ export default function Vigil() {
           Tex is in, not answers to a question. */}
       {!doorOpen && !mapping && !demoOpenerActive && state !== "held" && !sealed && (
         <div className="tex-voice" aria-live="polite">
-          {spoken &&
+          {answer ? (
+            /* The interactive answer — surfaced word-by-word as Tex speaks it,
+               then dissolved. Transient: never persisted to the glass. */
+            <p
+              className={`tex-voice-line tex-voice-line--answer${
+                answerLeaving ? " is-leaving" : ""
+              }`}
+            >
+              <SpokenLine text={answer.text} active={answerWord} />
+            </p>
+          ) : (
+            spoken &&
             (spoken.kind === "here" ||
               spoken.kind === "falter" ||
               spoken.kind === "ignite") && (
@@ -981,7 +1093,8 @@ export default function Vigil() {
               >
                 {spoken.text}
               </p>
-            )}
+            )
+          )}
         </div>
       )}
 
