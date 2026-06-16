@@ -9,6 +9,7 @@ import {
   TexListener,
   texSpeak,
   texSpeakTimed,
+  texSpeakSequence,
   stopSpeaking,
   unlockVoice,
 } from "../../lib/texVoiceClient";
@@ -217,11 +218,21 @@ const MANIFESTO = [
   "Nothing happens without me.",
   "The weight is mine now.",
 ];
-/* Per-beat hold for the cycling lines (steps 0…n-2). The dominion claim
-   (step 1) holds longest — it is the most important sentence Tex ever shows.
-   The name (step 0) lands and breathes a beat. The final step does not cycle,
-   so it needs no entry here. */
+/* The manifesto is now VOICE-DRIVEN: each line stays on the glass while Tex
+   speaks it (word-synced), then breathes, then dissolves into the next — the
+   audio clock advances the arc, never a fixed timer, so the words can never
+   drift from what is heard (see texSpeakSequence). MANIFESTO_BEATS survives only
+   as the SILENCE FLOOR: when no audio is reachable (no ElevenLabs, offline), a
+   line holds its designed beat so the arc still paces rather than flashing past.
+   The dominion claim (step 1) holds longest; the name (step 0) lands and breathes;
+   the final step does not cycle, so it needs no entry. */
 const MANIFESTO_BEATS = [2_800, 4_200];
+/* The held silence after Tex finishes a line, before it dissolves to the next —
+   the dramatic pause that makes a declaration land. */
+const MANIFESTO_BREATH_MS = 620;
+/* How long a line takes to dissolve out (kept in sync with the tex-door-leave
+   animation in Vigil.css). */
+const MANIFESTO_LEAVE_MS = 720;
 
 /* ------------------------------------------------------------------ */
 /* The demo opener — the scripted day-one sequence, replayed on EVERY  */
@@ -331,6 +342,13 @@ export default function Vigil() {
      vigil, the ask gesture, and the open-presence "Here." until it finishes. */
   const demoOpenerActive = DEMO_OPENER && demoPhase !== "live";
 
+  /* The day-one THRESHOLD is showing — the manifesto door, in either mode. In
+     the demo it's the local "door" phase; on a real deployment it's the server-
+     authoritative un-ignited door. The first reach here WAKES Tex (unlocks audio,
+     starts the manifesto); without this the demo door could never wake, since
+     ignitionDoorOpen is hardcoded false under DEMO_OPENER. */
+  const onThreshold = DEMO_OPENER ? demoPhase === "door" : ignitionDoorOpen;
+
   /* The resolved act, briefly shown as a seal before returning to
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
   const [sealed, setSealed] = useState(null);
@@ -378,6 +396,16 @@ export default function Vigil() {
   /* Word-sync — the index of the word Tex is currently speaking in the manifesto
      line on the glass (-1 = none). Drives the in-step highlight (SpokenLine). */
   const [manifestoWord, setManifestoWord] = useState(-1);
+  /* The manifesto is voice-driven: a line dissolves (is-leaving) once Tex has
+     finished speaking it and breathed, and Begin appears only once the final line
+     has settled (manifestoDone) — never mid-sentence. */
+  const [manifestoLeaving, setManifestoLeaving] = useState(false);
+  const [manifestoDone, setManifestoDone] = useState(false);
+  const manifestoStartedRef = useRef(false);
+  /* Word-sync indices for the two other lines the glass holds and Tex voices:
+     the day-one ignition count, and the demo-opener count. */
+  const [igniteWord, setIgniteWord] = useState(-1);
+  const [demoCountWord, setDemoCountWord] = useState(-1);
 
   /* The interactive answer, surfaced + lit as Tex speaks it, then faded. The one
      transient exception to "answers are spoken, never written". */
@@ -506,8 +534,12 @@ export default function Vigil() {
       setMapping(false);
       if (line) {
         clearLineTimer();
+        setIgniteWord(-1);
         setSpoken({ kind: "ignite", text: line });
-        texSpeak(line);
+        /* The count is one of the lines the glass holds, so it lights word-by-word
+           as Tex voices it (falls back to plain voice if timing is unavailable).
+           It clears on its own beat, lingering long enough to read. */
+        texSpeakTimed(line, { onWord: (i) => setIgniteWord(i) });
         lineTimer.current = setTimeout(() => setSpoken(null), IGNITE_LINE_MS);
       }
     }, wait);
@@ -530,7 +562,8 @@ export default function Vigil() {
     setDemoPhase("breath");
     demoTimer.current = setTimeout(() => {
       setDemoPhase("count");
-      texSpeak(DEMO_COUNT_LINE);
+      setDemoCountWord(-1);
+      texSpeakTimed(DEMO_COUNT_LINE, { onWord: (i) => setDemoCountWord(i) });
       clearDemoTimer();
       demoTimer.current = setTimeout(() => {
         setDemoPhase("live");
@@ -557,9 +590,10 @@ export default function Vigil() {
          covers the Begin press too (the section's pointerdown fires first). */
       unlockVoice();
       /* Day-one wake: the first reach during the opening door wakes Tex's voice
-         and starts the manifesto (which the speak effect voices). No mic — just
-         the wake; the manifesto begins now that audio is unlocked. */
-      if (ignitionDoorOpen && !awake) {
+         and starts the manifesto sequence. No mic — just the wake; the manifesto
+         begins now that audio is unlocked. Fires on the threshold in either mode
+         (demo or real). */
+      if (onThreshold && !awake) {
         setAwake(true);
         return;
       }
@@ -597,7 +631,7 @@ export default function Vigil() {
         listenerRef.current = null;
       });
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, demoOpenerActive, awake, clearAnswer]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, demoOpenerActive, awake, onThreshold, clearAnswer]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -794,7 +828,7 @@ export default function Vigil() {
     [liveDecision, humanDecisionLive]
   );
 
-  /* Tear down any pending timers on unmount. */
+  /* Tear down any pending timers — and silence Tex — on unmount. */
   useEffect(() => {
     return () => {
       clearLineTimer();
@@ -802,6 +836,7 @@ export default function Vigil() {
       clearMappingTimer();
       clearDemoTimer();
       clearAnswerTimer();
+      stopSpeaking();
     };
   }, []);
 
@@ -842,38 +877,45 @@ export default function Vigil() {
       (ignition.sandboxDoor || state !== "faltering") &&
       !mapping;
 
-  /* The open plays while the door is open: advance through the lines, each on
-     its own beat (the dominion claim holds longest). "I am Tex." rises, holds,
-     and dissolves; then the claim; then "The weight is mine now." arrives and
-     stays with Begin beneath it (the final line never cycles out). */
+  /* The open, in Tex's voice — VOICE-DRIVEN, played strictly one line at a time.
+     Once awake, the whole arc runs through a single speech sequence: each line
+     mounts (onLineStart), lights word-by-word as Tex voices it (onWord), then —
+     only after the voice ends and breathes — dissolves (onLineLeave) and yields
+     to the next. The audio clock advances the arc; there are no fixed beats, so
+     the glass can never spill three lines at once or drift from what is heard.
+     The final line arrives and stays; Begin appears only when it has settled
+     (onDone). Falls back inside the engine to plain voice (no highlight), and —
+     if no audio is reachable at all — paces on MANIFESTO_BEATS as the silence
+     floor so the arc still reads. Started once per opening (a ref guard) so React
+     18 StrictMode's double-invoke can't double-run it; a barge-in (a fresh speak)
+     would supersede it cleanly regardless. */
   useEffect(() => {
     if (!doorOpen) {
+      manifestoStartedRef.current = false;
       setManifestoStep(0);
+      setManifestoWord(-1);
+      setManifestoLeaving(false);
+      setManifestoDone(false);
       return;
     }
-    if (!awake) return; /* the manifesto waits for the wake gesture */
-    if (manifestoStep >= MANIFESTO.length - 1) {
-      /* Final line holds and shows the act; it never cycles out. */
-      return;
-    }
-    const beat = MANIFESTO_BEATS[manifestoStep] ?? 2_700;
-    const t = setTimeout(() => setManifestoStep((s) => s + 1), beat);
-    return () => clearTimeout(t);
+    if (!awake) return; /* the arc waits for the wake gesture */
+    if (manifestoStartedRef.current) return;
+    manifestoStartedRef.current = true;
+    texSpeakSequence(MANIFESTO, {
+      silenceHold: MANIFESTO_BEATS,
+      breathMs: MANIFESTO_BREATH_MS,
+      leaveMs: MANIFESTO_LEAVE_MS,
+      onLineStart: (i) => {
+        setManifestoStep(i);
+        setManifestoWord(-1);
+        setManifestoLeaving(false);
+      },
+      onWord: (i) => setManifestoWord(i),
+      onLineLeave: () => setManifestoLeaving(true),
+      onDone: () => setManifestoDone(true),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doorOpen, manifestoStep, awake]);
-
-  /* The manifesto, in Tex's voice: once awake, each beat SPEAKS as it lands, lit
-     word-by-word (SpokenLine + manifestoWord). Resets the highlight at each step.
-     Falls back (inside texSpeakTimed) to plain voice if ElevenLabs word-timing
-     isn't available — the line still shows, just without the fill. */
-  useEffect(() => {
-    if (!doorOpen || !awake) return;
-    const line = MANIFESTO[manifestoStep];
-    if (!line) return;
-    setManifestoWord(-1);
-    texSpeakTimed(line, { onWord: (i) => setManifestoWord(i) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doorOpen, awake, manifestoStep]);
+  }, [doorOpen, awake]);
 
   return (
     <section
@@ -933,23 +975,23 @@ export default function Vigil() {
                audio and starts the manifesto in Tex's own voice. */
             <p className="tex-door-sentence tex-door-wake">touch to wake Tex</p>
           ) : (
+            /* The current beat. It RISES in on mount (keyed by step), holds while
+               Tex speaks it — word-synced, for as long as the voice needs — then
+               DISSOLVES (is-leaving) when the sequence advances. The final line
+               (--hold) only arrives; it never leaves. The hold is no longer a
+               fixed CSS duration, so a line can never fade out mid-word. */
             <p
               key={manifestoStep}
-              style={
-                manifestoStep < MANIFESTO.length - 1
-                  ? { animationDuration: `${MANIFESTO_BEATS[manifestoStep] ?? 2700}ms` }
-                  : undefined
-              }
               className={
-                manifestoStep >= MANIFESTO.length - 1
-                  ? "tex-door-sentence tex-door-line tex-door-line--hold"
-                  : "tex-door-sentence tex-door-line"
+                "tex-door-sentence tex-door-line" +
+                (manifestoStep >= MANIFESTO.length - 1 ? " tex-door-line--hold" : "") +
+                (manifestoLeaving ? " is-leaving" : "")
               }
             >
               <SpokenLine text={MANIFESTO[manifestoStep]} active={manifestoWord} />
             </p>
           )}
-          {awake && manifestoStep >= MANIFESTO.length - 1 && (
+          {awake && manifestoDone && (
             <div className="tex-acts tex-door-acts">
               <button
                 type="button"
@@ -972,7 +1014,9 @@ export default function Vigil() {
           dissolves, then the glass clears to the live vigil. */}
       {DEMO_OPENER && demoPhase === "count" && (
         <div className="tex-door" role="status" aria-live="polite">
-          <p className="tex-door-sentence tex-count-line">{DEMO_COUNT_LINE}</p>
+          <p className="tex-door-sentence tex-count-line">
+            <SpokenLine text={DEMO_COUNT_LINE} active={demoCountWord} />
+          </p>
         </div>
       )}
 
@@ -1091,7 +1135,11 @@ export default function Vigil() {
                 className={`tex-voice-line tex-voice-line--${spoken.kind}`}
                 key={spoken.text}
               >
-                {spoken.text}
+                {spoken.kind === "ignite" ? (
+                  <SpokenLine text={spoken.text} active={igniteWord} />
+                ) : (
+                  spoken.text
+                )}
               </p>
             )
           )}

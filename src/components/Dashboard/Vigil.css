@@ -286,12 +286,13 @@
   color: var(--tex-ink);
   opacity: 0.55;
 }
-/* The opener cycle — each non-final line rises, holds, then dissolves as the
-   next takes its place. A whisper of rotateX, like a page turning toward you —
-   never a spin: the glass stays calm. The line is keyed by step in the JSX,
-   which sets animation-duration inline to that step's beat (MANIFESTO_BEATS in
-   Vigil.jsx) so the fade finishes exactly as the step advances. The 2700ms
-   here is only a fallback if no inline duration is supplied. */
+/* The opener beats are VOICE-DRIVEN (texSpeakSequence): a line RISES in on mount,
+   HOLDS for exactly as long as Tex speaks it — word-synced, no fixed duration —
+   then DISSOLVES only when JS adds .is-leaving as the sequence advances. The
+   enter and leave are split into their own keyframes (each keeping the whisper of
+   rotateX, like a page turning toward you — never a spin) so the hold can be any
+   length and a line can never fade out mid-word, which the old single fixed-
+   duration cycle did once the voice ran longer than its beat. */
 .tex-door-line {
   transform-origin: 50% 0;
   /* Each beat is one unbroken line — a declaration, not a sentence that ran
@@ -303,23 +304,30 @@
   white-space: nowrap;
   text-wrap: nowrap;
   font-size: clamp(22px, 7.3vw, 58px);
-  animation: tex-door-cycle 2700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-door-enter 820ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-/* The final line — the question — only arrives; it does not leave. It eases
-   in slowly, so the cross from "Tex." never feels abrupt. */
+/* The dissolve — added when the line has been spoken and breathed. Its duration
+   is kept in sync with MANIFESTO_LEAVE_MS in Vigil.jsx. */
+.tex-door-line.is-leaving {
+  animation: tex-door-leave 720ms cubic-bezier(0.4, 0, 0.7, 0.2) both;
+}
+/* The final line — the handover — only arrives; it does not leave. It eases
+   in slowly, so the cross from the claim never feels abrupt. */
 .tex-door-line--hold {
   animation: tex-door-arrive 1300ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-@keyframes tex-door-cycle {
+@keyframes tex-door-enter {
   0% {
     opacity: 0;
     transform: translateY(10px) rotateX(7deg);
   }
-  14% {
+  100% {
     opacity: 1;
     transform: translateY(0) rotateX(0deg);
   }
-  64% {
+}
+@keyframes tex-door-leave {
+  0% {
     opacity: 1;
     transform: translateY(0) rotateX(0deg);
   }
@@ -544,12 +552,17 @@
   .tex-field.is-listening::after { animation: none; opacity: 0.12; }
   .tex-field--faltering { animation: none; background: #f7f5f2; }
   /* The opener still advances (the lines are content, not decoration), but
-     without the rotate/rise — each line simply appears. */
+     without the rotate/rise — each line simply appears, and a leaving line
+     simply vanishes. */
   .tex-door-line,
   .tex-door-line--hold {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+  .tex-door-line.is-leaving {
+    animation: none;
+    opacity: 0;
   }
 }
 
