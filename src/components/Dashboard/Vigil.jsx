@@ -4,7 +4,7 @@ import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
-import { askTex, sealDecision, explainLine, approveProposal, rejectProposal } from "../../lib/texApi";
+import { askTex, sealDecision, explainLine, approveProposal, rejectProposal, wakeBackend } from "../../lib/texApi";
 import {
   TexListener,
   texSpeak,
@@ -457,6 +457,17 @@ export default function Vigil() {
     },
     [clearAnswer]
   );
+
+  /* Warm Tex's voice backend the moment the surface loads. A spun-down free-tier
+     backend can take tens of seconds to wake; without this the opener's first
+     spoken line would race a cold start. Firing the warm-up now means the boot
+     overlaps the time the operator spends reading "touch to wake", so by the tap
+     the voice is far likelier to be ready. Fire-and-forget; never throws. The
+     opener no longer FREEZES on a cold backend regardless (the speech engine is
+     timeout-bounded) — this just buys back the sound. */
+  useEffect(() => {
+    wakeBackend();
+  }, []);
 
   /* ---------------- Faltering speaks first, unprompted ---------------- */
   useEffect(() => {

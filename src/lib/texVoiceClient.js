@@ -220,6 +220,17 @@ const HIGHLIGHT_LEAD_S = 0.08;
 const START_PAD_S = 0.02;
 /* An 8 ms gain ramp before a hard cut, so a barge-in never clicks. */
 const BARGE_FADE_S = 0.008;
+/* The hard ceiling on waiting for synthesis. Tex's backend can be cold (a
+   spun-down free tier takes tens of seconds to wake); without a ceiling a
+   voice-driven line would wait forever and the opener would FREEZE. When this
+   trips, the line gets no audio and the surface advances on its silence floor —
+   silence is the honest failure mode, never a frozen screen. Warm backends
+   answer in well under a second, so this never fires in the normal path. */
+const FETCH_TIMEOUT_MS = 2500;
+/* The longest we wait past a clip's known duration for its `ended` event. A
+   suspended AudioContext never fires `ended` (its clock is frozen), so this
+   watchdog guarantees the sequence still advances instead of hanging. */
+const PLAYBACK_GRACE_MS = 1500;
 
 let _voiceCtx = null; // ONE shared AudioContext for the page lifetime
 let _epoch = 0; // generation token — the real supersession guard
@@ -279,14 +290,19 @@ export async function unlockVoice() {
 }
 
 /* A resume guard run at every playback entry — iOS can re-suspend on idle/lock,
-   so a one-time unlock is not guaranteed to hold. */
+   so a one-time unlock is not guaranteed to hold. Raced against a short timeout:
+   on a strict browser ctx.resume() called outside a user gesture can stay pending
+   forever, and we must never block the opener on it — if it doesn't resolve, we
+   proceed and the playback watchdog covers a context that never actually runs. */
 async function _ensureRunning(ctx) {
-  if (ctx.state !== "running") {
-    try {
-      await ctx.resume();
-    } catch {
-      /* the play attempt will simply be silent — Tex never announces plumbing */
-    }
+  if (ctx.state === "running") return;
+  try {
+    await Promise.race([
+      ctx.resume(),
+      new Promise((r) => setTimeout(r, 1200)),
+    ]);
+  } catch {
+    /* the play attempt will simply be silent — Tex never announces plumbing */
   }
 }
 
@@ -378,26 +394,42 @@ function _b64PcmToFloat32(b64) {
   return f32;
 }
 
+/* Fetch the timed payload for one line, ABORTABLE on two triggers: an external
+   supersession (via the returned controller) and an internal FETCH_TIMEOUT_MS
+   deadline. The deadline is what keeps a cold/dead backend from hanging the
+   opener — on timeout the promise rejects with an AbortError the caller treats as
+   "no audio, advance". */
+function _timedFetch(text) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    try { controller.abort(); } catch {}
+  }, FETCH_TIMEOUT_MS);
+  const promise = fetch(speakTimedUrl(text), {
+    headers: { Accept: "application/json" },
+    signal: controller.signal,
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("timed-unavailable");
+      return res.json();
+    })
+    .finally(() => clearTimeout(timer));
+  return { controller, promise };
+}
+
 /* Warm the next line's audio while the current one plays — the SOTA alternative
    to a WebSocket for a known set of short, already-sealed lines (one-shot fetch,
-   single-slot cache keyed by exact text, abortable). The opener feels gapless
-   without putting an LLM in the speaking seat or a socket through the serverless
-   proxy. A miss simply means a fresh fetch — prefetch can only help, never break. */
+   single-slot cache keyed by exact text, abortable + timeout-bounded). The opener
+   feels gapless without putting an LLM in the speaking seat or a socket through
+   the serverless proxy. A miss/timeout simply means a fresh fetch or a silent
+   line — prefetch can only help, never freeze. */
 function _primePrefetch(text) {
   if (!text) return;
   if (_prefetch && _prefetch.text === text) return;
   if (_prefetch) {
     try { _prefetch.controller.abort(); } catch {}
   }
-  const controller = new AbortController();
-  const promise = fetch(speakTimedUrl(text), {
-    headers: { Accept: "application/json" },
-    signal: controller.signal,
-  }).then((res) => {
-    if (!res.ok) throw new Error("timed-unavailable");
-    return res.json();
-  });
-  promise.catch(() => {}); // an aborted/failed warm-up must not surface as unhandled
+  const { controller, promise } = _timedFetch(text);
+  promise.catch(() => {}); // an aborted/failed/timed-out warm-up must not surface as unhandled
   _prefetch = { text, controller, promise };
 }
 
@@ -414,33 +446,30 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
   await _ensureRunning(ctx);
   if (myEpoch !== _epoch) return false;
 
-  /* 1) Get the timed payload — from the warmed prefetch slot if it matches,
-        else a fresh abortable fetch. */
+  /* 1) Get the timed payload — from the warmed prefetch slot if it matches, else
+        a fresh fetch. Either way it is abortable AND deadline-bounded (a cold
+        backend must never hang the opener). */
   let data;
   try {
+    let pf;
     if (_prefetch && _prefetch.text === text) {
-      const p = _prefetch;
+      pf = _prefetch;
       _prefetch = null;
-      _activeAbort = p.controller;
-      data = await p.promise;
     } else {
-      const controller = new AbortController();
-      _activeAbort = controller;
-      const res = await fetch(speakTimedUrl(text), {
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      });
-      if (myEpoch !== _epoch) return false; // superseded mid-fetch
-      if (!res.ok) throw new Error("timed-unavailable"); // 503 → plain fallback
-      data = await res.json();
+      pf = _timedFetch(text);
     }
-    if (myEpoch !== _epoch) return false; // superseded mid-parse
+    _activeAbort = pf.controller;
+    data = await pf.promise;
+    if (myEpoch !== _epoch) return false; // superseded mid-fetch/parse
   } catch (err) {
-    if (myEpoch !== _epoch) return false; // aborted by supersession → bail, no fallback
-    if (DEV && err && err.name !== "AbortError") {
-      /* a genuine timing failure — fall through to the plain voice */
-    }
-    return _speakStreamOne(text, myEpoch); // real voice, just without the highlight
+    if (myEpoch !== _epoch) return false; // aborted by supersession → bail
+    /* A timeout/abort (cold or dead backend): give up THIS line's audio and let
+       the sequence advance on its silence floor. Do NOT fall back to the plain
+       stream — it hits the SAME backend and would hang too. A real 503/network
+       error (e.g. ElevenLabs off but Kokoro up) DOES fall back — the stream path
+       is itself deadline-bounded, so it cannot hang either. */
+    if (err && err.name === "AbortError") return false;
+    return _speakStreamOne(text, myEpoch);
   } finally {
     if (myEpoch === _epoch) _activeAbort = null;
   }
@@ -491,11 +520,24 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
 
     if (DEV) console.debug(`[texvoice] ▶ "${text}" @${startAt.toFixed(3)}`);
 
+    /* Resolve on the source's natural end OR a watchdog — a SUSPENDED context
+       never advances its clock, so `ended` would never fire and the await would
+       hang forever (the day-one freeze). The watchdog (clip duration + grace)
+       guarantees the sequence advances regardless; on a healthy context `ended`
+       fires first and clears it. */
+    const durMs = (buf.duration || 0) * 1000 + PLAYBACK_GRACE_MS;
     const natural = await new Promise((resolve) => {
       _activeEnd = resolve;
+      let watchdog = setTimeout(() => {
+        if (_activeEnd === resolve) {
+          _activeEnd = null;
+          resolve(true);
+        }
+      }, durMs);
       src.onended = () => {
         if (_activeEnd === resolve) {
           _activeEnd = null;
+          clearTimeout(watchdog);
           resolve(true);
         }
       };
@@ -530,6 +572,7 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
 async function _speakStreamOne(text, myEpoch) {
   if (myEpoch !== _epoch) return false;
   let played = false;
+  let watchdog = null;
   try {
     const audio = new Audio();
     audio.src = speakStreamUrl(text); // proxied GET → streamed audio body
@@ -537,18 +580,17 @@ async function _speakStreamOne(text, myEpoch) {
     _activeAudio = audio;
     const ended = new Promise((resolve) => {
       _activeEnd = resolve;
-      audio.onended = () => {
+      const settle = (v) => {
         if (_activeEnd === resolve) {
           _activeEnd = null;
-          resolve(true);
+          resolve(v);
         }
       };
-      audio.onerror = () => {
-        if (_activeEnd === resolve) {
-          _activeEnd = null;
-          resolve(false);
-        }
-      };
+      audio.onended = () => settle(true);
+      audio.onerror = () => settle(false);
+      /* Never hang on a stalled/cold media load — a backend that never answers
+         would otherwise leave this awaiting forever. */
+      watchdog = setTimeout(() => settle(false), FETCH_TIMEOUT_MS + 8000);
     });
     await audio.play().catch(() => {});
     if (myEpoch !== _epoch) return false;
@@ -556,6 +598,7 @@ async function _speakStreamOne(text, myEpoch) {
   } catch {
     /* No synthesis reachable. Stay quiet. */
   } finally {
+    if (watchdog) clearTimeout(watchdog);
     if (myEpoch === _epoch && _activeAudio) _activeAudio = null;
   }
   return played;
@@ -638,9 +681,12 @@ export async function texSpeakSequence(lines, opts = {}) {
 
   const myEpoch = _supersede(); // this sequence now owns the voice
 
+  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
   for (let i = 0; i < items.length; i++) {
     if (myEpoch !== _epoch) return;
     const isLast = i === items.length - 1;
+    const startedAt = now();
 
     if (onLineStart) onLineStart(i, items[i]);
 
@@ -650,10 +696,17 @@ export async function texSpeakSequence(lines, opts = {}) {
     });
     if (myEpoch !== _epoch) return;
 
-    /* No audio (silence): hold the designed beat so the manifesto still paces. */
+    /* No audio (cold/dead backend, 503): hold the designed silence beat so the
+       arc still paces rather than flashing — but only for whatever time the line
+       has NOT already been on screen (a fetch timeout may have held it several
+       seconds), so a slow failure never stacks the floor on top and drags. */
     if (!played) {
-      await _wait(silenceHold[i] != null ? silenceHold[i] : 1100, myEpoch);
-      if (myEpoch !== _epoch) return;
+      const floor = silenceHold[i] != null ? silenceHold[i] : 1100;
+      const remain = floor - (now() - startedAt);
+      if (remain > 0) {
+        await _wait(remain, myEpoch);
+        if (myEpoch !== _epoch) return;
+      }
     }
 
     /* A breath after Tex finishes the line. */
