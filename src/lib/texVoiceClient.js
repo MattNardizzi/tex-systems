@@ -220,13 +220,19 @@ const HIGHLIGHT_LEAD_S = 0.08;
 const START_PAD_S = 0.02;
 /* An 8 ms gain ramp before a hard cut, so a barge-in never clicks. */
 const BARGE_FADE_S = 0.008;
-/* The hard ceiling on waiting for synthesis. Tex's backend can be cold (a
-   spun-down free tier takes tens of seconds to wake); without a ceiling a
-   voice-driven line would wait forever and the opener would FREEZE. When this
+/* The hard ceiling on waiting for synthesis, per line. Without a ceiling a
+   voice-driven line would wait forever and the opener would FREEZE; when this
    trips, the line gets no audio and the surface advances on its silence floor —
-   silence is the honest failure mode, never a frozen screen. Warm backends
-   answer in well under a second, so this never fires in the normal path. */
-const FETCH_TIMEOUT_MS = 2500;
+   silence is the honest failure mode, never a frozen screen.
+
+   Tuned to 8s, not 2.5s: a warm backend answers in well under a second, but the
+   real backend is a SINGLE worker that can be briefly blocked (e.g. behind a DB
+   connect), so a line's synth occasionally lands at 3–6s. At 2.5s those lines
+   timed out and the manifesto played SILENTLY — the exact bug. 8s is patience a
+   user won't notice once warm, and a spoken line beats a silent one when not.
+   (The lasting fix is backend-side: bounding the worker-blocking DB connect so
+   it never stalls; this ceiling is the frontend's matching tolerance.) */
+const FETCH_TIMEOUT_MS = 8000;
 /* The longest we wait past a clip's known duration for its `ended` event. A
    suspended AudioContext never fires `ended` (its clock is frozen), so this
    watchdog guarantees the sequence still advances instead of hanging. */
