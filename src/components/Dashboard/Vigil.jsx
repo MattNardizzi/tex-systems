@@ -222,7 +222,7 @@ const MANIFESTO_BEATS = [2_800, 4_200];
 /* to the live vigil. Set to false to restore the real, server-        */
 /* authoritative, fires-once-ever threshold.                           */
 /* ------------------------------------------------------------------ */
-const DEMO_OPENER = true;
+const DEMO_OPENER = false;
 /* After Begin, Tex turns to the operator and asks to be pointed at something
    real — the summons, in its own voice. (Not a fabricated count: the witness
    never shows a number it cannot prove.) */

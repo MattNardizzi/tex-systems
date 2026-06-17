@@ -43,6 +43,26 @@ import { mintVoiceToken, speakStreamUrl } from "./texApi";
 const WORKLET_URL = "/tex-mic-worklet.js";
 
 /* ------------------------------------------------------------------ */
+/* Master switch — the literal voice, deactivated for now.             */
+/*                                                                     */
+/* The mic (STT) and the spoken reply (TTS) are the two pieces still    */
+/* being honed, and the live audio is what makes the surface choppy.    */
+/* While VOICE_ENABLED is false both are inert: no mic ever opens, no   */
+/* audio ever plays. Nothing else changes — the held card, the object,  */
+/* the on-glass presence/falter/ignite lines all render exactly as      */
+/* before. Where Tex would have SPOKEN, it now simply stays silent and  */
+/* the text the surface already shows stands in; where the mic would    */
+/* have opened, the ask gesture degrades to the same graceful fallback  */
+/* it uses when a mic is denied (a reach in silence is still answered    */
+/* with "Here.", a reach on a held card still surfaces its handle).     */
+/*                                                                      */
+/* To bring the voice back: flip this to true and wire the gateway      */
+/* (GET /v1/voice/token, the recognizer socket, GET /v1/speak). No call  */
+/* site in the surface needs to change. */
+/* ------------------------------------------------------------------ */
+export const VOICE_ENABLED = false;
+
+/* ------------------------------------------------------------------ */
 /* Listening — open on press, finalize on release.                     */
 /* ------------------------------------------------------------------ */
 
@@ -64,6 +84,11 @@ export class TexListener {
      start as "no voice this time" and stays quiet). onPartial receives
      interim transcripts for an optional live ghost while held. */
   async start(onPartial) {
+    /* Voice deactivated — no mic opens. The caller already treats a thrown
+       start as "no voice this time" and degrades to silence, so the surface
+       behaves exactly as it does when a mic is denied. */
+    if (!VOICE_ENABLED) throw new Error("voice-disabled");
+
     this._partialCb = onPartial || null;
 
     /* Capability + permission gate. Any miss → no voice, quietly. */
@@ -176,6 +201,11 @@ let _activeAudio = null;
    promise that resolves when playback finishes (or immediately, quietly,
    if synthesis is unreachable — Tex does not announce its own plumbing). */
 export async function texSpeak(text) {
+  /* Voice deactivated — stay silent. No <audio> plays, no /v1/speak fetch
+     fires, so the surface never stutters on synthesis. The on-glass line the
+     surface already renders carries the meaning until the voice is brought
+     back. */
+  if (!VOICE_ENABLED) return;
   if (!text) return;
   stopSpeaking();
   try {
