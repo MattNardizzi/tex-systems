@@ -220,13 +220,19 @@ const HIGHLIGHT_LEAD_S = 0.08;
 const START_PAD_S = 0.02;
 /* An 8 ms gain ramp before a hard cut, so a barge-in never clicks. */
 const BARGE_FADE_S = 0.008;
-/* The hard ceiling on waiting for synthesis. Tex's backend can be cold (a
-   spun-down free tier takes tens of seconds to wake); without a ceiling a
-   voice-driven line would wait forever and the opener would FREEZE. When this
-   trips, the line gets no audio and the surface advances on its silence floor —
-   silence is the honest failure mode, never a frozen screen. Warm backends
-   answer in well under a second, so this never fires in the normal path. */
-const FETCH_TIMEOUT_MS = 2500;
+/* The hard ceiling on waiting for synthesis. Two real-world latencies push a
+   line's /v1/speak/timed well past a second: a cold backend (tens of seconds to
+   wake), AND — the one that actually silenced the live opener — the single-worker
+   backend periodically WEDGES and queues requests, so a perfectly good 200 (the
+   audio IS generated) arrives several seconds late. At 2500 ms those delayed
+   responses were aborted before they landed: the words appeared, the audio was
+   ready server-side, but the fetch had already given up → a silent opener. 8000 ms
+   waits long enough to catch a queued/cold response and PLAY it (the whole point),
+   while still bounding a truly dead backend so the line falls through to its
+   silence floor instead of freezing. Warm backends answer in well under a second,
+   so this never fires in the normal path; the prefetch (line N+1 warmed during N)
+   hides most of the wait. */
+const FETCH_TIMEOUT_MS = 8000;
 /* The longest we wait past a clip's known duration for its `ended` event. A
    suspended AudioContext never fires `ended` (its clock is frozen), so this
    watchdog guarantees the sequence still advances instead of hanging. */
