@@ -346,11 +346,26 @@
     transform: translateY(0) rotateX(0deg);
   }
 }
-/* The acts arrive a beat after the greeting — the same cadence the held
-   card uses — so the eye reads the sentence before the choice appears. */
+/* The Begin slot is RESERVED for the whole opener so revealing it never reflows
+   the line above — the manifesto never jumps up. We override the .tex-acts
+   tex-rise (its `both` fill would otherwise pin opacity to 1 and defeat the
+   reserve) and instead hold the slot invisible + inert, then fade Begin in once
+   the final line has landed (.is-revealed). */
 .tex-door-acts {
   margin-top: 2.6em;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 360ms both;
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 760ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.tex-door-acts.is-revealed {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-door-acts {
+    transition: none;
+  }
 }
 
 /* While ignition is in flight the acts hold still — no spinner, just a

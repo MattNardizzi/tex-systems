@@ -12,6 +12,7 @@ import {
   texSpeakSequence,
   stopSpeaking,
   unlockVoice,
+  VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
 
@@ -233,6 +234,12 @@ const MANIFESTO_BREATH_MS = 620;
 /* How long a line takes to dissolve out (kept in sync with the tex-door-leave
    animation in Vigil.css). */
 const MANIFESTO_LEAVE_MS = 720;
+/* The handover line ("The weight is mine now.") cycles out of nothing — it
+   arrives and stays. With the voice muted it has no spoken duration to hold on,
+   so this is its silence-floor hold: long enough that the line LANDS and breathes
+   before Begin fades in beneath it, instead of handing off the instant it appears.
+   (Used as the third silenceHold entry; the spoken path still paces on the voice.) */
+const MANIFESTO_FINAL_HOLD_MS = 2_200;
 
 /* ------------------------------------------------------------------ */
 /* The demo opener — the scripted day-one sequence, replayed on EVERY  */
@@ -424,10 +431,13 @@ export default function Vigil() {
     setAnswerLeaving(false);
   }, []);
 
-  /* Day-one wake — the first reach unlocks Tex's voice so the manifesto can
-     speak (browsers block audio until a user gesture). Until then the opener
-     waits, silent, on a quiet invitation. */
-  const [awake, setAwake] = useState(false);
+  /* Day-one wake — the wake gesture exists ONLY to satisfy browser autoplay: the
+     first reach unlocks audio so Tex can speak the manifesto. With the voice muted
+     (VOICE_ENABLED false) there is nothing to unlock, so the opener begins on its
+     own — awake starts true and "touch to wake" never shows. When the voice is
+     restored, awake starts false again and the wake invitation returns, because
+     audio still needs that first gesture. */
+  const [awake, setAwake] = useState(!VOICE_ENABLED);
 
   /* Speak an answer in Tex's voice AND surface it on the glass, lit word-by-word,
      then linger and dissolve. The text is whatever /v1/ask sealed — this never
@@ -913,7 +923,7 @@ export default function Vigil() {
     if (manifestoStartedRef.current) return;
     manifestoStartedRef.current = true;
     texSpeakSequence(MANIFESTO, {
-      silenceHold: MANIFESTO_BEATS,
+      silenceHold: [...MANIFESTO_BEATS, MANIFESTO_FINAL_HOLD_MS],
       breathMs: MANIFESTO_BREATH_MS,
       leaveMs: MANIFESTO_LEAVE_MS,
       onLineStart: (i) => {
@@ -1002,13 +1012,22 @@ export default function Vigil() {
               <SpokenLine text={MANIFESTO[manifestoStep]} active={manifestoWord} />
             </p>
           )}
-          {awake && manifestoDone && (
-            <div className="tex-acts tex-door-acts">
+          {/* The act slot is RESERVED the moment the manifesto starts (awake), so
+              revealing Begin never reflows the line above it — the line never
+              jumps. Begin stays hidden + inert until the final line has landed
+              (manifestoDone), then fades in on its own. */}
+          {awake && (
+            <div
+              className={
+                "tex-acts tex-door-acts" + (manifestoDone ? " is-revealed" : "")
+              }
+            >
               <button
                 type="button"
                 data-act="begin"
                 className="tex-act tex-act--approve"
-                disabled={!DEMO_OPENER && ignition.igniting}
+                disabled={!manifestoDone || (!DEMO_OPENER && ignition.igniting)}
+                aria-hidden={manifestoDone ? undefined : true}
                 onClick={DEMO_OPENER ? beginDemo : beginMapping}
               >
                 Begin
