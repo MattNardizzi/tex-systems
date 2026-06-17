@@ -42,6 +42,28 @@ import { mintVoiceToken, speakStreamUrl, speakTimedUrl } from "./texApi";
 
 const WORKLET_URL = "/tex-mic-worklet.js";
 
+/* ================================================================== */
+/* Master switch — the LITERAL voice, deactivated for now.             */
+/*                                                                     */
+/* "Literal voice" = the two things that touch audio hardware: Tex     */
+/* speaking out loud (TTS — ElevenLabs/Kokoro through the engine        */
+/* below) and the mic that hears you (STT — TexListener). While this is */
+/* false BOTH are inert: no audio ever plays, no mic ever opens.        */
+/*                                                                     */
+/* Crucially this is NOT a separate code path — it forces the exact     */
+/* "no audio reachable" fallback the engine already handles. A muted    */
+/* line reports "did not play", so a sequence (the opener) advances on   */
+/* its SILENCE FLOOR (MANIFESTO_BEATS) and still fires every visual      */
+/* callback: the words mount, light to full ink, breathe, dissolve, and  */
+/* Begin appears — exactly as today, just silent. The mic side throws    */
+/* "voice-disabled", which every caller already treats as "no voice this */
+/* time" and degrades to the on-glass line / "Here.".                   */
+/*                                                                     */
+/* To bring the voice back: flip this to true (the gateway + ElevenLabs  */
+/* must be wired). Nothing else in the surface needs to change.         */
+/* ================================================================== */
+export const VOICE_ENABLED = false;
+
 /* ------------------------------------------------------------------ */
 /* Listening — open on press, finalize on release.                     */
 /* ------------------------------------------------------------------ */
@@ -64,6 +86,11 @@ export class TexListener {
      start as "no voice this time" and stays quiet). onPartial receives
      interim transcripts for an optional live ghost while held. */
   async start(onPartial) {
+    /* Voice deactivated — no mic opens. The caller already treats a thrown
+       start as "no voice this time" and degrades to silence / the on-glass
+       line, exactly as it does on a denied or unsupported mic. */
+    if (!VOICE_ENABLED) throw new Error("voice-disabled");
+
     this._partialCb = onPartial || null;
 
     /* Capability + permission gate. Any miss → no voice, quietly. */
@@ -447,6 +474,10 @@ function _primePrefetch(text) {
    stream (real voice, no highlight) on 503 / decode failure — never authoring or
    altering the sealed text. */
 async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
+  /* Voice deactivated — no audio. Report "did not play" so a sequence advances
+     on its silence floor and texSpeakTimed still fires onEnd; the words are
+     already on the glass (SpokenLine renders full ink with no active word). */
+  if (!VOICE_ENABLED) return false;
   const ctx = _ctx();
   if (!ctx) return _speakStreamOne(text, myEpoch);
   await _ensureRunning(ctx);
@@ -576,6 +607,9 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
 /* Play one line through the universal <audio> stream (real voice, no highlight).
    Returns true on a natural end at the current epoch, false otherwise. */
 async function _speakStreamOne(text, myEpoch) {
+  /* Voice deactivated — no <audio> stream. Report "did not play"; the line's
+     text is already on the glass and clears on its own timer. */
+  if (!VOICE_ENABLED) return false;
   if (myEpoch !== _epoch) return false;
   let played = false;
   let watchdog = null;
