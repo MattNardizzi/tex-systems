@@ -402,6 +402,19 @@ export default function Vigil() {
   const [manifestoLeaving, setManifestoLeaving] = useState(false);
   const [manifestoDone, setManifestoDone] = useState(false);
   const manifestoStartedRef = useRef(false);
+  /* After the wake tap, the arc waits — briefly — for Tex's voice backend to be
+     warm before the first word, so a cold free-tier backend can't make the
+     manifesto play silently on its beat floor. True only during that wait. */
+  const [manifestoWaking, setManifestoWaking] = useState(false);
+  /* The shared warm-up/readiness promise (resolves true when /health answers).
+     Kicked on mount; awaited at the wake so the opener speaks instead of racing
+     a cold start. */
+  const warmRef = useRef(null);
+  /* True while genuinely mounted. The opener awaits the warm-up before speaking;
+     this guards the post-await continuation against a real unmount WITHOUT being
+     tripped by React 18 StrictMode's mount→unmount→remount (it ends true), so the
+     manifesto isn't silently cancelled in dev. */
+  const mountedRef = useRef(true);
   /* Word-sync indices for the two other lines the glass holds and Tex voices:
      the day-one ignition count, and the demo-opener count. */
   const [igniteWord, setIgniteWord] = useState(-1);
@@ -466,7 +479,11 @@ export default function Vigil() {
      opener no longer FREEZES on a cold backend regardless (the speech engine is
      timeout-bounded) — this just buys back the sound. */
   useEffect(() => {
-    wakeBackend();
+    mountedRef.current = true;
+    warmRef.current = wakeBackend();
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   /* ---------------- Faltering speaks first, unprompted ---------------- */
@@ -907,24 +924,45 @@ export default function Vigil() {
       setManifestoWord(-1);
       setManifestoLeaving(false);
       setManifestoDone(false);
+      setManifestoWaking(false);
       return;
     }
     if (!awake) return; /* the arc waits for the wake gesture */
     if (manifestoStartedRef.current) return;
     manifestoStartedRef.current = true;
-    texSpeakSequence(MANIFESTO, {
-      silenceHold: MANIFESTO_BEATS,
-      breathMs: MANIFESTO_BREATH_MS,
-      leaveMs: MANIFESTO_LEAVE_MS,
-      onLineStart: (i) => {
-        setManifestoStep(i);
-        setManifestoWord(-1);
-        setManifestoLeaving(false);
-      },
-      onWord: (i) => setManifestoWord(i),
-      onLineLeave: () => setManifestoLeaving(true),
-      onDone: () => setManifestoDone(true),
-    });
+
+    (async () => {
+      /* Wait for Tex's voice backend to be WARM before the first word. The
+         warm-up was kicked on mount; here we await it (bounded inside
+         wakeBackend) so the manifesto SPEAKS instead of racing a cold start —
+         on a spun-down free tier each line's /v1/speak/timed would otherwise
+         time out and the arc would play silently on its beat floor. While we
+         wait, the surface holds on the wake invitation (manifestoWaking), never
+         a silent, frozen "I am Tex.". If the warm-up gives up, we proceed anyway
+         and the engine's silence floor keeps the screen unfrozen. */
+      setManifestoWaking(true);
+      try {
+        await (warmRef.current || wakeBackend());
+      } catch (_e) {
+        /* proceed regardless — silence is the honest floor, never a freeze */
+      }
+      if (!mountedRef.current) return; /* unmounted during the wait — don't speak */
+      setManifestoWaking(false);
+
+      texSpeakSequence(MANIFESTO, {
+        silenceHold: MANIFESTO_BEATS,
+        breathMs: MANIFESTO_BREATH_MS,
+        leaveMs: MANIFESTO_LEAVE_MS,
+        onLineStart: (i) => {
+          setManifestoStep(i);
+          setManifestoWord(-1);
+          setManifestoLeaving(false);
+        },
+        onWord: (i) => setManifestoWord(i),
+        onLineLeave: () => setManifestoLeaving(true),
+        onDone: () => setManifestoDone(true),
+      });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doorOpen, awake]);
 
@@ -985,6 +1023,11 @@ export default function Vigil() {
             /* The wake — a quiet invitation. The first reach (anywhere) unlocks
                audio and starts the manifesto in Tex's own voice. */
             <p className="tex-door-sentence tex-door-wake">touch to wake Tex</p>
+          ) : manifestoWaking ? (
+            /* Tapped, but the voice backend is still warming (cold free tier):
+               hold on a quiet beat rather than show a silent, frozen "I am Tex."
+               so the first line lands WITH Tex's voice, not muted. */
+            <p className="tex-door-sentence tex-door-wake">waking…</p>
           ) : (
             /* The current beat. It RISES in on mount (keyed by step), holds while
                Tex speaks it — word-synced, for as long as the voice needs — then

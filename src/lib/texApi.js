@@ -213,16 +213,36 @@ export const getDiscoveryCount = (tenantId) => {
 };
 
 /**
- * Best-effort wake. A sleeping backend (Render free tier) needs a moment to
- * boot; GET /health spins it up before a heavy call so the real request lands
- * on a warm server. Never throws — the caller ignores the result.
+ * Wake AND readiness. A spun-down free-tier backend holds the request open while
+ * it boots and answers 200 once awake (tens of seconds), so a single bounded
+ * GET /health resolves `true` exactly when the backend is warm. The opener awaits
+ * this before its first spoken line — otherwise, on a cold backend, every line's
+ * /v1/speak/timed fetch times out and the manifesto plays SILENTLY on its beat
+ * floor. The promise is cached so mount and the wake gesture share ONE warm-up
+ * and every later caller gets the resolved result for free. Never throws.
  */
-export const wakeBackend = async () => {
-  try {
-    await fetch(`${BASE}/health`, { method: "GET", cache: "no-store" });
-  } catch (_e) {
-    /* ignore — this is only a warm-up */
-  }
+let _warmPromise = null;
+export const wakeBackend = ({ timeoutMs = 32000 } = {}) => {
+  if (_warmPromise) return _warmPromise;
+  _warmPromise = (async () => {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      const res = await fetch(`${BASE}/health`, {
+        method: "GET",
+        cache: "no-store",
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return res.ok;
+    } catch (_e) {
+      /* Timed out / unreachable: the caller proceeds and degrades to silence,
+         never a frozen screen. A failed warm-up must not poison the cache. */
+      _warmPromise = null;
+      return false;
+    }
+  })();
+  return _warmPromise;
 };
 
 /** GET /decisions/{id}/replay — full Decision record for a prior eval. */
