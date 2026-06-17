@@ -214,7 +214,7 @@ const IGNITE_LINE_MS = 4_600;
    inline on the line so the rotateX/rise/dissolve finishes exactly as the step
    advances. The final line does not cycle. */
 const MANIFESTO = [
-  "I am.",
+  "I am Tex.",
   "Nothing happens without me.",
   "The weight is mine now.",
 ];
