@@ -54,41 +54,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PREVIEW_FIRST_RUN = false;
 
 /* ----------------------------------------------------------------------
- * SANDBOX DOOR — the practice course's recurring entrance. ON BY DEFAULT.
+ * SANDBOX DOOR — the OLD placeholder demo. OFF by default now.
  *
- * Tex names itself ("Tex.") then asks to begin ("Let's begin mapping." with
- * Yes / No) on EVERY arrival at tex.systems — no matter how many times the
- * user has been here — and Yes ignites the deployment's OWN real estate
- * (meridian-7), idempotently, so the glass clears into the worker's living
- * estate and its holds.
- *
- * This is intentionally ON with no configuration: it does not depend on a
- * build-time Vercel env var (which is easy to set wrong or have silently not
- * inline). The door decision is made locally — the hook does not even read the
- * server's "already ignited?" flag — so a cold backend or a prior ignition can
- * never suppress the entrance.
- *
- * To restore the real, server-authoritative, fires-once-EVER ship behaviour,
- * set VITE_TEX_SANDBOX_DOOR="0" at build time. Anything else (including unset)
- * keeps the recurring entrance.
- *
- * Differs from PREVIEW_FIRST_RUN: PREVIEW ignites a fresh throwaway tenant each
- * load (genuine count, but an empty separate estate); SANDBOX_DOOR ignites the
- * SCOPED tenant, so the interface and the driver watch the same living estate.
+ * It used to greet on every arrival and ignite a synthetic estate
+ * (meridian-7) as a stand-in before real connect existed. The real
+ * "Begin -> connect your directory" flow (ENTRA CONNECT, below) has REPLACED
+ * it. Set VITE_TEX_SANDBOX_DOOR="1" only to bring the demo door back for a
+ * local walkthrough; unset / anything else leaves it off.
  * -------------------------------------------------------------------- */
-const SANDBOX_DOOR = import.meta.env.VITE_TEX_SANDBOX_DOOR !== "0";
+const SANDBOX_DOOR = import.meta.env.VITE_TEX_SANDBOX_DOOR === "1";
 
 /* ----------------------------------------------------------------------
- * ENTRA CONNECT — the real-client front door. OFF by default.
+ * ENTRA CONNECT — the real front door. ON by default (it replaced the demo).
  *
- * With VITE_TEX_CONNECT_ENTRA="1", Begin's first act is the read-only Entra
- * admin-consent connect: Tex seals the grant on Microsoft's own consent
- * screen, then discovers THEIR estate. No connection -> nothing to discover,
- * so this GATES ignition (you cannot map a directory you cannot read). Off
- * (default), Begin behaves exactly as before — the sandbox/preview demo is
- * untouched.
+ * Begin's first act is the read-only Entra admin-consent connect: Tex seals
+ * the grant on Microsoft's own consent screen, then discovers THEIR estate.
+ * No connection -> nothing to discover, so this GATES ignition (you cannot
+ * map a directory you cannot read). Set VITE_TEX_CONNECT_ENTRA="0" only to
+ * fall back to the old demo door.
  * -------------------------------------------------------------------- */
-const CONNECT_ENTRA = import.meta.env.VITE_TEX_CONNECT_ENTRA === "1";
+const CONNECT_ENTRA = import.meta.env.VITE_TEX_CONNECT_ENTRA !== "0";
 
 /* A fresh tenant per page load. In preview, ignition runs for real against
    this throwaway tenant, so the full discovery pipeline executes and the
@@ -125,12 +110,11 @@ export function useIgnition() {
   useEffect(() => {
     cancelledRef.current = false;
 
-    /* PREVIEW or SANDBOX DOOR: hold the day-one door open on every load
-       without a server read — no network, no false-"ignited" from a cold
-       backend. PREVIEW ignites a throwaway tenant; SANDBOX_DOOR ignites the
-       real scoped tenant (begin(), below). The real server-authoritative read
-       is left untouched for ship (PREVIEW_FIRST_RUN = false, no sandbox flag). */
-    if (PREVIEW_FIRST_RUN || SANDBOX_DOOR) {
+    /* CONNECT (the default), PREVIEW, or SANDBOX: hold the day-one door open on
+       every load without a server read, so Begin is always there to start the
+       connect flow. CONNECT_ENTRA is the real default; PREVIEW/SANDBOX are
+       opt-in demo doors. */
+    if (PREVIEW_FIRST_RUN || SANDBOX_DOOR || CONNECT_ENTRA) {
       setIgnited(false);
       return () => {
         cancelledRef.current = true;
