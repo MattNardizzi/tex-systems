@@ -225,21 +225,24 @@ const MANIFESTO = [
    drift from what is heard (see texSpeakSequence). MANIFESTO_BEATS survives only
    as the SILENCE FLOOR: when no audio is reachable (no ElevenLabs, offline), a
    line holds its designed beat so the arc still paces rather than flashing past.
-   The dominion claim (step 1) holds longest; the name (step 0) lands and breathes;
-   the final step does not cycle, so it needs no entry. */
-const MANIFESTO_BEATS = [2_800, 4_200];
+   With the voice MUTED this floor is the ONLY pace there is, so it's tuned to a
+   brisk silent-READING beat (not the longer spoken duration, which is just dead
+   air with no voice filling it) — fast enough not to drag, slow enough to read.
+   The dominion claim (step 1) still holds a touch longest; the final step does not
+   cycle, so it needs no entry here (see MANIFESTO_FINAL_HOLD_MS for its hold). */
+const MANIFESTO_BEATS = [1_200, 1_500];
 /* The held silence after Tex finishes a line, before it dissolves to the next —
-   the dramatic pause that makes a declaration land. */
-const MANIFESTO_BREATH_MS = 620;
+   the brief pause that makes a declaration land without stalling the arc. */
+const MANIFESTO_BREATH_MS = 400;
 /* How long a line takes to dissolve out (kept in sync with the tex-door-leave
    animation in Vigil.css). */
-const MANIFESTO_LEAVE_MS = 720;
+const MANIFESTO_LEAVE_MS = 560;
 /* The handover line ("The weight is mine now.") cycles out of nothing — it
    arrives and stays. With the voice muted it has no spoken duration to hold on,
    so this is its silence-floor hold: long enough that the line LANDS and breathes
    before Begin fades in beneath it, instead of handing off the instant it appears.
    (Used as the third silenceHold entry; the spoken path still paces on the voice.) */
-const MANIFESTO_FINAL_HOLD_MS = 2_200;
+const MANIFESTO_FINAL_HOLD_MS = 1_800;
 
 /* ------------------------------------------------------------------ */
 /* The demo opener — the scripted day-one sequence, replayed on EVERY  */
