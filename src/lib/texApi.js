@@ -387,3 +387,71 @@ export const speakTimedUrl = (text) =>
   `${BASE}/v1/speak/timed?text=${encodeURIComponent(text || "")}`;
 
 export const TEX_API_BASE = BASE;
+
+/* ----------------------------------------------------------------------
+ * tex-conduit — "Connect your directory" (read-only Entra admin consent).
+ *
+ * startEntraConnect() opens a broker connection and returns Microsoft's
+ * admin-consent URL. connectEntra() runs the whole one-click flow: open that
+ * URL in a popup on Microsoft's OWN screen, let the admin click Accept, and
+ * await the sealed result the callback posts back. Tex never holds the
+ * credential, and the grant is sealed server-side BEFORE any agent is read.
+ * -------------------------------------------------------------------- */
+export const startEntraConnect = (tenantId) =>
+  request(
+    `/v1/surface/conduit/connect/entra/start?tenant_id=${encodeURIComponent(
+      tenantId || "organizations"
+    )}`,
+    { method: "POST" }
+  );
+
+export async function connectEntra(tenantId, { timeoutMs = 5 * 60 * 1000 } = {}) {
+  let started;
+  try {
+    started = await startEntraConnect(tenantId);
+  } catch (_err) {
+    return { connected: false, error: "start_failed" };
+  }
+  if (!started?.configured || !started?.consent_url) {
+    /* No multi-tenant app wired yet — surface the honest not-configured state
+       rather than opening a broken popup. */
+    return { connected: false, error: "not_configured", started };
+  }
+
+  /* The admin approves on Microsoft's own screen, in a popup. */
+  const popup = window.open(
+    started.consent_url,
+    "tex-entra-connect",
+    "width=520,height=720,menubar=no,toolbar=no"
+  );
+  if (!popup) return { connected: false, error: "popup_blocked" };
+
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      window.removeEventListener("message", onMessage);
+      clearInterval(poll);
+      clearTimeout(timer);
+      resolve(result);
+    };
+    /* The callback page posts { type:"tex-conduit-connect", connected, tenant,
+       next, ... }. Match on the type, not a hardcoded origin (the callback may
+       be served from the proxy or the backend origin); the message carries no
+       secret, only the connection outcome. */
+    const onMessage = (ev) => {
+      const d = ev && ev.data;
+      if (d && d.type === "tex-conduit-connect") finish(d);
+    };
+    window.addEventListener("message", onMessage);
+    /* If the admin closes the popup without finishing, don't hang forever. */
+    const poll = setInterval(() => {
+      if (popup.closed) finish({ connected: false, error: "popup_closed" });
+    }, 500);
+    const timer = setTimeout(
+      () => finish({ connected: false, error: "timeout" }),
+      timeoutMs
+    );
+  });
+}

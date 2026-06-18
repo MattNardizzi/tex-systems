@@ -28,7 +28,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getDiscoveryStatus, igniteDiscovery, getDiscoveryCount, wakeBackend } from "../lib/texApi";
+import { getDiscoveryStatus, igniteDiscovery, getDiscoveryCount, wakeBackend, connectEntra } from "../lib/texApi";
 
 /* A small delay, for retrying through a backend cold-boot window. */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -78,6 +78,18 @@ const PREVIEW_FIRST_RUN = false;
  * -------------------------------------------------------------------- */
 const SANDBOX_DOOR = import.meta.env.VITE_TEX_SANDBOX_DOOR !== "0";
 
+/* ----------------------------------------------------------------------
+ * ENTRA CONNECT — the real-client front door. OFF by default.
+ *
+ * With VITE_TEX_CONNECT_ENTRA="1", Begin's first act is the read-only Entra
+ * admin-consent connect: Tex seals the grant on Microsoft's own consent
+ * screen, then discovers THEIR estate. No connection -> nothing to discover,
+ * so this GATES ignition (you cannot map a directory you cannot read). Off
+ * (default), Begin behaves exactly as before — the sandbox/preview demo is
+ * untouched.
+ * -------------------------------------------------------------------- */
+const CONNECT_ENTRA = import.meta.env.VITE_TEX_CONNECT_ENTRA === "1";
+
 /* A fresh tenant per page load. In preview, ignition runs for real against
    this throwaway tenant, so the full discovery pipeline executes and the
    spoken count is genuine — and because the tenant is new each visit, the
@@ -103,6 +115,9 @@ export function useIgnition() {
   const cancelledRef = useRef(false);
   /* Stable per-page-load preview tenant. */
   const previewTenantRef = useRef(null);
+  /* The tenant connected this session (set after a successful Entra connect),
+     so a re-press ignites that tenant rather than re-connecting. */
+  const connectedTenantRef = useRef(null);
   if (PREVIEW_FIRST_RUN && previewTenantRef.current === null) {
     previewTenantRef.current = _previewTenant();
   }
@@ -144,6 +159,36 @@ export function useIgnition() {
 
   const begin = useCallback(async () => {
     if (igniting) return null;
+
+    /* REAL CLIENT CONNECT (VITE_TEX_CONNECT_ENTRA="1"): the first act is the
+       read-only directory connect. Tex seals the grant on Microsoft's own
+       consent screen, then discovers THEIR estate. Takes precedence over the
+       demo doors — a real client connects their own tenant, not a sandbox
+       seed. No connection -> nothing to discover, so this gates ignition.
+       Failure (declined / popup closed / blocked / not configured) leaves the
+       door so Begin can retry; silence is the failure mode, never a fake
+       count. */
+    if (CONNECT_ENTRA && connectedTenantRef.current === null) {
+      setIgniting(true);
+      try {
+        const result = await connectEntra();
+        if (!result || !result.connected) {
+          // eslint-disable-next-line no-console
+          if (result?.error) console.info("[tex] connect not completed:", result.error);
+          return null;
+        }
+        connectedTenantRef.current = result.tenant || null;
+        const tenant =
+          (result.next && result.next.ignite_tenant) || result.tenant || undefined;
+        const res = await igniteDiscovery(tenant);
+        setIgnited(true);
+        return res?.spoken || null;
+      } catch (_err) {
+        return null;
+      } finally {
+        setIgniting(false);
+      }
+    }
 
     /* PREVIEW: run REAL ignition against a throwaway per-session tenant.
        The backend does the full multi-plane discovery, seals a behavioural
