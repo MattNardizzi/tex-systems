@@ -11,6 +11,9 @@ dist/
 .env
 .env.*
 !.env.example
+# Committed prod BUILD config (NO secrets — only the public voice switch). Vite
+# loads this for `vite build`; secrets stay in the Vercel/Render dashboards.
+!.env.production
 
 # Logs
 npm-debug.log*

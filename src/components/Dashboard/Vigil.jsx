@@ -12,6 +12,8 @@ import {
   texSpeakSequence,
   stopSpeaking,
   unlockVoice,
+  prewarmPresence,
+  playPresenceAck,
   VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
@@ -627,6 +629,10 @@ export default function Vigil() {
          until then. Safe to call on every press; it no-ops once unlocked, and
          covers the Begin press too (the section's pointerdown fires first). */
       unlockVoice();
+      /* Warm the instant presence ack the moment the voice unlocks, so the very
+         first real question already has a cached <150ms "I'm on it" to play on
+         release. Idempotent + fire-and-forget; degrades to silence if it can't. */
+      prewarmPresence();
       /* Day-one wake: the first reach during the opening door wakes Tex's voice
          and starts the manifesto sequence. No mic — just the wake; the manifesto
          begins now that audio is unlocked. Fires on the threshold in either mode
@@ -761,6 +767,11 @@ export default function Vigil() {
           else if (reachInSilence) sayHere();
           return undefined;
         }
+        /* The instant presence beat — fire the content-free ack the moment we
+           have a question, BEFORE the grounded round-trip. It plays from the
+           pre-warmed cache (<150ms) and is superseded click-free by the answer
+           the instant askTex resolves: the gap is now filled, not dead air. */
+        playPresenceAck();
         return askTex(transcript).then((res) => {
           const spokenAnswer = res?.answer || null;
           if (spokenAnswer) {
