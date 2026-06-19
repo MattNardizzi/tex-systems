@@ -1115,9 +1115,12 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* The held decision — Tex's voice, the facts, the resolved acts. */}
+      {/* The held decision — Tex's voice, the facts, the resolved acts. While a
+          spoken answer is overlaying the glass (a reach answered while held), the
+          card RECEDES so the answer reads alone, then returns when it dissolves —
+          never the two sentences mushed on top of each other. */}
       {!doorOpen && !mapping && !demoOpenerActive && state === "held" && decision && !sealed && (
-        <div className="tex-held">
+        <div className={`tex-held${answer ? " is-receded" : ""}`}>
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
             <p className="tex-held-detail">{heldDetail(decision)}</p>
