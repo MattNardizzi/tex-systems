@@ -83,6 +83,17 @@
   text-align: center;
   transform: translateY(-2vh);
   animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transition: opacity 520ms ease;
+}
+/* A spoken answer is overlaying the glass while this decision is held: the card
+   steps back to silence so the answer reads alone (no two sentences stacked),
+   then fades back the moment the answer dissolves. `animation: none` releases
+   the tex-rise fill-mode lock on opacity so the transition can take it to 0;
+   dropping the class restores tex-rise, which rises the card back in. */
+.tex-held.is-receded {
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
 }
 .tex-held-sentence {
   margin: 0;

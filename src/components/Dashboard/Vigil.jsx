@@ -12,9 +12,12 @@ import {
   texSpeakSequence,
   stopSpeaking,
   unlockVoice,
+  prewarmPresence,
+  playPresenceAck,
   VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
+import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
 
 /* ==================================================================
    Vigil — the entire product surface. Live.
@@ -615,6 +618,10 @@ export default function Vigil() {
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
   const listenerRef = useRef(null);
+  /* The browser's own speech recognizer — the real hold-to-speak. Separate from
+     the muted voice gateway (TexListener) so a question can be heard without
+     standing up the gateway. */
+  const seeListenerRef = useRef(null);
 
   const beginHold = useCallback(
     (e) => {
@@ -622,6 +629,10 @@ export default function Vigil() {
          until then. Safe to call on every press; it no-ops once unlocked, and
          covers the Begin press too (the section's pointerdown fires first). */
       unlockVoice();
+      /* Warm the instant presence ack the moment the voice unlocks, so the very
+         first real question already has a cached <150ms "I'm on it" to play on
+         release. Idempotent + fire-and-forget; degrades to silence if it can't. */
+      prewarmPresence();
       /* Day-one wake: the first reach during the opening door wakes Tex's voice
          and starts the manifesto sequence. No mic — just the wake; the manifesto
          begins now that audio is unlocked. Fires on the threshold in either mode
@@ -663,6 +674,22 @@ export default function Vigil() {
       listener.start().catch(() => {
         listenerRef.current = null;
       });
+
+      /* The real hold-to-speak: the browser's OWN speech recognizer hears the
+         question while the gateway above stays muted. Armed wherever the ask
+         gesture is live — silent or held — so you can ask Tex anything, anytime.
+         Degrades to silence where the browser has no recognizer (the gesture is
+         still answered with "Here." / the held proof below). */
+      if (SEE_STT_SUPPORTED) {
+        if (seeListenerRef.current) {
+          try { seeListenerRef.current.stop(); } catch { /* ignore */ }
+        }
+        const see = new SeeListener();
+        seeListenerRef.current = see;
+        see.start().catch(() => {
+          seeListenerRef.current = null;
+        });
+      }
     },
     [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, demoOpenerActive, awake, onThreshold, clearAnswer]
   );
@@ -704,8 +731,17 @@ export default function Vigil() {
     if (!holding) return;
     setHolding(false);
 
+    /* The spoken question comes from the browser's own recognizer (the voice
+       gateway is muted); fall back to the gateway listener if it somehow opened.
+       Whichever resolves a transcript feeds the SAME grounded answer flow. */
+    const see = seeListenerRef.current;
+    seeListenerRef.current = null;
     const listener = listenerRef.current;
     listenerRef.current = null;
+    const capture = see || listener;
+    if (see && listener) {
+      try { listener.stop(); } catch { /* ignore */ }
+    }
 
     /* Whether this release should be answered with "Here": only a reach made
        in silence, and only while Tex is alive to answer. */
@@ -713,16 +749,16 @@ export default function Vigil() {
     /* A reach made while a decision is held is a request for the proof. */
     const reachInHeld = state === "held" && aliveEffective && Boolean(liveDecision);
 
-    /* The mic never opened (denied, no grant, unsupported). The gesture still
-       happened, so a silent reach is still answered. */
-    if (!listener) {
+    /* No recognizer opened (unsupported / denied). The gesture still happened,
+       so a silent reach is answered and a held reach pulls the proof. */
+    if (!capture) {
       if (reachInHeld) pullEvidence(liveDecision);
       else if (reachInSilence) sayHere();
       return;
     }
 
     setThinking(true);
-    listener
+    capture
       .stop()
       .then((transcript) => {
         setThinking(false);
@@ -731,6 +767,11 @@ export default function Vigil() {
           else if (reachInSilence) sayHere();
           return undefined;
         }
+        /* The instant presence beat — fire the content-free ack the moment we
+           have a question, BEFORE the grounded round-trip. It plays from the
+           pre-warmed cache (<150ms) and is superseded click-free by the answer
+           the instant askTex resolves: the gap is now filled, not dead air. */
+        playPresenceAck();
         return askTex(transcript).then((res) => {
           const spokenAnswer = res?.answer || null;
           if (spokenAnswer) {
@@ -870,6 +911,10 @@ export default function Vigil() {
       clearDemoTimer();
       clearAnswerTimer();
       stopSpeaking();
+      if (seeListenerRef.current) {
+        try { seeListenerRef.current.stop(); } catch { /* ignore */ }
+        seeListenerRef.current = null;
+      }
     };
   }, []);
 
@@ -1081,9 +1126,12 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* The held decision — Tex's voice, the facts, the resolved acts. */}
+      {/* The held decision — Tex's voice, the facts, the resolved acts. While a
+          spoken answer is overlaying the glass (a reach answered while held), the
+          card RECEDES so the answer reads alone, then returns when it dissolves —
+          never the two sentences mushed on top of each other. */}
       {!doorOpen && !mapping && !demoOpenerActive && state === "held" && decision && !sealed && (
-        <div className="tex-held">
+        <div className={`tex-held${answer ? " is-receded" : ""}`}>
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
             <p className="tex-held-detail">{heldDetail(decision)}</p>
@@ -1156,7 +1204,7 @@ export default function Vigil() {
           written. The only spoken lines that touch the paper are presence
           ("Here."), the ignition count, and the faltering warning — states
           Tex is in, not answers to a question. */}
-      {!doorOpen && !mapping && !demoOpenerActive && state !== "held" && !sealed && (
+      {!doorOpen && !mapping && !demoOpenerActive && (state !== "held" || answer) && !sealed && (
         <div className="tex-voice" aria-live="polite">
           {answer ? (
             /* The interactive answer — surfaced word-by-word as Tex speaks it,

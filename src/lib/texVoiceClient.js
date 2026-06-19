@@ -62,7 +62,11 @@ const WORKLET_URL = "/tex-mic-worklet.js";
 /* To bring the voice back: flip this to true (the gateway + ElevenLabs  */
 /* must be wired). Nothing else in the surface needs to change.         */
 /* ================================================================== */
-export const VOICE_ENABLED = false;
+/* Env-driven so the muted production DEFAULT is preserved (unset → false), while
+   local dev opts in via VITE_VOICE_ENABLED=true in .env.development, and a real
+   deploy can flip it on by setting the Vercel env var — no code change, no risk
+   of committing a flipped const. */
+export const VOICE_ENABLED = import.meta.env.VITE_VOICE_ENABLED === "true";
 
 /* ------------------------------------------------------------------ */
 /* Listening — open on press, finalize on release.                     */
@@ -412,6 +416,100 @@ function _supersede() {
    they speak something new, and on teardown. */
 export function stopSpeaking() {
   _supersede();
+}
+
+/* ================================================================== */
+/* The presence brain — an INSTANT, content-free acknowledgment.        */
+/*                                                                     */
+/* The moment the operator finishes asking, Tex makes one short sound   */
+/* that says "heard you — I'm on it", BEFORE the grounded answer is even */
+/* fetched. It is what turns the unavoidable ~1–2 s grounding wait from  */
+/* dead air ("broken") into a held beat ("thinking") — the single        */
+/* biggest "feels alive" lever, and the fast half of the two-brain split.*/
+/*                                                                     */
+/* It is FIREWALLED BY CONSTRUCTION — it physically cannot say a fact:   */
+/*   • The vocabulary is a FIXED constant (below), never derived from    */
+/*     the question, the answer, or any sealed fact. It only signals     */
+/*     presence; it asserts nothing.                                     */
+/*   • It is PRE-SYNTHESIZED once and cached as a decoded AudioBuffer, so */
+/*     playing it is LOCAL (no fetch) and lands in well under 150 ms.     */
+/*   • It plays through the SAME engine slot as a real line, so the       */
+/*     grounded answer SUPERSEDES it click-free the instant it arrives —  */
+/*     the ack covers the gap, the answer cuts in seamlessly.            */
+/*                                                                     */
+/* (The full design hardens this into a signed/attested asset table; this */
+/* is the honest v1 — fixed in source, content-free, pre-rendered.)      */
+/* ================================================================== */
+
+/* The fixed presence vocabulary. Content-free BY CONSTRUCTION: each entry only
+   acknowledges the reach and signals Tex is working — it says NOTHING about what
+   the answer will be. NEVER add a line here that asserts a fact about the estate. */
+const PRESENCE_VOCAB = ["One moment.", "Let me look."];
+
+let _presenceBuffers = []; // decoded AudioBuffers for PRESENCE_VOCAB
+let _presenceWarmed = false; // one-shot guard so we synthesize the set only once
+let _presenceIdx = 0; // rotate through the vocab so it doesn't feel canned
+
+/* Pre-synthesize the presence vocabulary ONCE and cache it decoded, so the ack
+   can play with NO network on release. Idempotent — safe to call on every wake.
+   A miss (cold backend, decode fail) just means the ack is silent this session;
+   the ask still proceeds, Tex simply doesn't get the instant beat. */
+export async function prewarmPresence() {
+  if (!VOICE_ENABLED || _presenceWarmed) return;
+  const ctx = _ctx();
+  if (!ctx) return;
+  _presenceWarmed = true;
+  const bufs = [];
+  for (const phrase of PRESENCE_VOCAB) {
+    try {
+      const res = await fetch(speakStreamUrl(phrase));
+      if (!res.ok) continue;
+      const arr = await res.arrayBuffer();
+      const buf = await ctx.decodeAudioData(arr);
+      bufs.push(buf);
+    } catch {
+      /* this phrase just won't be available; presence degrades to silence */
+    }
+  }
+  _presenceBuffers = bufs;
+  if (DEV) console.debug(`[texvoice] ◇ presence warmed (${bufs.length}/${PRESENCE_VOCAB.length})`);
+}
+
+/* Play ONE instant, content-free presence ack — the felt "I'm on it". Returns
+   true only if a cached buffer actually started. Claims a fresh generation (so it
+   stops anything mid-flight, and so the grounded answer can later supersede IT
+   click-free). No-ops to silence if not warmed yet — it NEVER blocks the ask. */
+export function playPresenceAck() {
+  if (!VOICE_ENABLED || !_presenceBuffers.length) return false;
+  const ctx = _ctx();
+  if (!ctx) return false;
+  const phraseIdx = _presenceIdx % _presenceBuffers.length;
+  const buf = _presenceBuffers[phraseIdx];
+  _presenceIdx += 1;
+  _supersede(); // claim the voice; stop anything mid-flight (click-free)
+  _ensureRunning(ctx); // fire-and-forget resume; the start below schedules anyway
+  try {
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buf;
+    src.connect(gain).connect(ctx.destination);
+    _activeSource = src;
+    _activeGain = gain;
+    src.onended = () => {
+      if (_activeSource === src) {
+        try { src.disconnect(); } catch {}
+        _activeSource = null;
+        _activeGain = null;
+      }
+    };
+    src.start(ctx.currentTime + START_PAD_S);
+    if (DEV) console.debug(`[texvoice] ◇ presence ack "${PRESENCE_VOCAB[phraseIdx]}"`);
+    return true;
+  } catch {
+    _activeSource = null;
+    _activeGain = null;
+    return false;
+  }
 }
 
 /* Decode the raw little-endian s16le PCM (base64) the timed endpoint returns into

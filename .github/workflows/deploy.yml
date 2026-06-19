@@ -1,0 +1,72 @@
+name: Deploy to Vercel (production)
+
+# Deterministic, repo-controlled production deploy for www.tex.systems.
+#
+# Why this exists: relying on Vercel's GitHub integration alone let a push to
+# `main` land on GitHub without ever producing a new production deployment
+# (the live bundle hash stopped tracking `main`). This workflow makes the
+# deploy an explicit, observable step that lives in the repo: every push to
+# `main` builds in this runner and ships the prebuilt output to Vercel.
+#
+# The build happens HERE (in the Actions runner via `vercel build`), not on
+# Vercel's side. `vercel deploy --prebuilt` then uploads the finished
+# `.vercel/output`. That is what makes it deterministic: the deploy can no
+# longer silently depend on (or be broken by) drifting dashboard build
+# settings — the runner is the single source of truth for what ships.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+
+# Never let two production deploys race; cancel an in-flight one if a newer
+# push arrives.
+concurrency:
+  group: vercel-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://www.tex.systems
+    env:
+      # These two are read automatically by the Vercel CLI, so `vercel pull`/
+      # `build`/`deploy` know which project to act on without `vercel link`.
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' # matches local toolchain (Node 22.x)
+          cache: npm
+
+      # Fail fast: prove the app builds with a clean install BEFORE we touch
+      # Vercel at all. A red X here means "the code is broken", cleanly
+      # separated from any Vercel/credential problem below.
+      - name: Install & build (sanity gate)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      # Pull production project settings + env vars into .vercel/ so the build
+      # below matches the real production environment.
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+
+      # Build the SPA AND the api/ serverless functions the Vercel way, in this
+      # runner. Produces .vercel/output.
+      - name: Build for Vercel
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+      # Upload the prebuilt output and promote it to production.
+      - name: Deploy prebuilt output to production
+        run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"

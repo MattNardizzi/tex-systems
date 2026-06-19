@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vercel CLI local state (project link + pulled env vars — never commit)
+.vercel/
+
+# Environment
+.env
+.env.*
+!.env.example
+# Committed prod BUILD config (NO secrets — only the public voice switch). Vite
+# loads this for `vite build`; secrets stay in the Vercel/Render dashboards.
+!.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
