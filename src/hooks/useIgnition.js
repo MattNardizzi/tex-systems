@@ -19,7 +19,36 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { igniteDiscovery, connectEntra } from "../lib/texApi";
+import { igniteDiscovery, getDiscoveryCount, connectEntra } from "../lib/texApi";
+
+/* A small delay between count retries, for riding out a cold-boot / still-
+   scanning window without leaving the glass white. */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* Ignite discovery (idempotent) and ALWAYS resolve to a spoken count. The first
+   time, ignite runs the scan and returns the count; once a tenant has ignited it
+   returns spoken:null — so fall back to the pull-only count read. Tex must always
+   report how many agents it found after a successful connect, never go silently
+   white. Retries briefly so a slow / cold-booting backend still yields the
+   number rather than the glass clearing to nothing. */
+async function igniteAndCount(tenant) {
+  try {
+    const res = await igniteDiscovery(tenant);
+    if (res?.spoken) return res.spoken;
+  } catch (_e) {
+    /* ignite failed (cold backend?) — fall through to the count read. */
+  }
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const c = await getDiscoveryCount(tenant);
+      if (c?.spoken) return c.spoken;
+    } catch (_e) {
+      /* keep trying through the cold-boot / scanning window */
+    }
+    if (attempt < 3) await sleep(1200);
+  }
+  return null;
+}
 
 export function useIgnition() {
   /* null = unknown (still resolving on mount); true/false = resolved. */
@@ -56,9 +85,9 @@ export function useIgnition() {
       /* Already connected this session: a re-press re-ignites THAT real tenant,
          never the keyless default. */
       if (connectedTenantRef.current !== null) {
-        const res = await igniteDiscovery(connectedTenantRef.current || undefined);
+        const spoken = await igniteAndCount(connectedTenantRef.current || undefined);
         setIgnited(true);
-        return res?.spoken || null;
+        return spoken;
       }
 
       /* First act: the read-only Entra admin-consent connect. Tex seals the
@@ -78,9 +107,9 @@ export function useIgnition() {
       /* Hand the connected tenant to the surface so the vigil starts watching
          THIS real estate — and only this one. */
       setConnectedTenant(tenant || result.tenant || null);
-      const res = await igniteDiscovery(tenant);
+      const spoken = await igniteAndCount(tenant);
       setIgnited(true);
-      return res?.spoken || null;
+      return spoken;
     } catch (_err) {
       return null;
     } finally {
