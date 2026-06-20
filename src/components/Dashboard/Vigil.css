@@ -634,3 +634,243 @@
     transition: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* The gate-verification pause — the deliberate beat between a question  */
+/* and its answer. NOT a spinner (silence is the failure mode): a single */
+/* ink mark breathing on a slow, even rhythm — Tex weighing the answer    */
+/* against what it can prove. It reads as deliberation, not lag (CHI       */
+/* 2026), the visual twin of the spoken presence ack.                     */
+/* ------------------------------------------------------------------ */
+.tex-deliberation {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  /* Fade IN gently so a fast answer never flashes it; the pause is intentional. */
+  animation: tex-voice-rise 700ms ease both;
+}
+.tex-deliberation-mark {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--tex-ink);
+  /* A slow, even breath — never a spin, never a bouncing row of loading dots.
+     The single mark holding a thought is what reads as Tex deliberating. */
+  animation: tex-deliberate 1900ms ease-in-out infinite;
+}
+@keyframes tex-deliberate {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.66);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-deliberation {
+    animation: none;
+  }
+  .tex-deliberation-mark {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The presence answer — the spoken line, the credibility tier the gate  */
+/* sealed, the abstain reason, and any claims you can reach into for their */
+/* evidence. The one transient exception to "answers are spoken, never    */
+/* written": shown long enough to read and reach for, then voiced-and-gone.*/
+/* ------------------------------------------------------------------ */
+.tex-presence {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: min(92vw, 60rem);
+  padding: 0 24px;
+  text-align: center;
+  /* The block is non-interactive paper; only the claim chips opt back into
+     pointer events, so the surrounding surface stays hold-to-speak. */
+  pointer-events: none;
+}
+.tex-presence-line {
+  margin: 0;
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-variation-settings: "wght" 400;
+  /* The same display voice as "Here." and the count — Tex answers at the scale
+     it speaks at, never a smaller card register. */
+  font-size: clamp(32px, 4.6vw, 58px);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  max-width: 20em;
+  color: var(--tex-ink);
+  text-wrap: balance;
+  animation: tex-voice-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tex-presence-line.is-leaving {
+  animation: tex-object-fade 700ms ease both;
+}
+
+/* The credibility tier — perceived credibility derived from the gate's REAL
+   verdict. Ink ONLY: the tiers read apart by their mark's form and their ink
+   weight, never by a green/amber/red ramp (the surface keeps color for the
+   faltering breath alone). Mono chrome, the same register as the seal hash. */
+.tex-tier {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  margin: 1.5em 0 0;
+  max-width: 30em;
+  font-family: var(--tex-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 160ms both;
+}
+.tex-tier.is-leaving {
+  animation: tex-object-fade 600ms ease both;
+}
+.tex-tier-mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.tex-tier-label {
+  font-weight: 500;
+}
+.tex-tier-gloss {
+  color: var(--tex-ink-mute);
+  letter-spacing: 0.02em;
+}
+/* SEALED — rests on one named sealed fact. Solid ink, full weight. */
+.tex-tier--sealed .tex-tier-mark {
+  background: var(--tex-ink);
+}
+.tex-tier--sealed .tex-tier-label {
+  color: var(--tex-ink);
+}
+/* DERIVED — composed across sealed facts. An outline mark, softer ink. */
+.tex-tier--derived .tex-tier-mark {
+  background: transparent;
+  border: 1.5px solid var(--tex-ink-soft);
+}
+.tex-tier--derived .tex-tier-label {
+  color: var(--tex-ink-soft);
+}
+/* ABSTAIN — Tex could not ground it. A hollow, dashed mark, muted ink: the
+   honest least-credible signal, never dressed up as more. (Class is keyed on the
+   tier VALUE, "abstain", not the label "abstained".) */
+.tex-tier--abstain .tex-tier-mark {
+  background: transparent;
+  border: 1.5px dashed var(--tex-ink-mute);
+}
+.tex-tier--abstain .tex-tier-label {
+  color: var(--tex-ink-mute);
+}
+
+/* Claims → evidence. Each claim is a reach: a quiet pill that, when pressed
+   (data-act, so it never opens the mic), rises that claim's sealed anchor as the
+   one object the glass may hold. A claim with no evidence is inert (dashed,
+   muted). The row is the one part of the presence block that takes pointer
+   events. */
+.tex-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 1.6em 0 0;
+  pointer-events: auto;
+  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 280ms both;
+}
+.tex-evidence.is-leaving {
+  animation: tex-object-fade 600ms ease both;
+  pointer-events: none;
+}
+.tex-claim {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7em;
+  max-width: min(86vw, 30em);
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--tex-ink-hair);
+  background: var(--tex-paper);
+  font-family: var(--tex-serif);
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--tex-ink-soft);
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+.tex-claim:hover:not(:disabled) {
+  border-color: var(--tex-ink);
+  color: var(--tex-ink);
+}
+.tex-claim:disabled {
+  cursor: default;
+  opacity: 0.55;
+  border-style: dashed;
+}
+.tex-claim:focus {
+  outline: none;
+}
+.tex-claim:focus-visible {
+  outline: 2px solid var(--tex-ink-soft);
+  outline-offset: 3px;
+}
+.tex-claim-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22em;
+}
+.tex-claim-cue {
+  flex: none;
+  font-family: var(--tex-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: var(--tex-ink-mute);
+}
+
+/* The reached handle when it rises inside the presence block — flows under the
+   answer rather than centering on the whole field, same monospace object
+   treatment as the in-held handle. */
+.tex-object--in-presence {
+  position: static;
+  transform: none;
+  margin: 18px auto 0;
+  max-width: 30em;
+  pointer-events: none;
+}
+.tex-object--in-presence .tex-object-value {
+  font-size: clamp(13px, 1.4vw, 16px);
+  color: var(--tex-ink-soft, var(--tex-ink));
+  animation: tex-object-rise 560ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-presence-line,
+  .tex-tier,
+  .tex-evidence {
+    animation: none;
+  }
+}

@@ -18,6 +18,13 @@ import {
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
 import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
+import {
+  derivePresence,
+  claimLabel,
+  TIER,
+  TIER_LABEL,
+  TIER_GLOSS,
+} from "../../lib/presence";
 
 /* ==================================================================
    Vigil — the entire product surface. Live.
@@ -178,6 +185,13 @@ const HERE_LINE_MS = 2_400;
    spoken, never written": it is never persisted, only voiced-and-gone. */
 const ANSWER_LINGER_MS = 2_200;
 const ANSWER_FADE_MS = 720;
+
+/* A presence answer carries more than a sentence — a credibility tier, maybe an
+   abstain reason, maybe claims you can reach into for their evidence. It earns a
+   longer hold than a bare spoken line so the tier can be read and a claim can be
+   reached for; any reach (tapping a claim's evidence) re-arms this. Still
+   voiced-and-gone — just a longer beat. */
+const PRESENCE_LINGER_MS = 9_000;
 
 /* The day-one ignition line — e.g. "You have two hundred agents running.
    I'll begin." — the one fuller sentence the surface holds on open after
@@ -361,6 +375,11 @@ export default function Vigil() {
   /* Interaction state. */
   const [holding, setHolding] = useState(false);
   const [thinking, setThinking] = useState(false);
+  /* The gate-verification moment. True while /v1/ask is in flight — Tex weighing
+     the answer against what it can prove. This is rendered as a DELIBERATE pause
+     (a slow, breathing mark), a presence signal that reads as deliberation, not
+     lag (CHI 2026). It is the visual twin of the spoken presence ack. */
+  const [verifying, setVerifying] = useState(false);
   const [spoken, setSpoken] = useState(null);
 
   const lineTimer = useRef(null);
@@ -383,8 +402,11 @@ export default function Vigil() {
   const [igniteWord, setIgniteWord] = useState(-1);
 
   /* The interactive answer, surfaced + lit as Tex speaks it, then faded. The one
-     transient exception to "answers are spoken, never written". */
-  const [answer, setAnswer] = useState(null); // { text } | null
+     transient exception to "answers are spoken, never written" — now PRESENCE-
+     aware: it carries the credibility tier the gate sealed, the abstain reason
+     when Tex abstains, and any claims you can reach into for their evidence.
+     { text, tier, tierReason, claims, proof } | null. */
+  const [answer, setAnswer] = useState(null);
   const [answerWord, setAnswerWord] = useState(-1);
   const [answerLeaving, setAnswerLeaving] = useState(false);
   const answerTimer = useRef(null);
@@ -416,38 +438,60 @@ export default function Vigil() {
      audio still needs that first gesture. */
   const [awake, setAwake] = useState(!VOICE_ENABLED);
 
-  /* Speak an answer in Tex's voice AND surface it on the glass, then linger and
-     dissolve. The text is whatever /v1/ask sealed — this never authors or edits
-     it. It now STREAMS via texSpeak (progressive /v1/speak) for the fastest
-     possible first-sound, so the line shows at full ink (no per-word highlight);
-     per-word lighting returns with the streamed-timestamp path (the glass work). */
-  const speakAnswer = useCallback(
-    (text) => {
+  /* Arm (or re-arm) the answer's dissolve: hold it lit for `lingerMs`, then fade
+     and clear. Re-armable so reaching for a claim's evidence keeps the answer on
+     the glass instead of dissolving out from under the reach. */
+  const armAnswerDissolve = useCallback(
+    (lingerMs) => {
+      clearAnswerTimer();
+      answerTimer.current = setTimeout(() => {
+        setAnswerLeaving(true);
+        clearAnswerTimer();
+        answerTimer.current = setTimeout(() => clearAnswer(), ANSWER_FADE_MS);
+      }, lingerMs);
+    },
+    [clearAnswer]
+  );
+
+  /* Speak a presence answer in Tex's voice AND surface it on the glass — the
+     spoken line, the credibility tier the gate sealed, the abstain reason when it
+     abstains, and any claims you can reach into — then linger and dissolve. The
+     text and the tier are whatever /v1/ask sealed; this never authors or edits
+     them (derivePresence only normalizes the wire). It STREAMS via texSpeak
+     (progressive /v1/speak) for the fastest first-sound, so the line shows at full
+     ink (no per-word highlight); per-word lighting returns with the streamed-
+     timestamp path. An answer carrying a tier/claims earns a longer hold so the
+     signal can be read and a claim reached for. */
+  const surfaceAnswer = useCallback(
+    (presence, lingerOverride) => {
+      const text = presence?.spokenText;
       if (!text) return;
       clearLineTimer();
       clearAnswerTimer();
       setSpoken(null);
       setAnswerLeaving(false);
-      /* The answer now STREAMS (progressive /v1/speak) for the fastest possible
-         first-sound, so it carries no per-word timing — show it at full ink
-         (answerWord -1 lights every word) rather than fake a highlight. Per-word
-         lighting returns with the streamed-timestamp path (the glass work). */
       setAnswerWord(-1);
-      setAnswer({ text });
+      setAnswer({
+        text,
+        tier: presence.tier || null,
+        tierReason: presence.tierReason || null,
+        claims: presence.claims || [],
+        proof: presence.proof || null,
+      });
+      const lingerMs =
+        lingerOverride ??
+        (presence.tier || presence.claims?.length || presence.proof
+          ? PRESENCE_LINGER_MS
+          : ANSWER_LINGER_MS);
       const myAnswer = ++answerEpochRef.current;
       texSpeak(text).then(() => {
         /* Only the CURRENT answer lingers + dissolves — a newer answer (barge-in)
            has already taken the glass, so a stale resolution must not touch it. */
         if (answerEpochRef.current !== myAnswer) return;
-        clearAnswerTimer();
-        answerTimer.current = setTimeout(() => {
-          setAnswerLeaving(true);
-          clearAnswerTimer();
-          answerTimer.current = setTimeout(() => clearAnswer(), ANSWER_FADE_MS);
-        }, ANSWER_LINGER_MS);
+        armAnswerDissolve(lingerMs);
       });
     },
-    [clearAnswer]
+    [armAnswerDissolve]
   );
 
   /* Warm Tex's voice backend the moment the surface loads. A spun-down free-tier
@@ -494,6 +538,20 @@ export default function Vigil() {
     setSurfaced({ value, kind: kind || "hash" });
     objectTimer.current = setTimeout(() => setSurfaced(null), OBJECT_LINGER_MS);
   }, []);
+
+  /* Reaching for a claim's evidence — the claim→proof link. The claim's sealed
+     anchor rises as the one object the glass may hold, and the answer's dissolve
+     is re-armed so it stays put while you read the proof. Never fabricates an
+     anchor: a claim with no evidence is inert (the button is disabled). */
+  const reachEvidence = useCallback(
+    (evidence) => {
+      if (!evidence?.value) return;
+      setAnswerLeaving(false);
+      armAnswerDissolve(PRESENCE_LINGER_MS);
+      surfaceObject(evidence.value, evidence.kind);
+    },
+    [armAnswerDissolve, surfaceObject]
+  );
 
   /* ---------------- Open: presence for a returning operator ----------------
      Opening is a reach. For an operator whose tenant has already ignited
@@ -601,6 +659,7 @@ export default function Vigil() {
       clearAnswer();
       stopSpeaking();
       setThinking(false);
+      setVerifying(false);
       setHolding(true);
 
       if (state === "held") {
@@ -714,26 +773,37 @@ export default function Vigil() {
         /* The instant presence beat — fire the content-free ack the moment we
            have a question, BEFORE the grounded round-trip. It plays from the
            pre-warmed cache (<150ms) and is superseded click-free by the answer
-           the instant askTex resolves: the gap is now filled, not dead air. */
+           the instant askTex resolves: the gap is now filled, not dead air. The
+           gate-verification pause (verifying) is its visual twin — a deliberate
+           beat that reads as Tex weighing the answer against what it can prove. */
         playPresenceAck();
+        setVerifying(true);
         return askTex(transcript, watchTenant).then((res) => {
-          const spokenAnswer = res?.answer || null;
-          if (spokenAnswer) {
-            /* Meaning is spoken — and now surfaced word-by-word as Tex voices it,
-               then dissolved (never persisted). If the answer's true target is an
-               object you must carry away (a hash, an exact name), that handle —
-               and only that handle — also surfaces, then dissolves. */
-            speakAnswer(spokenAnswer);
-            if (res?.object?.value) {
-              surfaceObject(res.object.value, res.object.kind);
+          setVerifying(false);
+          /* Backend decides, frontend renders: derivePresence only NORMALIZES the
+             wire (the presence envelope when present, the AskResponse otherwise).
+             The credibility tier it carries is the gate's real verdict, never a
+             confidence the UI invented. */
+          const presence = derivePresence(res);
+          if (presence?.spokenText) {
+            /* Meaning is spoken — and now surfaced with its tier and any claims,
+               then dissolved (never persisted). If the answer's target is an
+               object you must carry away (a hash, an exact name), that handle also
+               surfaces, then dissolves. */
+            surfaceAnswer(presence);
+            if (presence.object?.value) {
+              surfaceObject(presence.object.value, presence.object.kind);
             }
           } else if (reachInSilence) {
             sayHere();
           }
         });
       })
-      .catch(() => setThinking(false));
-  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, speakAnswer, watchTenant]);
+      .catch(() => {
+        setThinking(false);
+        setVerifying(false);
+      });
+  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, watchTenant]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -860,6 +930,45 @@ export default function Vigil() {
       }
     };
   }, []);
+
+  /* ---------------- Dev-only render harness ----------------
+     The hold→ask flow needs a real mic transcript and a live backend to answer
+     /v1/ask, neither of which a headless browser has — so this exposes the EXACT
+     presence render path (gate-verification pause → derivePresence → surfaceAnswer)
+     under a raw AskResponse / presence envelope, for browser verification only. It
+     is gated on import.meta.env.DEV, so a production build statically strips this
+     entire block (DEV is false → dead-code-eliminated). It NEVER runs in prod and
+     never fabricates an answer the operator sees in the real flow. */
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === "undefined") return;
+    window.__texPresence = (raw, { verifyMs = 1100, lingerMs } = {}) => {
+      ignition.dismiss(); /* cross the day-one door into the live surface */
+      stopSpeaking();
+      clearAnswer();
+      clearObjectTimer();
+      setSurfaced(null);
+      setSpoken(null);
+      setVerifying(true);
+      setTimeout(() => {
+        setVerifying(false);
+        const presence = derivePresence(raw);
+        if (presence?.spokenText) {
+          surfaceAnswer(presence, lingerMs);
+          if (presence.object?.value) {
+            surfaceObject(presence.object.value, presence.object.kind);
+          }
+        }
+      }, verifyMs);
+    };
+    /* Hold just the deliberation pause open, for screenshotting that beat. */
+    window.__texVerifying = (on = true) => setVerifying(Boolean(on));
+    return () => {
+      try {
+        delete window.__texPresence;
+        delete window.__texVerifying;
+      } catch { /* ignore */ }
+    };
+  }, [ignition, surfaceAnswer, surfaceObject, clearAnswer]);
 
   /* ---------------- Render ---------------- */
 
@@ -1056,9 +1165,11 @@ export default function Vigil() {
       {/* The held decision — Tex's voice, the facts, the resolved acts. While a
           spoken answer is overlaying the glass (a reach answered while held), the
           card RECEDES so the answer reads alone, then returns when it dissolves —
-          never the two sentences mushed on top of each other. */}
+          never the two sentences mushed on top of each other. It also recedes
+          during the gate-verification pause, so the deliberation mark reads alone
+          before the answer arrives. */}
       {!doorOpen && !mapping && state === "held" && decision && !sealed && (
-        <div className={`tex-held${answer ? " is-receded" : ""}`}>
+        <div className={`tex-held${answer || verifying ? " is-receded" : ""}`}>
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
             <p className="tex-held-detail">{heldDetail(decision)}</p>
@@ -1127,24 +1238,30 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* The voice — Tex speaks; the glass stays clean. An answer is never
-          written. The only spoken lines that touch the paper are presence
-          ("Here."), the ignition count, and the faltering warning — states
-          Tex is in, not answers to a question. */}
-      {!doorOpen && !mapping && (state !== "held" || answer) && !sealed && (
+      {/* The gate-verification pause — the deliberate beat between the question
+          and the answer, rendered as a presence signal (not a spinner). A single
+          ink mark breathes on a slow, even rhythm: Tex weighing the answer against
+          what it can prove. It reads as deliberation, not lag (CHI 2026), and it
+          is the visual twin of the spoken presence ack. It clears the instant the
+          answer (or "Here.") takes the glass. */}
+      {!doorOpen && !mapping && !sealed && !answer && (verifying || thinking) && (
+        <div
+          className="tex-deliberation"
+          role="status"
+          aria-live="polite"
+          aria-label="Tex is checking what it can prove"
+        >
+          <span className="tex-deliberation-mark" aria-hidden="true" />
+        </div>
+      )}
+
+      {/* The voice — Tex speaks; the glass stays clean. The only spoken lines that
+          touch the paper are presence ("Here."), the ignition count, and the
+          faltering warning — states Tex is IN, not answers to a question. The
+          interactive answer lives in its own presence block below. */}
+      {!doorOpen && !mapping && !answer && state !== "held" && !sealed && (
         <div className="tex-voice" aria-live="polite">
-          {answer ? (
-            /* The interactive answer — surfaced word-by-word as Tex speaks it,
-               then dissolved. Transient: never persisted to the glass. */
-            <p
-              className={`tex-voice-line tex-voice-line--answer${
-                answerLeaving ? " is-leaving" : ""
-              }`}
-            >
-              <SpokenLine text={answer.text} active={answerWord} />
-            </p>
-          ) : (
-            spoken &&
+          {spoken &&
             (spoken.kind === "here" ||
               spoken.kind === "falter" ||
               spoken.kind === "ignite") && (
@@ -1158,7 +1275,108 @@ export default function Vigil() {
                   spoken.text
                 )}
               </p>
-            )
+            )}
+        </div>
+      )}
+
+      {/* The presence answer — the one transient exception to "answers are spoken,
+          never written". Tex's grounded line, lit as it is voiced, carrying the
+          credibility TIER the gate sealed (a visible, honest signal), the abstain
+          reason when it abstains, and any claims you can reach into for their
+          evidence. It rises, holds long enough to be read and reached for, then
+          dissolves — voiced-and-gone, never persisted. */}
+      {!doorOpen && !mapping && !sealed && answer && (
+        <div className="tex-presence" aria-live="polite">
+          <p
+            className={`tex-presence-line${answerLeaving ? " is-leaving" : ""}`}
+          >
+            <SpokenLine text={answer.text} active={answerWord} />
+          </p>
+
+          {/* The credibility tier — perceived credibility derived from the gate's
+              REAL verdict, never an invented confidence. Ink only (the surface
+              keeps color for the faltering breath alone): the tiers read apart by
+              their mark and weight, not by a green/amber/red ramp. */}
+          {answer.tier && (
+            <p
+              className={`tex-tier tex-tier--${answer.tier.toLowerCase()}${
+                answerLeaving ? " is-leaving" : ""
+              }`}
+              aria-label={`Credibility: ${TIER_LABEL[answer.tier]} — ${
+                answer.tierReason || TIER_GLOSS[answer.tier]
+              }`}
+            >
+              <span className="tex-tier-mark" aria-hidden="true" />
+              <span className="tex-tier-label">{TIER_LABEL[answer.tier]}</span>
+              <span className="tex-tier-gloss">
+                {answer.tier === TIER.ABSTAIN
+                  ? answer.tierReason || TIER_GLOSS[answer.tier]
+                  : TIER_GLOSS[answer.tier]}
+              </span>
+            </p>
+          )}
+
+          {/* Claims → evidence. Each claim is a reach: pressing it (data-act, so
+              it never opens the mic) rises that claim's sealed anchor as the one
+              object the glass may hold. A claim with no evidence is inert. When
+              there are no structured claims yet (today's wire), a single "show the
+              proof" reach surfaces the answer's anchor. */}
+          {(answer.claims?.length > 0 || answer.proof) && (
+            <div
+              className={`tex-evidence${answerLeaving ? " is-leaving" : ""}`}
+            >
+              {answer.claims?.length > 0 ? (
+                answer.claims.map((c, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    data-act="evidence"
+                    className="tex-claim"
+                    disabled={!c.evidence}
+                    aria-label={
+                      c.evidence
+                        ? `Show the evidence for: ${claimLabel(c)}`
+                        : claimLabel(c)
+                    }
+                    onClick={() => reachEvidence(c.evidence)}
+                  >
+                    <span className="tex-claim-text">{claimLabel(c)}</span>
+                    {c.evidence && (
+                      <span className="tex-claim-cue" aria-hidden="true">
+                        proof
+                      </span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <button
+                  type="button"
+                  data-act="evidence"
+                  className="tex-claim tex-claim--proof"
+                  aria-label="Show the proof behind this answer"
+                  onClick={() => reachEvidence(answer.proof)}
+                >
+                  <span className="tex-claim-cue" aria-hidden="true">
+                    show the proof
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* The reached handle — the anchor a claim links to, risen as the one
+              object the glass may hold, here flowing under the answer rather than
+              centering on the whole field. Dissolves once taken. */}
+          {surfaced && (
+            <div
+              className="tex-object tex-object--in-presence"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="tex-object-value" key={surfaced.value}>
+                {surfaced.value}
+              </span>
+            </div>
           )}
         </div>
       )}
@@ -1166,8 +1384,9 @@ export default function Vigil() {
       {/* The object — the one thing the screen is ever allowed to hold: a
           handle you grab and walk away with. It rises alone, monospace,
           centered, only because you reached for it, and dissolves the moment
-          it has been taken. */}
-      {!doorOpen && !mapping && state !== "held" && !sealed && surfaced && (
+          it has been taken. When an answer is on the glass the handle rises
+          inside that presence block instead (above), so it never double-renders. */}
+      {!doorOpen && !mapping && state !== "held" && !answer && !sealed && surfaced && (
         <div className="tex-object" role="status" aria-live="polite">
           <span className="tex-object-value" key={surfaced.value}>
             {surfaced.value}
