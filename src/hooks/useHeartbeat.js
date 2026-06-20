@@ -21,15 +21,13 @@
  *   - wire lost, backend unreachable        → Tex CANNOT speak. The breath
  *     simply stops. The stillness is the alarm. That is this hook.
  *
- * Demo / standalone posture: in a build with no backend reachable, Tex
- * has never had a wire to lose, so it presents as alive — the demo must
- * show a breathing surface. Once a real beat has ever landed, a later
- * loss is a true death and is reported as one. The dev panel can also
- * force "lost" to demonstrate the still heart on demand.
+ * Standalone posture: in a build with no backend reachable, Tex has never
+ * had a wire to lose, so it presents as alive. Once a real beat has ever
+ * landed, a later loss is a true death and is reported as one.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { getVigil } from "../lib/texApi";
+import { pingBackend } from "../lib/texApi";
 
 /* Liveness beats faster than the 30s data poll — presence is felt, and
    a witness that takes half a minute to notice it died is not a witness. */
@@ -65,14 +63,14 @@ export function useHeartbeat(override) {
 
     const beat = async () => {
       try {
-        await getVigil();
+        await pingBackend();
         if (cancelledRef.current) return;
         everReachedRef.current = true;
         lastBeatRef.current = Date.now();
         setAlive(true);
       } catch {
         if (cancelledRef.current) return;
-        /* Never had a backend — standalone/demo. Present as alive; there
+        /* Never had a backend — standalone. Present as alive; there
            was never a wire to lose. */
         if (!everReachedRef.current) {
           setAlive(true);

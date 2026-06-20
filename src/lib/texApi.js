@@ -23,26 +23,11 @@
 /* Same-origin proxy prefix. The proxy holds TEX_API_BASE / TEX_API_KEY. */
 const BASE = "/api/tex";
 
-/* Sandbox tenant.
- *
- * In a real, keyed deployment the API key carries the tenant, so the
- * tenant-scoped calls below send no tenant_id and the backend resolves it
- * from the principal. The sandbox has no key: the simulator drives a synthetic
- * estate under an explicit tenant (`meridian-<seed>`, e.g. reference = 200
- * agents under `meridian-7`). For the interface to watch the SAME estate the
- * simulator populates and governs, every tenant-scoped call must name that
- * tenant — discovery status, ignition, the vigil poll, and the vigil stream
- * alike, so Tex maps, counts, and then speaks the holds the simulator's agents
- * trigger, all under one tenant.
- *
- * Set via VITE_TEX_TENANT. It is read from `.env.development`, which Vite loads
- * only for `npm run dev` and NEVER for `npm run build` — so a production build
- * ships with this empty and the keyed posture (no tenant_id) is untouched. */
-const SANDBOX_TENANT = import.meta.env.VITE_TEX_TENANT || "";
-
-/* Resolve the tenant for a scoped call: an explicit argument wins; otherwise
-   fall back to the sandbox tenant (empty in production → omitted). */
-const scopedTenant = (tenantId) => tenantId || SANDBOX_TENANT || undefined;
+/* Resolve the tenant for a scoped call. The surface passes the directory the
+   operator CONNECTED; nothing here implies a default estate. When no tenant is
+   given the id is omitted, which is the keyed posture — the API key carries the
+   tenant and the backend resolves it from the principal. */
+const scopedTenant = (tenantId) => tenantId || undefined;
 
 /* The fetch wrapper is intentionally small. No retries, no backoff, no
    error envelopes. If a call fails, the hook surfaces null and the vigil
@@ -181,10 +166,9 @@ export const getDiscoveryStatus = (tenantId) => {
  * the count. ``already_ignited`` is true if the door had already opened, in
  * which case ``spoken`` is null and the surface goes straight to silence.
  *
- * ``tenantId`` is optional: a real operator console omits it (the key
- * carries the tenant, ignition fires once for it, server-authoritative).
- * The preview surface passes a fresh per-session tenant so each visit runs
- * the real pipeline and the day-one door replays.
+ * ``tenantId`` is the directory the operator connected; ignition fires once
+ * for it (server-authoritative). A keyed console may omit it (the key carries
+ * the tenant).
  */
 export const igniteDiscovery = (tenantId) => {
   const t = scopedTenant(tenantId);
@@ -198,10 +182,8 @@ export const igniteDiscovery = (tenantId) => {
 
 /**
  * GET /v1/surface/discovery/count — how many agents now (pull-only, no side
- * effect). Returns { spoken, object, count }. Used as the spoken fallback for
- * the sandbox door: when the entrance replays against an already-ignited
- * tenant, ignition returns already_ignited (spoken null), so Tex speaks the
- * genuine current count instead of falling silent.
+ * effect). Returns { spoken, object, count }. The genuine current count for an
+ * already-ignited tenant, when ignition returns already_ignited (spoken null).
  */
 export const getDiscoveryCount = (tenantId) => {
   const t = scopedTenant(tenantId);
@@ -223,6 +205,19 @@ export const wakeBackend = async () => {
   } catch (_e) {
     /* ignore — this is only a warm-up */
   }
+};
+
+/**
+ * GET /health — a tenant-agnostic liveness ping. Resolves on a reachable
+ * backend (2xx) and throws otherwise. Unlike the vigil, it reads NO estate:
+ * the heartbeat must prove the wire is alive without pulling any tenant's
+ * data, so a surface watching nothing (no directory connected yet) still
+ * never touches a default/simulated estate.
+ */
+export const pingBackend = async () => {
+  const res = await fetch(`${BASE}/health`, { method: "GET", cache: "no-store" });
+  if (!res.ok) throw new Error(`Tex health ${res.status}`);
+  return true;
 };
 
 /** GET /decisions/{id}/replay — full Decision record for a prior eval. */

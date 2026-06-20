@@ -275,18 +275,6 @@
   color: var(--tex-ink);
   text-wrap: balance;
 }
-/* The count — Tex's first spoken line after the scan. It rises, holds, and
-   dissolves on its own beat, then the glass clears to silence. Duration tracks
-   DEMO_COUNT_MS in Vigil.jsx. */
-.tex-count-line {
-  animation: tex-count-cycle 4600ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-@keyframes tex-count-cycle {
-  0%   { opacity: 0; transform: translateY(12px); }
-  12%  { opacity: 1; transform: translateY(0); }
-  78%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-8px); }
-}
 /* The "Mapping…" working state. The dots span reserves a fixed width so
    the word never shifts as the ellipsis grows; the dots sit a touch
    lighter than the word, breathing on the same slow rhythm as the field. */

@@ -26,13 +26,22 @@ import { getSystemState } from "../lib/texApi";
 
 const POLL_INTERVAL_MS = 30_000;
 
-export function useSystemState() {
+export function useSystemState(tenantId) {
   const [snapshot, setSnapshot] = useState(null);
   const intervalRef = useRef(null);
   const cancelledRef = useRef(false);
 
   useEffect(() => {
     cancelledRef.current = false;
+
+    /* Same posture as the vigil: nothing to read until a real directory is
+       connected. No tenant → no poll. */
+    if (!tenantId) {
+      setSnapshot(null);
+      return () => {
+        cancelledRef.current = true;
+      };
+    }
 
     const tick = async () => {
       try {
@@ -56,7 +65,7 @@ export function useSystemState() {
         intervalRef.current = null;
       }
     };
-  }, []);
+  }, [tenantId]);
 
   return snapshot;
 }

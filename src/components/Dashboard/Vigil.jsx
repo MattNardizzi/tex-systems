@@ -67,16 +67,12 @@ import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
    rises alone, monospace, centered, only because you reached for it,
    and dissolves the moment it has been taken.
 
-   The open is the day-one arc, and for the client demo it replays on EVERY
-   visit: Tex declares itself — "I am Tex." — then claims dominion — "Nothing
-   happens without me." — then takes the weight — "The weight is mine now." with a
-   single Begin act beneath it. Begin is the summons; the field holds a beat of
-   empty white (Tex taking in the estate, never a spinner), then Tex turns to the
-   operator — "Then show me your agents." — in the voice, and the glass clears to
-   the live vigil. With DEMO_OPENER on the whole sequence is local and replays
-   every visit (no backend) so it can be shown
-   to clients; flip it off to restore the real, server-authoritative,
-   fires-once-ever threshold.
+   The open is the day-one arc: Tex declares itself — "I am Tex." — then claims
+   dominion — "Nothing happens without me." — then takes the weight — "The weight
+   is mine now." with a single Begin act beneath it. Begin is the summons: it runs
+   the read-only directory connect, the field holds a beat of empty white (Tex
+   taking in the estate, never a spinner) while real discovery runs, then the
+   glass clears to the live vigil.
    ================================================================== */
 
 /* The line Tex speaks first when reached in a held state, or that the
@@ -247,30 +243,6 @@ const MANIFESTO_LEAVE_MS = 560;
    (Used as the third silenceHold entry; the spoken path still paces on the voice.) */
 const MANIFESTO_FINAL_HOLD_MS = 1_800;
 
-/* ------------------------------------------------------------------ */
-/* The demo opener — the scripted day-one sequence, replayed on EVERY  */
-/* visit so it can be shown to clients with no backend wired.          */
-/*                                                                     */
-/* When DEMO_OPENER is true the door, the count, and the silence are   */
-/* driven entirely from local state with a fixed seed count — nothing  */
-/* on the backend is read or fired. After Begin the field holds a beat */
-/* of empty white (Tex opening its eyes — NOT a spinner), then Tex     */
-/* speaks the count, it rises / holds / dissolves, and the glass clears */
-/* to the live vigil. Set to false to restore the real, server-        */
-/* authoritative, fires-once-ever threshold.                           */
-/* ------------------------------------------------------------------ */
-const DEMO_OPENER = false;
-/* After Begin, Tex turns to the operator and asks to be pointed at something
-   real — the summons, in its own voice. (Not a fabricated count: the witness
-   never shows a number it cannot prove.) */
-const DEMO_COUNT_LINE = "Then show me your agents.";
-/* The held beat of empty white after Begin — Tex taking the field in at once,
-   before it speaks. A pause, never a progress bar. */
-const DEMO_BREATH_MS = 1_500;
-/* How long the count line rises, holds, and dissolves before the glass clears
-   to silence. Kept in sync with the .tex-count-line cycle in Vigil.css. */
-const DEMO_COUNT_MS = 4_600;
-
 /* The shortest the "Mapping" state stays up, so a fast backend never makes it
    flash. Real discovery usually takes longer; when it returns sooner than
    this, we hold the field the rest of the beat, then speak the count. */
@@ -306,28 +278,29 @@ function deriveState(liveDecision, snapshot) {
 /* ------------------------------------------------------------------ */
 
 export default function Vigil() {
-  const vigil = useVigil();
-  const snapshot = useSystemState();
-
   /* The day-one threshold. Server-authoritative: whether Tex has begun
      lives in the backend, not localStorage. While the status read is in
      flight the surface renders nothing (silence is the resting truth, not
      a spinner), so a returning operator never sees a flash of the door. */
   const ignition = useIgnition();
 
+  /* The estate Tex watches is the one the operator CONNECTED — never an
+     implicit default. In production nothing is watched until a real directory
+     is connected, so no simulated/default backend tenant can ever leak onto
+     the glass; silence is the resting truth until then. VITE_TEX_TENANT is a
+     dev-only convenience (empty in the production build). */
+  const watchTenant =
+    ignition.connectedTenant || import.meta.env.VITE_TEX_TENANT || null;
+  const vigil = useVigil(watchTenant);
+  const snapshot = useSystemState(watchTenant);
+
   /* The real breath. true → Tex is alive on the wire and the surface
      breathes. false → the wire is gone and the breath holds still. */
   const alive = useHeartbeat();
-  /* In the demo (no wire), treat Tex as alive so a reach is still answered with
-     "Here." On a real deployment this is the honest heartbeat. */
-  const aliveEffective = DEMO_OPENER ? true : alive;
 
-  /* In the demo, the day-one door is driven by demoPhase, not by the server-
-     authoritative ignition read — so the threshold replays every visit and the
-     ask gesture is free the moment the sequence ends. On a real deployment
-     these pass through to the honest ignition state. */
-  const ignitionReady = DEMO_OPENER ? true : ignition.ready;
-  const ignitionDoorOpen = DEMO_OPENER ? false : ignition.doorOpen;
+  /* Local aliases for the ignition threshold state. */
+  const ignitionReady = ignition.ready;
+  const ignitionDoorOpen = ignition.doorOpen;
 
   const openHandledRef = useRef(false);
 
@@ -345,31 +318,9 @@ export default function Vigil() {
     mappingTimer.current = null;
   };
 
-  /* The DEMO opener phase machine (only meaningful when DEMO_OPENER):
-       "door"   → the three-beat manifesto + Begin
-       "breath" → a held beat of empty white (Tex taking in the estate)
-       "count"  → Tex turns and asks for the agents; it rises, holds, dissolves
-       "live"   → the resting vigil
-     Driven locally so the whole sequence plays on EVERY visit with no backend.
-     This is the client demo: name, claim, invitation + Begin, then the count
-     in the new voice, then the live vigil. Flip DEMO_OPENER off to restore the
-     real, server-authoritative, fires-once-ever threshold. */
-  const [demoPhase, setDemoPhase] = useState(DEMO_OPENER ? "door" : "live");
-  const demoTimer = useRef(null);
-  const clearDemoTimer = () => {
-    if (demoTimer.current) clearTimeout(demoTimer.current);
-    demoTimer.current = null;
-  };
-  /* True while the scripted opener owns the surface — suppresses the resting
-     vigil, the ask gesture, and the open-presence "Here." until it finishes. */
-  const demoOpenerActive = DEMO_OPENER && demoPhase !== "live";
-
-  /* The day-one THRESHOLD is showing — the manifesto door, in either mode. In
-     the demo it's the local "door" phase; on a real deployment it's the server-
-     authoritative un-ignited door. The first reach here WAKES Tex (unlocks audio,
-     starts the manifesto); without this the demo door could never wake, since
-     ignitionDoorOpen is hardcoded false under DEMO_OPENER. */
-  const onThreshold = DEMO_OPENER ? demoPhase === "door" : ignitionDoorOpen;
+  /* The day-one THRESHOLD is showing — the manifesto door. The first reach here
+     WAKES Tex (unlocks audio, starts the manifesto). */
+  const onThreshold = ignitionDoorOpen;
 
   /* The resolved act, briefly shown as a seal before returning to
      silence. { verdict: "approved"|"held"|"refused", at, anchor } */
@@ -424,10 +375,9 @@ export default function Vigil() {
   const [manifestoLeaving, setManifestoLeaving] = useState(false);
   const [manifestoDone, setManifestoDone] = useState(false);
   const manifestoStartedRef = useRef(false);
-  /* Word-sync indices for the two other lines the glass holds and Tex voices:
-     the day-one ignition count, and the demo-opener count. */
+  /* Word-sync index for the day-one ignition count line the glass holds and
+     Tex voices. */
   const [igniteWord, setIgniteWord] = useState(-1);
-  const [demoCountWord, setDemoCountWord] = useState(-1);
 
   /* The interactive answer, surfaced + lit as Tex speaks it, then faded. The one
      transient exception to "answers are spoken, never written". */
@@ -535,12 +485,11 @@ export default function Vigil() {
      then the paper goes empty. While the day-one door is open, the opener
      owns the surface and this stays silent. */
   useEffect(() => {
-    if (DEMO_OPENER) return; /* the scripted opener is the open; no "Here." */
     if (openHandledRef.current) return;
     if (!ignition.ready) return;
     if (ignition.doorOpen) return;
     openHandledRef.current = true;
-    if (state === "silent" && aliveEffective) sayHere();
+    if (state === "silent" && alive) sayHere();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ignition.ready, ignition.doorOpen]);
 
@@ -586,27 +535,6 @@ export default function Vigil() {
     ignition.dismiss();
   }, [ignition]);
 
-  /* The DEMO sequence after Begin. No backend, no spinner: the door clears,
-     the field holds a beat of empty white (Tex taking in the estate), then Tex
-     speaks the seed count — it rises, holds, dissolves — and the glass clears
-     to the live vigil. Replays in full on the next visit. */
-  const beginDemo = useCallback(() => {
-    stopSpeaking();
-    clearLineTimer();
-    setSpoken(null);
-    clearDemoTimer();
-    setDemoPhase("breath");
-    demoTimer.current = setTimeout(() => {
-      setDemoPhase("count");
-      setDemoCountWord(-1);
-      texSpeakTimed(DEMO_COUNT_LINE, { onWord: (i) => setDemoCountWord(i) });
-      clearDemoTimer();
-      demoTimer.current = setTimeout(() => {
-        setDemoPhase("live");
-      }, DEMO_COUNT_MS);
-    }, DEMO_BREATH_MS);
-  }, []);
-
   /* The "Mapping" ellipsis. While the state runs, the dots grow 1→2→3→1 on a
      steady tick to read as work in progress. Completion is driven by the real
      ignite call in beginMapping, not a timer. */
@@ -635,8 +563,7 @@ export default function Vigil() {
       prewarmPresence();
       /* Day-one wake: the first reach during the opening door wakes Tex's voice
          and starts the manifesto sequence. No mic — just the wake; the manifesto
-         begins now that audio is unlocked. Fires on the threshold in either mode
-         (demo or real). */
+         begins now that audio is unlocked. */
       if (onThreshold && !awake) {
         setAwake(true);
         return;
@@ -646,10 +573,10 @@ export default function Vigil() {
         return;
       }
       /* The ask gesture is inert until the day-one threshold is resolved and
-         closed, while mapping runs, and throughout the scripted opener. There
-         is nothing sealed to ask about before discovery has begun, and holding
-         must not open a mic over the greeting, the breath, or the count. */
-      if (!ignitionReady || ignitionDoorOpen || mapping || demoOpenerActive) return;
+         closed, and while mapping runs. There is nothing sealed to ask about
+         before discovery has begun, and holding must not open a mic over the
+         greeting or the count. */
+      if (!ignitionReady || ignitionDoorOpen || mapping) return;
 
       clearLineTimer();
       clearObjectTimer();
@@ -691,7 +618,7 @@ export default function Vigil() {
         });
       }
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, demoOpenerActive, awake, onThreshold, clearAnswer]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, clearAnswer]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -710,7 +637,7 @@ export default function Vigil() {
         if (handle) surfaceObject(handle, "name");
         return;
       }
-      explainLine(decision.dimension || null, heldSentence(decision))
+      explainLine(decision.dimension || null, heldSentence(decision), watchTenant)
         .then((res) => {
           const story = res?.explanation || res?.facts?.headline || null;
           if (story) texSpeak(story);
@@ -724,7 +651,7 @@ export default function Vigil() {
           }
         });
     },
-    [surfaceObject]
+    [surfaceObject, watchTenant]
   );
 
   const endHold = useCallback(() => {
@@ -745,9 +672,9 @@ export default function Vigil() {
 
     /* Whether this release should be answered with "Here": only a reach made
        in silence, and only while Tex is alive to answer. */
-    const reachInSilence = state === "silent" && aliveEffective;
+    const reachInSilence = state === "silent" && alive;
     /* A reach made while a decision is held is a request for the proof. */
-    const reachInHeld = state === "held" && aliveEffective && Boolean(liveDecision);
+    const reachInHeld = state === "held" && alive && Boolean(liveDecision);
 
     /* No recognizer opened (unsupported / denied). The gesture still happened,
        so a silent reach is answered and a held reach pulls the proof. */
@@ -772,7 +699,7 @@ export default function Vigil() {
            pre-warmed cache (<150ms) and is superseded click-free by the answer
            the instant askTex resolves: the gap is now filled, not dead air. */
         playPresenceAck();
-        return askTex(transcript).then((res) => {
+        return askTex(transcript, watchTenant).then((res) => {
           const spokenAnswer = res?.answer || null;
           if (spokenAnswer) {
             /* Meaning is spoken — and now surfaced word-by-word as Tex voices it,
@@ -789,7 +716,7 @@ export default function Vigil() {
         });
       })
       .catch(() => setThinking(false));
-  }, [holding, state, aliveEffective, sayHere, surfaceObject, pullEvidence, liveDecision, speakAnswer]);
+  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, speakAnswer, watchTenant]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -908,7 +835,6 @@ export default function Vigil() {
       clearLineTimer();
       clearObjectTimer();
       clearMappingTimer();
-      clearDemoTimer();
       clearAnswerTimer();
       stopSpeaking();
       if (seeListenerRef.current) {
@@ -925,13 +851,13 @@ export default function Vigil() {
     const s = `tex-field--${state}`;
     const listening = holding ? " is-listening" : "";
     const think = thinking ? " is-thinking" : "";
-    const lost = !aliveEffective ? " is-lost" : "";
+    const lost = !alive ? " is-lost" : "";
     return `${base} ${s}${listening}${think}${lost}`;
-  }, [state, holding, thinking, aliveEffective]);
+  }, [state, holding, thinking, alive]);
 
-  const ariaState = !aliveEffective
+  const ariaState = !alive
     ? "Tex is no longer responding. The connection to the witness was lost."
-    : demoOpenerActive || (ignitionReady && ignitionDoorOpen)
+    : ignitionReady && ignitionDoorOpen
     ? "I am Tex. Nothing happens without me. Press Begin."
     : mapping
     ? "Tex is mapping the estate."
@@ -943,17 +869,14 @@ export default function Vigil() {
 
   const decision = liveDecision;
 
-  /* The day-one door owns the surface until it is crossed. In the demo it is
-     driven purely by demoPhase (replays every visit); on a real deployment it
-     is the server-authoritative threshold, deferring to a faltering chain
-     (you don't greet over a broken witness) and yielding to the mapping state
-     the instant Begin is pressed. */
-  const doorOpen = DEMO_OPENER
-    ? demoPhase === "door"
-    : ignition.ready &&
-      ignition.doorOpen &&
-      (ignition.sandboxDoor || state !== "faltering") &&
-      !mapping;
+  /* The day-one door owns the surface until it is crossed — the session-scoped
+     threshold, deferring to a faltering chain (you don't greet over a broken
+     witness) and yielding to the mapping state the instant Begin is pressed. */
+  const doorOpen =
+    ignition.ready &&
+    ignition.doorOpen &&
+    state !== "faltering" &&
+    !mapping;
 
   /* The open, in Tex's voice — VOICE-DRIVEN, played strictly one line at a time.
      Once awake, the whole arc runs through a single speech sequence: each line
@@ -1083,9 +1006,9 @@ export default function Vigil() {
                 type="button"
                 data-act="begin"
                 className="tex-act tex-act--approve"
-                disabled={!manifestoDone || (!DEMO_OPENER && ignition.igniting)}
+                disabled={!manifestoDone || ignition.igniting}
                 aria-hidden={manifestoDone ? undefined : true}
-                onClick={DEMO_OPENER ? beginDemo : beginMapping}
+                onClick={beginMapping}
               >
                 Begin
               </button>
@@ -1094,23 +1017,10 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* DEMO — the breath after Begin. Tex takes in the estate: a held beat of
-          empty white, no spinner. Nothing renders here on purpose. */}
-
-      {/* DEMO — the count. Tex speaks the seed count; it rises, holds, and
-          dissolves, then the glass clears to the live vigil. */}
-      {DEMO_OPENER && demoPhase === "count" && (
-        <div className="tex-door" role="status" aria-live="polite">
-          <p className="tex-door-sentence tex-count-line">
-            <SpokenLine text={DEMO_COUNT_LINE} active={demoCountWord} />
-          </p>
-        </div>
-      )}
-
-      {/* The mapping working state (real ignition only). Tex is already awake,
-          so "mapping" is it showing its work: the field holds with a growing
-          ellipsis while real discovery runs, then settles into the count. */}
-      {!DEMO_OPENER && mapping && (
+      {/* The mapping working state. Tex is already awake, so "mapping" is it
+          showing its work: the field holds with a growing ellipsis while real
+          discovery runs, then settles into the count. */}
+      {mapping && (
         <div
           className="tex-door"
           role="status"
@@ -1130,7 +1040,7 @@ export default function Vigil() {
           spoken answer is overlaying the glass (a reach answered while held), the
           card RECEDES so the answer reads alone, then returns when it dissolves —
           never the two sentences mushed on top of each other. */}
-      {!doorOpen && !mapping && !demoOpenerActive && state === "held" && decision && !sealed && (
+      {!doorOpen && !mapping && state === "held" && decision && !sealed && (
         <div className={`tex-held${answer ? " is-receded" : ""}`}>
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
@@ -1204,7 +1114,7 @@ export default function Vigil() {
           written. The only spoken lines that touch the paper are presence
           ("Here."), the ignition count, and the faltering warning — states
           Tex is in, not answers to a question. */}
-      {!doorOpen && !mapping && !demoOpenerActive && (state !== "held" || answer) && !sealed && (
+      {!doorOpen && !mapping && (state !== "held" || answer) && !sealed && (
         <div className="tex-voice" aria-live="polite">
           {answer ? (
             /* The interactive answer — surfaced word-by-word as Tex speaks it,
@@ -1240,7 +1150,7 @@ export default function Vigil() {
           handle you grab and walk away with. It rises alone, monospace,
           centered, only because you reached for it, and dissolves the moment
           it has been taken. */}
-      {!doorOpen && !mapping && !demoOpenerActive && state !== "held" && !sealed && surfaced && (
+      {!doorOpen && !mapping && state !== "held" && !sealed && surfaced && (
         <div className="tex-object" role="status" aria-live="polite">
           <span className="tex-object-value" key={surfaced.value}>
             {surfaced.value}

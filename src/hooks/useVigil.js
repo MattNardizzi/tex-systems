@@ -46,6 +46,18 @@ export function useVigil(tenantId) {
     cancelledRef.current = false;
     lastJsonRef.current = null;
 
+    /* Nothing to watch until a real directory is connected. No tenant → no
+       poll, no stream; the surface rests in silence. This is the guarantee
+       that a default/simulated backend estate can never leak onto the glass:
+       the vigil only ever speaks for a tenant the operator explicitly
+       connected. */
+    if (!tenantId) {
+      setVigil(null);
+      return () => {
+        cancelledRef.current = true;
+      };
+    }
+
     /* Render only on genuine change — keeps the rotation steady and avoids
        React churn under a chatty stream. */
     const commit = (next, rawJson) => {
