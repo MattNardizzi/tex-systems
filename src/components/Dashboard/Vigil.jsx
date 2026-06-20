@@ -285,12 +285,15 @@ export default function Vigil() {
   const ignition = useIgnition();
 
   /* The estate Tex watches is the one the operator CONNECTED — never an
-     implicit default. In production nothing is watched until a real directory
-     is connected, so no simulated/default backend tenant can ever leak onto
-     the glass; silence is the resting truth until then. VITE_TEX_TENANT is a
-     dev-only convenience (empty in the production build). */
+     implicit default. Nothing is watched until a real directory is connected,
+     so no simulated/default backend tenant can ever leak onto the glass;
+     silence is the resting truth until then. VITE_TEX_TENANT is a DEV-ONLY
+     convenience: it is honoured ONLY under `vite dev` (import.meta.env.DEV), so
+     a production build IGNORES it even if the deploy environment sets it. */
   const watchTenant =
-    ignition.connectedTenant || import.meta.env.VITE_TEX_TENANT || null;
+    ignition.connectedTenant ||
+    (import.meta.env.DEV ? import.meta.env.VITE_TEX_TENANT : null) ||
+    null;
   const vigil = useVigil(watchTenant);
   const snapshot = useSystemState(watchTenant);
 
