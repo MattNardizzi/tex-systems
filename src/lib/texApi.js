@@ -327,12 +327,31 @@ export const mintVoiceToken = () => request("/v1/voice/token");
 /**
  * POST /v1/ask — answer a spoken question, grounded ONLY in sealed
  * facts. The transcript is what the recognizer returned on release.
- * Returns { answer, object?, proof_ref? } where:
+ * Returns { answer, object?, proof_ref?, attestation? } where:
  *   - answer:  the sentence Tex speaks (TTS). Meaning is spoken, never
  *              written to the glass.
  *   - object:  { value, kind: "hash"|"name" } | absent. The one thing
  *              the surface is allowed to hold — a handle the operator
  *              grabs and walks away with. Surfaced, then dissolved.
+ *   - attestation: { anchor_sha256, algorithm, verdict, routed_dimension }.
+ *              ``verdict`` is the gate's REAL verdict (PERMIT/FORBID/ABSTAIN);
+ *              the surface renders it as the credibility TIER (see
+ *              lib/presence.js). It is a rendering of the verdict, never a
+ *              confidence the UI invented.
+ *
+ * NEW, OPTIONAL — the PRESENCE ENVELOPE. As the voice gate grows per-claim
+ * faithfulness, /v1/ask MAY also return ``presence``:
+ *   {
+ *     spoken_text,        // the line Tex voices (supersedes answer when present)
+ *     claims,             // [claim] — the asserted spans
+ *     verdicts,           // [verdict] — parallel to claims; per-claim tier+evidence
+ *     prosody_plan,       // how Tex paces the line (TTS hint)
+ *     surface_object,     // { value, kind } — the handle to hold
+ *     overall_tier        // "SEALED" | "DERIVED" | "ABSTAIN" — the credibility tier
+ *   }
+ * The surface renders the envelope when it arrives and degrades cleanly to the
+ * fields above when it does not (derivePresence in lib/presence.js handles both).
+ * The frontend computes nothing here — it renders what the gate sealed.
  *
  * This is the integrity boundary: the backend answers from the ledger
  * and the six layers, never a free-running model.
