@@ -435,11 +435,20 @@ export default function Vigil() {
   const [answerWord, setAnswerWord] = useState(-1);
   const [answerLeaving, setAnswerLeaving] = useState(false);
   const answerTimer = useRef(null);
+  /* Generation token for the spoken answer — bumped each time a new answer is
+     spoken, so a superseded answer's (streamed) playback resolution can't fire
+     the linger/dissolve onto the answer that replaced it. */
+  const answerEpochRef = useRef(0);
   const clearAnswerTimer = () => {
     if (answerTimer.current) clearTimeout(answerTimer.current);
     answerTimer.current = null;
   };
   const clearAnswer = useCallback(() => {
+    /* Bump the answer generation so any in-flight texSpeak().then for the answer
+       being cleared (a natural dissolve, unmount cleanup, OR a barge-in that
+       routes through clearAnswer in beginHold) can no longer re-arm a dissolve
+       timer on whatever answer replaces it. */
+    answerEpochRef.current += 1;
     clearAnswerTimer();
     setAnswer(null);
     setAnswerWord(-1);
@@ -454,11 +463,11 @@ export default function Vigil() {
      audio still needs that first gesture. */
   const [awake, setAwake] = useState(!VOICE_ENABLED);
 
-  /* Speak an answer in Tex's voice AND surface it on the glass, lit word-by-word,
-     then linger and dissolve. The text is whatever /v1/ask sealed — this never
-     authors or edits it. texSpeakTimed falls back to plain voice (no highlight)
-     when ElevenLabs word-timing is unavailable; the line still shows and fades,
-     so the behavior is graceful either way. */
+  /* Speak an answer in Tex's voice AND surface it on the glass, then linger and
+     dissolve. The text is whatever /v1/ask sealed — this never authors or edits
+     it. It now STREAMS via texSpeak (progressive /v1/speak) for the fastest
+     possible first-sound, so the line shows at full ink (no per-word highlight);
+     per-word lighting returns with the streamed-timestamp path (the glass work). */
   const speakAnswer = useCallback(
     (text) => {
       if (!text) return;
@@ -466,18 +475,23 @@ export default function Vigil() {
       clearAnswerTimer();
       setSpoken(null);
       setAnswerLeaving(false);
+      /* The answer now STREAMS (progressive /v1/speak) for the fastest possible
+         first-sound, so it carries no per-word timing — show it at full ink
+         (answerWord -1 lights every word) rather than fake a highlight. Per-word
+         lighting returns with the streamed-timestamp path (the glass work). */
       setAnswerWord(-1);
       setAnswer({ text });
-      texSpeakTimed(text, {
-        onWord: (i) => setAnswerWord(i),
-        onEnd: () => {
+      const myAnswer = ++answerEpochRef.current;
+      texSpeak(text).then(() => {
+        /* Only the CURRENT answer lingers + dissolves — a newer answer (barge-in)
+           has already taken the glass, so a stale resolution must not touch it. */
+        if (answerEpochRef.current !== myAnswer) return;
+        clearAnswerTimer();
+        answerTimer.current = setTimeout(() => {
+          setAnswerLeaving(true);
           clearAnswerTimer();
-          answerTimer.current = setTimeout(() => {
-            setAnswerLeaving(true);
-            clearAnswerTimer();
-            answerTimer.current = setTimeout(() => clearAnswer(), ANSWER_FADE_MS);
-          }, ANSWER_LINGER_MS);
-        },
+          answerTimer.current = setTimeout(() => clearAnswer(), ANSWER_FADE_MS);
+        }, ANSWER_LINGER_MS);
       });
     },
     [clearAnswer]
