@@ -26,8 +26,19 @@ const BASE = "/api/tex";
 /* Resolve the tenant for a scoped call. The surface passes the directory the
    operator CONNECTED; nothing here implies a default estate. When no tenant is
    given the id is omitted, which is the keyed posture — the API key carries the
-   tenant and the backend resolves it from the principal. */
-const scopedTenant = (tenantId) => tenantId || undefined;
+   tenant and the backend resolves it from the principal.
+
+   PRODUCTION IS ALWAYS KEYED: the same-origin proxy injects TEX_API_KEY, so the
+   backend already knows the tenant from the key. If the client ALSO sends a
+   tenant_id (the connected directory's Azure GUID), it COLLIDES with the key's
+   tenant and the backend rejects the read — 403 "API key tenant does not match
+   query tenant_id" — which silently 403'd every vigil/ask call on the live site
+   (the connected GUID never equals the key's principal). So in the keyed (prod)
+   posture we OMIT the id and let the key speak; only DEV (local, keyless backend)
+   scopes by the id. A privileged multi-tenant key would reintroduce explicit
+   scoping here, but that is not the deployed posture. */
+const scopedTenant = (tenantId) =>
+  import.meta.env.DEV ? tenantId || undefined : undefined;
 
 /* The fetch wrapper is intentionally small. No retries, no backoff, no
    error envelopes. If a call fails, the hook surfaces null and the vigil

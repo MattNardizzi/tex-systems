@@ -33,6 +33,12 @@ const SR =
    assumption. */
 export const SEE_STT_SUPPORTED = Boolean(SR);
 
+/* Dev-only diagnostics. In production the recognizer still degrades to silence;
+   in dev we surface WHY (a blocked / denied / errored recognizer) so an invisible
+   empty transcript is debuggable instead of a mystery. */
+const DEV =
+  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV;
+
 /* How long stop() waits for the recognizer's final result after the gesture is
    released, before it gives up and returns whatever it has. The release IS the
    end-of-turn, so this only covers the recognizer's own finalization latency. */
@@ -43,9 +49,21 @@ export class SeeListener {
     this._rec = null;
     this._final = "";
     this._interim = "";
+    this._best = "";
+    this._lastError = null;
     this._onPartial = null;
     this._stopped = false;
     this._endResolve = null;
+  }
+
+  /* The transcript to hand back on release: prefer the finalized text, then the
+     fullest interim we heard, then whatever partial remains. Never null — "" is a
+     valid quiet outcome. THE FIX for the empty-on-release bug: Chrome streams the
+     question as INTERIM results and only stamps it "final" on a clean end-of-speech,
+     which a quick push-to-talk release routinely races past — so returning only the
+     final text dropped real words and the surface fell back to "Here.". */
+  _result() {
+    return (this._final || this._best || this._interim || "").trim();
   }
 
   /* Begin listening. Resolves once the recognizer has started (or throws, which
@@ -59,7 +77,11 @@ export class SeeListener {
     const rec = new SR();
     rec.lang = "en-US";
     rec.interimResults = true;
-    rec.continuous = false;
+    /* Continuous, so the recognizer keeps hearing for the WHOLE held gesture and
+       never auto-ends mid-question on a short pause — the held press is the turn
+       boundary, not the recognizer's own silence detector. The release calls stop()
+       to finalize. (This is the configuration verified working in-browser.) */
+    rec.continuous = true;
     rec.maxAlternatives = 1;
     /* Ask for on-device recognition where the browser offers it (Chrome 139+).
        Best-effort: the property is ignored where unsupported, and we never fail
@@ -80,20 +102,29 @@ export class SeeListener {
         else interim += text;
       }
       if (finalAdd) this._final = `${this._final} ${finalAdd}`.trim();
-      this._interim = interim;
-      if (this._onPartial) this._onPartial(`${this._final} ${interim}`.trim());
+      if (interim) this._interim = interim;
+      /* Remember the fullest transcript heard so far — final words plus the live
+         interim. This is what survives a release that beats the final result, so
+         the question is never lost to an empty string. */
+      const combined = `${this._final} ${interim}`.trim();
+      if (combined) this._best = combined;
+      if (this._onPartial) this._onPartial(combined);
     };
 
-    rec.onerror = () => {
-      /* no-speech / aborted / not-allowed all degrade to "" — silence is the
-         honest failure mode. onend still fires and resolves stop(). */
+    rec.onerror = (event) => {
+      /* no-speech / aborted / not-allowed still degrade to "" — silence is the
+         honest failure mode, and onend follows to resolve stop(). But capture the
+         REASON so a blocked recognizer (an extension or network eating the cloud
+         STT request) is diagnosable instead of an invisible empty string. */
+      this._lastError = (event && event.error) || "unknown";
+      if (DEV) console.warn("[tex-stt] recognizer error:", this._lastError);
     };
 
     rec.onend = () => {
       if (this._endResolve) {
         const resolve = this._endResolve;
         this._endResolve = null;
-        resolve(this._final.trim());
+        resolve(this._result());
       }
     };
 
@@ -105,10 +136,10 @@ export class SeeListener {
      transcript, tear down, and resolve the recognized text (or "" if nothing
      came). Never rejects — an empty string is a valid, quiet outcome. */
   async stop() {
-    if (this._stopped) return this._final.trim();
+    if (this._stopped) return this._result();
     this._stopped = true;
     const rec = this._rec;
-    if (!rec) return this._final.trim();
+    if (!rec) return this._result();
 
     return new Promise((resolve) => {
       this._endResolve = resolve;
@@ -116,7 +147,7 @@ export class SeeListener {
         rec.stop();
       } catch {
         this._endResolve = null;
-        resolve(this._final.trim());
+        resolve(this._result());
         return;
       }
       /* A recognizer that never fires `end` must not hang the gesture. */
@@ -129,7 +160,7 @@ export class SeeListener {
           } catch {
             /* ignore */
           }
-          r(this._final.trim());
+          r(this._result());
         }
       }, FINALIZE_GRACE_MS);
     });

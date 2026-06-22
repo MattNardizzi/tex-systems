@@ -676,17 +676,13 @@ export default function Vigil() {
         texSpeak(text);
       }
 
-      const listener = new TexListener();
-      listenerRef.current = listener;
-      listener.start().catch(() => {
-        listenerRef.current = null;
-      });
-
       /* The real hold-to-speak: the browser's OWN speech recognizer hears the
-         question while the gateway above stays muted. Armed wherever the ask
-         gesture is live — silent or held — so you can ask Tex anything, anytime.
-         Degrades to silence where the browser has no recognizer (the gesture is
-         still answered with "Here." / the held proof below). */
+         question. It is the PRIMARY (and today only) capture path. The muted voice
+         gateway (TexListener) is stood up ONLY where the browser has no recognizer —
+         so we never fire the unprovisioned gateway (a console-spamming /v1/voice/token
+         503) or contend for the mic when the browser can already hear. Degrades to
+         silence where neither exists (the gesture is still answered with "Here." /
+         the held proof below). */
       if (SEE_STT_SUPPORTED) {
         if (seeListenerRef.current) {
           try { seeListenerRef.current.stop(); } catch { /* ignore */ }
@@ -695,6 +691,12 @@ export default function Vigil() {
         seeListenerRef.current = see;
         see.start().catch(() => {
           seeListenerRef.current = null;
+        });
+      } else {
+        const listener = new TexListener();
+        listenerRef.current = listener;
+        listener.start().catch(() => {
+          listenerRef.current = null;
         });
       }
     },
