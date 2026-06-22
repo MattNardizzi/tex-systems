@@ -83,14 +83,15 @@ export class SeeListener {
        to finalize. (This is the configuration verified working in-browser.) */
     rec.continuous = true;
     rec.maxAlternatives = 1;
-    /* Ask for on-device recognition where the browser offers it (Chrome 139+).
-       Best-effort: the property is ignored where unsupported, and we never fail
-       the start over it. */
-    try {
-      if ("processLocally" in rec) rec.processLocally = true;
-    } catch {
-      /* ignore — capability probe only */
-    }
+    /* Use the browser's DEFAULT recognizer (cloud on Chrome) — do NOT force
+       on-device. Setting rec.processLocally = true made start() fail outright with
+       "language-not-supported" on any machine where the on-device model isn't
+       installed: Chrome 139+ exposes the flag, but the model is a separate, usually
+       ABSENT download, so the recognizer died instantly, returned nothing, and the
+       surface answered "Here." every time. The cloud path needs no setup and works.
+       (On-device is still desirable for sovereignty later, but it must first probe
+       SpeechRecognition.available() and install() the model, then fall back to cloud
+       when unavailable — never request it blind, which is what broke this.) */
 
     rec.onresult = (event) => {
       let finalAdd = "";
