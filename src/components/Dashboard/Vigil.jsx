@@ -666,15 +666,15 @@ export default function Vigil() {
       setVerifying(false);
       setHolding(true);
 
-      if (state === "held") {
-        const text = heldSentence(liveDecision);
-        setSpoken({ kind: "held", text });
-        texSpeak(text);
-      } else if (state === "faltering") {
-        const text = falterLine(snapshot);
-        setSpoken({ kind: "falter", text });
-        texSpeak(text);
-      }
+      /* A press is the OPERATOR's turn: Tex yields the floor and listens, it does
+         not speak. The `stopSpeaking()` above already barges in on any line in
+         flight (ambient utterance, held restate). Tex must NOT announce the held
+         decision here — that text already lives on the glass as the held card
+         (`.tex-held-sentence` + Approve/Hold/Refuse), so speaking it on every
+         press-to-ask is Tex talking over the very turn it just opened. Tex speaks
+         again only to ANSWER (surfaceAnswer on release) or, on a wordless reach,
+         to pull the proof (pullEvidence). The `is-listening` state on `holding`
+         is the only cue the press needs. */
 
       /* The real hold-to-speak: the browser's OWN speech recognizer hears the
          question. It is the PRIMARY (and today only) capture path. The muted voice
