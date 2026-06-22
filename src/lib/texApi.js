@@ -382,9 +382,15 @@ export const askTex = (transcript, tenantId) =>
  * voice and stream the audio body back through the proxy. Returned as a
  * URL so an <audio> element can stream it directly. Same voice whether
  * Tex is answering you or telling you it broke.
+ *
+ * Optional `prosody` is the gate's verdict token ("sealed"|"derived"|"abstain")
+ * forwarded verbatim so the spoken line carries the tier's rate + lead-pause +
+ * loudness. Omitted ⇒ today's neutral voice (the honest default for non-verdict
+ * lines like the opener / "Here." / a falter).
  */
-export const speakStreamUrl = (text) =>
-  `${BASE}/v1/speak?text=${encodeURIComponent(text || "")}`;
+export const speakStreamUrl = (text, prosody) =>
+  `${BASE}/v1/speak?text=${encodeURIComponent(text || "")}` +
+  (prosody ? `&prosody=${encodeURIComponent(prosody)}` : "");
 
 /**
  * GET /v1/speak/timed?text=... — the SAME sealed line in Tex's ONE voice, but
@@ -397,8 +403,9 @@ export const speakStreamUrl = (text) =>
  * just without the highlight. Normal same-origin GET through the proxy (not a
  * streaming socket), so it rides the existing /api/tex/* path unchanged.
  */
-export const speakTimedUrl = (text) =>
-  `${BASE}/v1/speak/timed?text=${encodeURIComponent(text || "")}`;
+export const speakTimedUrl = (text, prosody) =>
+  `${BASE}/v1/speak/timed?text=${encodeURIComponent(text || "")}` +
+  (prosody ? `&prosody=${encodeURIComponent(prosody)}` : "");
 
 export const TEX_API_BASE = BASE;
 

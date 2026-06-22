@@ -484,7 +484,11 @@ export default function Vigil() {
           ? PRESENCE_LINGER_MS
           : ANSWER_LINGER_MS);
       const myAnswer = ++answerEpochRef.current;
-      texSpeak(text).then(() => {
+      /* Forward the gate's verdict token so the ANSWER is spoken in-tier (rate +
+         lead-pause + loudness). Only gate verdicts get a token — the opener /
+         "Here." / a falter stay NEUTRAL (a non-verdict line voiced as if it were
+         assured/uncertain would be dishonest). */
+      texSpeak(text, presence.prosodyToken).then(() => {
         /* Only the CURRENT answer lingers + dissolves — a newer answer (barge-in)
            has already taken the glass, so a stale resolution must not touch it. */
         if (answerEpochRef.current !== myAnswer) return;

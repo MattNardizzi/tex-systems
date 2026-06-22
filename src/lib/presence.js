@@ -165,6 +165,11 @@ export function derivePresence(res) {
     claims,
     proof,
     prosody: env?.prosody_plan || null,
+    /* The wire token forwarded verbatim to GET /v1/speak?prosody=<token> so the
+       spoken line carries the gate's verdict (rate + lead-pause + loudness).
+       Prefer the server's exact token (res.prosody); fall back to the normalized
+       tier lowercased so a faithful client still speaks in-tier. */
+    prosodyToken: res.prosody || (tier ? tier.toLowerCase() : null),
   };
 }
 

@@ -530,12 +530,12 @@ function _b64PcmToFloat32(b64) {
    deadline. The deadline is what keeps a cold/dead backend from hanging the
    opener — on timeout the promise rejects with an AbortError the caller treats as
    "no audio, advance". */
-function _timedFetch(text) {
+function _timedFetch(text, prosody) {
   const controller = new AbortController();
   const timer = setTimeout(() => {
     try { controller.abort(); } catch {}
   }, FETCH_TIMEOUT_MS);
-  const promise = fetch(speakTimedUrl(text), {
+  const promise = fetch(speakTimedUrl(text, prosody), {
     headers: { Accept: "application/json" },
     signal: controller.signal,
   })
@@ -571,13 +571,13 @@ function _primePrefetch(text) {
    starts so the next line is ready before it is needed. Falls back to the plain
    stream (real voice, no highlight) on 503 / decode failure — never authoring or
    altering the sealed text. */
-async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
+async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody } = {}) {
   /* Voice deactivated — no audio. Report "did not play" so a sequence advances
      on its silence floor and texSpeakTimed still fires onEnd; the words are
      already on the glass (SpokenLine renders full ink with no active word). */
   if (!VOICE_ENABLED) return false;
   const ctx = _ctx();
-  if (!ctx) return _speakStreamOne(text, myEpoch);
+  if (!ctx) return _speakStreamOne(text, myEpoch, prosody);
   await _ensureRunning(ctx);
   if (myEpoch !== _epoch) return false;
 
@@ -587,11 +587,13 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
   let data;
   try {
     let pf;
-    if (_prefetch && _prefetch.text === text) {
+    if (_prefetch && _prefetch.text === text && !prosody) {
+      /* The prefetch slot is only ever warmed for the NEUTRAL opener, so never
+         reuse it for a prosody-bearing line — fetch that fresh with its token. */
       pf = _prefetch;
       _prefetch = null;
     } else {
-      pf = _timedFetch(text);
+      pf = _timedFetch(text, prosody);
     }
     _activeAbort = pf.controller;
     data = await pf.promise;
@@ -604,7 +606,7 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
        error (e.g. ElevenLabs off but Kokoro up) DOES fall back — the stream path
        is itself deadline-bounded, so it cannot hang either. */
     if (err && err.name === "AbortError") return false;
-    return _speakStreamOne(text, myEpoch);
+    return _speakStreamOne(text, myEpoch, prosody);
   } finally {
     if (myEpoch === _epoch) _activeAbort = null;
   }
@@ -698,13 +700,13 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext } = {}) {
     return natural === true;
   } catch {
     if (myEpoch !== _epoch) return false;
-    return _speakStreamOne(text, myEpoch); // decode/playback failure → plain voice
+    return _speakStreamOne(text, myEpoch, prosody); // decode/playback failure → plain voice
   }
 }
 
 /* Play one line through the universal <audio> stream (real voice, no highlight).
    Returns true on a natural end at the current epoch, false otherwise. */
-async function _speakStreamOne(text, myEpoch) {
+async function _speakStreamOne(text, myEpoch, prosody) {
   /* Voice deactivated — no <audio> stream. Report "did not play"; the line's
      text is already on the glass and clears on its own timer. */
   if (!VOICE_ENABLED) return false;
@@ -713,7 +715,7 @@ async function _speakStreamOne(text, myEpoch) {
   let watchdog = null;
   try {
     const audio = new Audio();
-    audio.src = speakStreamUrl(text); // proxied GET → streamed audio body
+    audio.src = speakStreamUrl(text, prosody); // proxied GET → streamed audio body
     audio.preload = "auto";
     _activeAudio = audio;
     const ended = new Promise((resolve) => {
@@ -769,10 +771,10 @@ function _wait(ms, myEpoch) {
 /* Synthesize and play a grounded line in Tex's single voice through the universal
    stream. Resolves when playback finishes (or immediately, quietly, if synthesis
    is unreachable). */
-export async function texSpeak(text) {
+export async function texSpeak(text, prosody) {
   if (!text) return;
   const myEpoch = _supersede();
-  await _speakStreamOne(text, myEpoch);
+  await _speakStreamOne(text, myEpoch, prosody);
 }
 
 /* Speak a sealed line AND drive an in-sync highlight. onWord(index, word) fires as
@@ -781,10 +783,10 @@ export async function texSpeak(text) {
    If the word-timed endpoint is unavailable (503 / no ElevenLabs / decode failure)
    this transparently falls back to texSpeak — same voice, no highlight. The text
    passed here is a line Tex already sealed; this never authors or alters it. */
-export async function texSpeakTimed(text, { onWord, onEnd } = {}) {
+export async function texSpeakTimed(text, { onWord, onEnd, prosody } = {}) {
   if (!text) return;
   const myEpoch = _supersede();
-  await _speakTimedOne(text, myEpoch, { onWord });
+  await _speakTimedOne(text, myEpoch, { onWord, prosody });
   if (myEpoch !== _epoch) return; // superseded → no onEnd
   if (onEnd) onEnd();
 }
