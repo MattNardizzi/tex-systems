@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { igniteDiscovery, getDiscoveryCount, connectEntra } from "../lib/texApi";
+import { igniteDiscovery, getDiscoveryCount } from "../lib/texApi";
 
 /* A small delay between count retries, for riding out a cold-boot / still-
    scanning window without leaving the glass white. */
@@ -84,39 +84,14 @@ export function useIgnition() {
     if (igniting) return null;
     setIgniting(true);
     try {
-      /* Already connected this session: a re-press re-ignites THAT real tenant,
-         never the keyless default. */
-      if (connectedTenantRef.current !== null) {
-        const spoken = await igniteAndCount(connectedTenantRef.current || undefined);
-        setIgnited(true);
-        return spoken;
-      }
-
-      /* Best-effort first act: the read-only Entra admin-consent connect. It
-         lights up the IDENTITY plane (Tex seals the grant on Microsoft's own
-         consent screen and watches that tenant), but it is NO LONGER the gate.
-         Whether or not it completes, Begin ignites the full multi-plane sweep —
-         so an agent is found wherever it leaves a footprint, not only in the
-         directory. A declined / blocked / unconfigured connect simply means the
-         identity plane stays dark and the sweep runs over the other vantages. */
-      let tenant;
-      try {
-        const result = await connectEntra();
-        if (result && result.connected) {
-          connectedTenantRef.current = result.tenant || null;
-          tenant =
-            (result.next && result.next.ignite_tenant) || result.tenant || undefined;
-          /* Watch THIS real estate when a directory was connected. */
-          setConnectedTenant(tenant || result.tenant || null);
-        } else if (result?.error) {
-          // eslint-disable-next-line no-console
-          console.info("[tex] directory not connected; igniting full sweep anyway:", result.error);
-        }
-      } catch (_connectErr) {
-        /* connect unavailable — proceed with the full sweep regardless. */
-      }
-
-      const spoken = await igniteAndCount(tenant);
+      /* Begin lights up the WHOLE discovery layer in one press — no directory
+         prompt, no popup, no gate. It ignites the full multi-plane sweep
+         directly; an agent is found wherever it leaves a footprint, and the
+         spoken line carries the honest coverage — the count, plus the planes
+         still dark and the vantage that would open the biggest one. A directory,
+         when connected, is just one plane sourced server-side, never an
+         interactive consent on Begin. */
+      const spoken = await igniteAndCount(connectedTenantRef.current || undefined);
       setIgnited(true);
       return spoken;
     } catch (_err) {
