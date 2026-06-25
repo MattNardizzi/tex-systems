@@ -6,11 +6,13 @@
  * door is held open until the operator connects a real directory, and Begin's
  * first act IS that connect:
  *
- *   begin()   runs the read-only Entra admin-consent connect, then ignites
- *             discovery against the directory it sealed, and returns the single
- *             spoken line (the count, and that Tex is beginning). No connection
- *             -> nothing to discover, so a failed / declined connect leaves the
- *             door open to retry. Tex never fabricates a count.
+ *   begin()   lights up the WHOLE discovery layer. Connecting a directory is a
+ *             best-effort first act (it lights up the identity plane), NOT the
+ *             gate: if the operator connects, Tex watches that tenant; if they
+ *             decline / it isn't configured, Begin still ignites the full
+ *             multi-plane sweep over every other vantage and returns the single
+ *             spoken line — the count plus the honest coverage (where it found
+ *             them, and the biggest blind spot). Tex never fabricates a count.
  *   dismiss() is "Not yet": it closes the door for this session WITHOUT
  *             connecting, so Tex greets again next time and does not nag now.
  *
@@ -90,23 +92,30 @@ export function useIgnition() {
         return spoken;
       }
 
-      /* First act: the read-only Entra admin-consent connect. Tex seals the
-         grant on Microsoft's own consent screen, then discovers THEIR estate.
-         No connection -> nothing to discover, so this gates ignition. Failure
-         (declined / popup closed / blocked / not configured) leaves the door so
-         Begin can retry; silence is the failure mode, never a fabricated count. */
-      const result = await connectEntra();
-      if (!result || !result.connected) {
-        // eslint-disable-next-line no-console
-        if (result?.error) console.info("[tex] connect not completed:", result.error);
-        return null;
+      /* Best-effort first act: the read-only Entra admin-consent connect. It
+         lights up the IDENTITY plane (Tex seals the grant on Microsoft's own
+         consent screen and watches that tenant), but it is NO LONGER the gate.
+         Whether or not it completes, Begin ignites the full multi-plane sweep —
+         so an agent is found wherever it leaves a footprint, not only in the
+         directory. A declined / blocked / unconfigured connect simply means the
+         identity plane stays dark and the sweep runs over the other vantages. */
+      let tenant;
+      try {
+        const result = await connectEntra();
+        if (result && result.connected) {
+          connectedTenantRef.current = result.tenant || null;
+          tenant =
+            (result.next && result.next.ignite_tenant) || result.tenant || undefined;
+          /* Watch THIS real estate when a directory was connected. */
+          setConnectedTenant(tenant || result.tenant || null);
+        } else if (result?.error) {
+          // eslint-disable-next-line no-console
+          console.info("[tex] directory not connected; igniting full sweep anyway:", result.error);
+        }
+      } catch (_connectErr) {
+        /* connect unavailable — proceed with the full sweep regardless. */
       }
-      connectedTenantRef.current = result.tenant || null;
-      const tenant =
-        (result.next && result.next.ignite_tenant) || result.tenant || undefined;
-      /* Hand the connected tenant to the surface so the vigil starts watching
-         THIS real estate — and only this one. */
-      setConnectedTenant(tenant || result.tenant || null);
+
       const spoken = await igniteAndCount(tenant);
       setIgnited(true);
       return spoken;
