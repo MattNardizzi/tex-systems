@@ -241,7 +241,13 @@ function heldCertifiedWatermark(hold) {
 
 function falterLine(snapshot) {
   const chain = snapshot?.chain ?? {};
-  const at = chain.broke_at || chain.last_sealed_at || null;
+  /* The REAL break timestamp the backend now stands behind: snapshot chain's
+     offending captured_at, or the discovery chain's offending appended_at. Both
+     are null while the chain is intact, so faltering only ever speaks from a
+     real break — never a placeholder (the original 2026-06-19 deactivation
+     reason). Snapshot is preferred when both broke; this is a confession line,
+     not a forensic report. */
+  const at = chain.snapshot_broke_at || chain.discovery_broke_at || null;
   if (at) {
     return `My evidence chain broke at ${at}. I can't prove what I've sealed since. Don't trust me until this is resolved.`;
   }
@@ -342,20 +348,21 @@ const MAP_MIN_MS = 1_800;
 /* ------------------------------------------------------------------ */
 
 function deriveState(liveDecision, snapshot) {
-  /* FALTERING DEACTIVATED (2026-06-19) — the canned "My evidence chain broke…"
-     confession was firing as a PLACEHOLDER (the generic, timestamp-less form),
-     not from a trustworthy real break signal. Tex must only speak the truth of
-     the live estate, never a scripted doom line. The faltering machinery
-     (falterLine, the faltering render/speak paths) is left intact but dormant;
-     re-enable here only once the backend emits a real, explicit, timestamped
-     chain-break (chain.broke_at) we can stand behind.
-
+  /* FALTERING RE-ENABLED (2026-06-26, D5) — the canned "My evidence chain broke…"
+     confession was deactivated 2026-06-19 because it fired as a PLACEHOLDER (the
+     generic, timestamp-less form): the backend gave the booleans below but no
+     real break timestamp the surface could stand behind. The backend now emits an
+     explicit chain.snapshot_broke_at / chain.discovery_broke_at — the real
+     captured_at / appended_at of the breaking record, null while the chain is
+     intact — so faltering speaks only from a real, timestamped break, never a
+     scripted doom line. falterLine reads those real fields. This adds NO new
+     unsolicited surface: faltering/"Tex is down" is one of the two sanctioned
+     unsolicited surfaces (the other is HELD). */
   const chain = snapshot?.chain ?? {};
   const intact =
     (chain.discovery_chain_intact ?? true) &&
     (chain.snapshot_chain_intact ?? true);
   if (snapshot && !intact) return "faltering";
-  */
 
   if (liveDecision) return "held";
 
