@@ -206,6 +206,126 @@ export const getDiscoveryCount = (tenantId) => {
 };
 
 /**
+ * The discovered ROSTER — the inventory Tex gained at Begin, pulled on demand.
+ *
+ * This is the SOLICITED result of clicking Begin (the "Tex gains inventory"
+ * reveal) and a pull-only read thereafter: it carries NO side effect and never
+ * pushes itself, so the surface stays silent at rest. It is NOT a count — it is
+ * the named agents themselves, so the operator can see what Tex now holds.
+ *
+ * Prefer GET /v1/agents/governance — the richer per-agent read, where each row
+ * carries governance_state / decision_count / forbid_count / last_decision_at,
+ * so a row can later wear the plane badge (D2) without a second call. If that
+ * endpoint is unavailable, fall back to GET /v1/agents?status=active, which
+ * EXCLUDES sleeping/revoked agents so the list matches the count Tex spoke.
+ *
+ * Returns the parsed agent list (an array). On total failure resolves to an
+ * empty array — the surface renders an honest empty state, never a fabricated
+ * row or a fake count. Keyed/dev/scoped posture mirrors getDiscoveryCount: the
+ * key carries the tenant in prod; only DEV scopes by the connected directory.
+ *
+ * Each row is expected to carry, at minimum, an identity (name and/or id) and a
+ * light governance/status hint (governance_state or status). The shape is read
+ * defensively by the caller, so a thinner backend payload still renders.
+ */
+export const getAgentRoster = async (tenantId) => {
+  const t = scopedTenant(tenantId);
+  const qs = t ? `?tenant_id=${encodeURIComponent(t)}` : "";
+
+  /* Pull the list out of whatever envelope the backend returns: a bare array,
+     or { agents: [...] } / { items: [...] } / { results: [...] }. */
+  const pluck = (res) =>
+    Array.isArray(res)
+      ? res
+      : Array.isArray(res?.agents)
+      ? res.agents
+      : Array.isArray(res?.items)
+      ? res.items
+      : Array.isArray(res?.results)
+      ? res.results
+      : [];
+
+  try {
+    return pluck(await request(`/v1/agents/governance${qs}`));
+  } catch (_e) {
+    /* The richer endpoint may not be wired yet — fall back to the active list,
+       which is scoped to the same set the spoken count covers. */
+  }
+  try {
+    const sep = qs ? "&" : "?";
+    return pluck(await request(`/v1/agents${qs}${sep}status=active`));
+  } catch (_e) {
+    /* Both reads failed — resolve to nothing, never a fabricated roster. */
+  }
+  return [];
+};
+
+/**
+ * The per-agent ENFORCEMENT PLANE — the honest badge behind each roster row.
+ *
+ * GET /v1/govern/agents/plane returns, for every governed agent, EXACTLY one of
+ * three planes derived from a LIVE, OBSERVED signal (never from capability or
+ * config):
+ *   - "DECIDE-ONLY"         the floor: Tex rules this agent but does not stop
+ *                           its actions in-path here.
+ *   - "CREDENTIAL-ENFORCED" a downstream resource ran the demand-verifier and
+ *                           accepted a Tex-minted credential for this agent.
+ *   - "IN-PATH-BLOCKING"    a live in-path Body is enforcing (FORBID kills the
+ *                           action).
+ *
+ * The wire envelope is { tenant, agents: [{ agent_id, plane, last_handshake_ts }],
+ * count }. This pulls that list and returns a MAP keyed by agent_id →
+ * { plane, last_handshake_ts }, so a roster row can read its plane by its
+ * data-agent-id without a second pass.
+ *
+ * HONEST FAILURE IS THE FLOOR. The route is flag-gated (TEX_PLANE_STATUS); when
+ * OFF — the default, and the live Render posture — it answers 503, and no
+ * producer is wired today, so even when ON every agent reads DECIDE-ONLY. On
+ * ANY non-success (503 disabled, unreachable, parse failure, or an unexpected
+ * shape) this resolves to an EMPTY map. An empty/missing entry makes the caller
+ * fall back to the DECIDE-ONLY floor (or leave the badge hidden) — it can NEVER
+ * upgrade a badge above the floor without a real, fresh plane from this wire.
+ *
+ * Keyed/dev/scoped posture mirrors getAgentRoster: the key carries the tenant
+ * in prod; only DEV scopes by the connected directory's id.
+ */
+export const getAgentPlanes = async (tenantId) => {
+  const t = scopedTenant(tenantId);
+  const qs = t ? `?tenant_id=${encodeURIComponent(t)}` : "";
+
+  let res;
+  try {
+    res = await request(`/v1/govern/agents/plane${qs}`);
+  } catch (_e) {
+    /* 503 (flag off / Render), unreachable, or a non-2xx — fall to the floor.
+       Never throw: a missing plane wire degrades the badge, never the surface. */
+    return {};
+  }
+
+  const rows = Array.isArray(res?.agents)
+    ? res.agents
+    : Array.isArray(res)
+    ? res
+    : [];
+
+  const map = {};
+  for (const row of rows) {
+    const id = row?.agent_id;
+    const plane = row?.plane;
+    /* Only record a row that carries a real id AND a real plane string. A row
+       missing either is treated as absent (the agent falls to the floor) — we
+       never synthesize a plane the wire did not assert. */
+    if (id && plane) {
+      map[String(id)] = {
+        plane: String(plane),
+        last_handshake_ts: row?.last_handshake_ts ?? null,
+      };
+    }
+  }
+  return map;
+};
+
+/**
  * Best-effort wake. A sleeping backend (Render free tier) needs a moment to
  * boot; GET /health spins it up before a heavy call so the real request lands
  * on a warm server. Never throws — the caller ignores the result.

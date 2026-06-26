@@ -874,3 +874,149 @@
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* The discovered ROSTER — the inventory Tex gained at Begin. The      */
+/* SOLICITED reveal: it rises with the ignition count, settles, and    */
+/* is dismissible back to silence. Ink only (the surface keeps colour   */
+/* for the faltering breath alone); each row carries a per-row seam     */
+/* for D2's plane badge (.tex-plane-badge), inert until that lands.     */
+/* ------------------------------------------------------------------ */
+.tex-roster {
+  position: relative;
+  width: 100%;
+  max-width: min(92vw, 44rem);
+  margin: 2.2em auto 0;
+  padding: 0 24px;
+  text-align: left;
+  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 220ms both;
+}
+.tex-roster-dismiss {
+  position: absolute;
+  top: -0.2em;
+  right: 0.4em;
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--tex-sans);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--tex-ink-mute);
+  opacity: 0.55;
+  transition: opacity 200ms ease;
+}
+.tex-roster-dismiss:hover {
+  opacity: 1;
+}
+.tex-roster-empty {
+  margin: 0;
+  font-family: var(--tex-serif);
+  font-size: clamp(16px, 1.7vw, 20px);
+  line-height: 1.6;
+  letter-spacing: -0.004em;
+  color: var(--tex-ink-mute);
+  text-align: center;
+}
+.tex-roster-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* The inventory can run long — let it scroll within its own measure rather
+     than push the glass tall. It is a settled reveal, not a live feed. */
+  max-height: min(48vh, 24rem);
+  overflow-y: auto;
+}
+.tex-roster-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
+  padding: 0.55em 0;
+  border-bottom: 1px solid var(--tex-ink-hair, rgba(0, 0, 0, 0.08));
+}
+.tex-roster-row:last-child {
+  border-bottom: 0;
+}
+.tex-roster-name {
+  flex: 1 1 auto;
+  font-family: var(--tex-serif);
+  font-size: clamp(15px, 1.5vw, 18px);
+  letter-spacing: -0.006em;
+  color: var(--tex-ink);
+}
+.tex-roster-state {
+  flex: 0 0 auto;
+  font-family: var(--tex-sans);
+  font-size: clamp(11px, 1.1vw, 13px);
+  letter-spacing: 0.02em;
+  color: var(--tex-ink-mute);
+  text-transform: capitalize;
+}
+/* The per-row ENFORCEMENT-PLANE badge (D2) — the honest seam, now filled. Three
+   planes, ink only (the surface keeps colour for the faltering breath alone), so
+   they read apart by WEIGHT and a small lead mark, not a green/amber/red ramp.
+   DECIDE-ONLY is the floor and the most muted — a row at the floor must never
+   look like an upgrade. CREDENTIAL-ENFORCED and IN-PATH-BLOCKING earn a little
+   more ink, in that order, because they carry a stronger, observed claim. An
+   empty seam (no plane string at all) still collapses to nothing. */
+.tex-plane-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42em;
+  font-family: var(--tex-sans);
+  font-size: clamp(10px, 1vw, 12px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--tex-ink-mute);
+}
+.tex-plane-badge:empty {
+  display: none;
+}
+/* The lead mark — a small ink dot whose presence/weight tracks the plane's
+   strength. The floor's dot is hollow (a watching eye, not a guard); the
+   stronger planes fill and darken it. */
+.tex-plane-badge::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+/* DECIDE-ONLY — the floor. The most muted: Tex rules but does not stop the
+   action in-path here. Hollow mark, mute ink, normal weight. */
+.tex-plane-badge--decide-only {
+  color: var(--tex-ink-mute);
+  font-weight: 400;
+}
+
+/* CREDENTIAL-ENFORCED — a downstream resource demands a Tex cred. More ink, a
+   half-filled mark; honestly a STRONGER claim than the floor, but not in-path. */
+.tex-plane-badge--credential-enforced {
+  color: var(--tex-ink-soft, var(--tex-ink));
+  font-weight: 500;
+}
+.tex-plane-badge--credential-enforced::before {
+  background: currentColor;
+  opacity: 0.55;
+}
+
+/* IN-PATH-BLOCKING — a live Body enforces; a FORBID kills the action. The
+   strongest: full ink, filled mark, the most weight. */
+.tex-plane-badge--in-path-blocking {
+  color: var(--tex-ink);
+  font-weight: 600;
+}
+.tex-plane-badge--in-path-blocking::before {
+  background: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-roster {
+    animation: none;
+  }
+}

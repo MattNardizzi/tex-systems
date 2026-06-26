@@ -4,7 +4,7 @@ import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
-import { askTex, sealDecision, explainLine, approveProposal, rejectProposal, wakeBackend } from "../../lib/texApi";
+import { askTex, sealDecision, explainLine, approveProposal, rejectProposal, wakeBackend, getAgentRoster, getAgentPlanes } from "../../lib/texApi";
 import {
   TexListener,
   texSpeak,
@@ -101,6 +101,81 @@ function heldDetail(decision) {
    epistemic, the single pivotal QUESTION that would resolve it. */
 function heldHold(decision) {
   return decision?.hold || null;
+}
+
+/* The discovered ROSTER, read defensively. The backend's per-agent payload
+   (/v1/agents/governance, or the /v1/agents?status=active fallback) carries an
+   identity and a light governance/status hint; the exact key names vary by
+   endpoint, so each reader tries the likely fields and falls back to a stable,
+   non-fabricated value. These NEVER invent an identity — the worst case is a
+   neutral "agent" label tied to the row's position, so a thinner payload still
+   renders honestly rather than as a blank or a made-up name. */
+function rosterId(agent, index) {
+  return (
+    agent?.id ||
+    agent?.agent_id ||
+    agent?.name ||
+    agent?.display_name ||
+    `agent-${index}`
+  );
+}
+function rosterName(agent, index) {
+  return (
+    agent?.name ||
+    agent?.display_name ||
+    agent?.id ||
+    agent?.agent_id ||
+    `Agent ${index + 1}`
+  );
+}
+/* The light hint beside the name — the governance posture or lifecycle status,
+   normalised to a short readable token. Empty string when the payload carries
+   none (the row still shows the identity; it does not fabricate a state). */
+function rosterHint(agent) {
+  const raw =
+    agent?.governance_state ||
+    agent?.status ||
+    agent?.state ||
+    agent?.lifecycle ||
+    "";
+  if (!raw) return "";
+  return String(raw).replace(/_/g, " ").toLowerCase();
+}
+
+/* The per-agent ENFORCEMENT PLANE badge — the honest seam D2 fills. Three
+   planes, strictly ordered by strength; the wire derives exactly one per agent
+   from a LIVE, OBSERVED signal, never from capability or config. An agent the
+   plane map does not carry (the wire was 503/unreachable, or omitted it) falls
+   to the DECIDE-ONLY FLOOR — never an upgrade. The labels + tooltips are held to
+   the honest discipline: DECIDE-ONLY does not claim Tex stops the action here;
+   CREDENTIAL-ENFORCED says a downstream resource DEMANDS a Tex cred (never that
+   possession equals authorization); IN-PATH-BLOCKING claims a live Body kills a
+   FORBID in-path. Anything not one of the three known strings is treated as the
+   floor (we never render an unknown plane as an upgrade). */
+const PLANE_FLOOR = "DECIDE-ONLY";
+const PLANE_META = {
+  "DECIDE-ONLY": {
+    label: "decide-only",
+    title:
+      "Decide-only — Tex rules this agent but does not stop its actions in-path here.",
+  },
+  "CREDENTIAL-ENFORCED": {
+    label: "credential-enforced",
+    title:
+      "Credential-enforced — a downstream resource demands a Tex-minted credential for this agent.",
+  },
+  "IN-PATH-BLOCKING": {
+    label: "in-path blocking",
+    title:
+      "In-path blocking — a live in-path Body enforces; a FORBID kills the action.",
+  },
+};
+/* Normalise any wire plane to a known one, defaulting to the floor. An absent
+   entry, an empty string, or an unrecognised value all resolve to DECIDE-ONLY:
+   the badge can only ever READ DOWN to the floor, never up. */
+function planeFor(planeEntry) {
+  const raw = planeEntry?.plane;
+  return raw && PLANE_META[raw] ? raw : PLANE_FLOOR;
 }
 
 /* A calibration hold is the second kind of held card: not a frozen action,
@@ -335,6 +410,25 @@ export default function Vigil() {
     mappingTimer.current = null;
   };
 
+  /* The discovered ROSTER — the inventory Tex gained at Begin, the "Tex gains
+     inventory" reveal. It is SOLICITED: set only when Begin resolves (and on a
+     deliberate reach to see it again), never pushed and never auto-refreshed, so
+     the surface stays silent at rest. null = not revealed this session (the
+     resting state); an array (possibly empty) = revealed. An empty array renders
+     an HONEST empty state — Tex shows nothing rather than fabricating rows. */
+  const [roster, setRoster] = useState(null);
+  /* The per-agent ENFORCEMENT-PLANE map — { agent_id → { plane, last_handshake_ts } },
+     fetched ONCE alongside the roster in the Begin reveal path (no polling, no
+     auto-refresh: silence at rest). An empty map is the honest resting truth —
+     every row then wears the DECIDE-ONLY floor. A 503 (flag off / Render) or an
+     unreachable wire also yields the empty map, so a badge can never read above
+     the floor without a real, fresh plane. */
+  const [planes, setPlanes] = useState({});
+  /* The reveal is dismissible: closing it returns the glass to silence WITHOUT
+     forgetting what Tex found (the inventory stays cached in `roster`), so a
+     later recall is a pull from cache, not a re-scan. */
+  const [rosterShown, setRosterShown] = useState(false);
+
   /* The day-one THRESHOLD is showing — the manifesto door. The first reach here
      WAKES Tex (unlocks audio, starts the manifesto). */
   const onThreshold = ignitionDoorOpen;
@@ -351,6 +445,11 @@ export default function Vigil() {
      session-local set is what keeps Tex from re-raising it (pull-only). */
   const dismissedRef = useRef(new Set());
   const [, bumpDismissed] = useState(0);
+  /* The id of the held decision Tex has already spoken on arrival, so a NEW
+     held decision is voiced once, unprompted, and the same one is never
+     re-announced (no nagging, no loop on every vigil frame). Keyed on the same
+     dismissKey the card uses (decision id / calibration proposal id). */
+  const lastSpokenHeldIdRef = useRef(null);
   /* Pending boundary for the resolve mutation. React 18.3 stable: useTransition
      (not useOptimistic, which is React 19) marks the write as non-urgent so
      the optimistic dismiss stays responsive. */
@@ -518,6 +617,32 @@ export default function Vigil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  /* ---------------- A held decision speaks first, unprompted ----------------
+     A HELD decision is one of the only two surfaces allowed to break the
+     silence at rest (the other is "Tex is down"). When a NEW one arrives, Tex
+     voices its held sentence ONCE, on its own, the instant it lands — the same
+     line the card already renders, so the spoken and the written hold agree.
+
+     Said exactly once per held id: lastSpokenHeldIdRef records the dismissKey
+     Tex has already announced, so this can never re-fire on a later /v1/vigil
+     frame for the same hold (no nag, no loop). A different held id speaks
+     fresh. Gated to a settled surface — never over the operator's turn
+     (holding), a question round-trip (thinking/verifying), or a dead wire
+     (alive). A dismissed hold is already filtered out of liveDecision, so it
+     cannot be re-announced. The card itself carries the same sentence, and the
+     reach-for-proof path (pullEvidence) is unchanged; voice may be MUTED, in
+     which case texSpeak is a no-op and the card alone carries the hold. */
+  useEffect(() => {
+    if (state !== "held" || !liveDecision || !alive) return;
+    if (!dismissKey) return;
+    if (holding || thinking || verifying) return;
+    if (dismissedRef.current.has(dismissKey)) return;
+    if (lastSpokenHeldIdRef.current === dismissKey) return;
+    lastSpokenHeldIdRef.current = dismissKey;
+    texSpeak(heldSentence(liveDecision));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, dismissKey, alive, holding, thinking, verifying]);
+
   /* ---------------- The wordless reach: "Here." ---------------- */
   /* You held the surface and said nothing. Not an error — a check-in.
      Tex answers the reach with one word and returns to silence. Only when
@@ -589,13 +714,32 @@ export default function Vigil() {
 
     const started = Date.now();
     /* useIgnition.begin() fires POST /v1/surface/discovery/ignite and returns
-       the one spoken line — the count of what the scan actually discovered. */
-    const line = await ignition.begin();
+       the one spoken line — the count of what the scan actually discovered. The
+       roster pull runs alongside it: the named inventory Tex gained, revealed as
+       part of this one Begin moment (never a later unsolicited pop). The
+       per-agent ENFORCEMENT-PLANE map rides in the SAME breath — fetched ONCE
+       here, never polled — so each revealed row can wear its honest plane badge
+       without a second round-trip. On any failure the planes resolve to an empty
+       map (every row then reads the DECIDE-ONLY floor — never an upgrade). */
+    const [line, found, planeMap] = await Promise.all([
+      ignition.begin(),
+      getAgentRoster(watchTenant).catch(() => []),
+      getAgentPlanes(watchTenant).catch(() => ({})),
+    ]);
     const wait = Math.max(0, MAP_MIN_MS - (Date.now() - started));
 
     clearMappingTimer();
     mappingTimer.current = setTimeout(() => {
       setMapping(false);
+      /* The reveal: settle the discovered inventory onto the glass (an empty
+         array still resolves the reveal — to an honest empty state). It is the
+         solicited result of Begin; it does not auto-refresh after this. */
+      setRoster(Array.isArray(found) ? found : []);
+      /* Settle the plane map alongside the roster in the same reveal beat. An
+         empty map is the honest default — every row falls to the DECIDE-ONLY
+         floor until a real, fresh plane upgrades it. */
+      setPlanes(planeMap && typeof planeMap === "object" ? planeMap : {});
+      setRosterShown(true);
       if (line) {
         clearLineTimer();
         setIgniteWord(-1);
@@ -607,7 +751,19 @@ export default function Vigil() {
         lineTimer.current = setTimeout(() => setSpoken(null), IGNITE_LINE_MS);
       }
     }, wait);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ignition]);
+
+  /* Dismiss the roster reveal — settle the glass back to silence WITHOUT
+     forgetting what Tex found (roster stays cached in state; only the surface
+     closes). Re-surfacing it is then a pull from cache, not a re-scan. The
+     on-demand RECALL gesture (re-opening the settled roster, or pulling it fresh
+     for an already-ignited tenant) is designed at the capstone, where the whole
+     reach surface is wired together; the data path it will use is getAgentRoster
+     (already exercised by Begin above), so no new wire is owed here. */
+  const dismissRoster = useCallback(() => {
+    setRosterShown(false);
+  }, []);
 
   const deferDiscovery = useCallback(() => {
     openHandledRef.current = true; /* rest in silence; Tex does not nag */
@@ -1284,6 +1440,78 @@ export default function Vigil() {
             )}
         </div>
       )}
+
+      {/* The discovered ROSTER — the inventory Tex gained at Begin. This is the
+          SOLICITED reveal: it rides in with the ignition count and settles, the
+          "Tex gains inventory" moment. It is NOT a resting surface — it never
+          auto-pops later and never auto-refreshes; it is dismissible back to
+          silence and reachable again only on a deliberate pull. When the surface
+          is otherwise busy (a held card, an answer, mapping) it steps aside. */}
+      {!doorOpen && !mapping && !answer && state !== "held" && !sealed &&
+        rosterShown && Array.isArray(roster) && (
+          <div
+            className="tex-roster"
+            role="region"
+            aria-label="The agents Tex discovered"
+          >
+            <button
+              type="button"
+              data-act="dismiss-roster"
+              className="tex-roster-dismiss"
+              aria-label="Settle the roster back to silence"
+              onClick={dismissRoster}
+            >
+              ×
+            </button>
+            {roster.length === 0 ? (
+              /* HONEST empty state — Tex found nothing to show, and says so
+                 plainly rather than fabricating a single row or a count. */
+              <p className="tex-roster-empty">
+                Tex is watching nothing yet — no agents discovered.
+              </p>
+            ) : (
+              <ul className="tex-roster-list">
+                {roster.map((a, i) => {
+                  const id = rosterId(a, i);
+                  /* The agent's ENFORCEMENT PLANE, keyed by its real identity.
+                     Absent from the map (503 / unreachable / omitted) ⇒ the
+                     DECIDE-ONLY floor. Never an upgrade without a fresh signal. */
+                  const plane = planeFor(planes[String(id)]);
+                  const planeMeta = PLANE_META[plane];
+                  /* React key carries the index too, so two agents sharing a
+                     name (and no id) can't collide; data-agent-id stays the real
+                     identity for the badge to key against. */
+                  return (
+                    <li
+                      key={`${id}-${i}`}
+                      className="tex-roster-row"
+                      data-agent-id={id}
+                    >
+                      <span className="tex-roster-name">{rosterName(a, i)}</span>
+                      {/* The light governance/status hint. */}
+                      <span className="tex-roster-state">{rosterHint(a)}</span>
+                      {/* The per-row ENFORCEMENT-PLANE badge — D2. Filled from the
+                          live plane map; honest label + tooltip per plane. An
+                          unfilled seam (no plane string at all) collapses to
+                          :empty → display:none, so the row reads clean — but the
+                          floor is the honest default for any governed agent, so
+                          a known row always wears at least DECIDE-ONLY. */}
+                      <span
+                        className={`tex-plane-badge tex-plane-badge--${plane.toLowerCase()}`}
+                        data-plane-slot="true"
+                        data-plane={plane}
+                        title={planeMeta.title}
+                        aria-label={planeMeta.title}
+                      >
+                        {planeMeta.label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
 
       {/* The presence answer — the one transient exception to "answers are spoken,
           never written". Tex's grounded line, lit as it is voiced, carrying the
