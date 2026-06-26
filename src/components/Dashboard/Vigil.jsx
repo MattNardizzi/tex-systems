@@ -185,6 +185,18 @@ function isCalibration(decision) {
   return decision?.hold?.kind === "calibration";
 }
 
+/* Which held cards OWN the surface — i.e. outrank the solicited roster reveal. A
+   real adjudicated action-held carries a decision id; a calibration hold is the
+   one legitimate id-less held (distinguished by hold.kind). A discovery review
+   hold (BOTH id and hold null — Tex flagging an over-permissioned discovered
+   agent that needs a human blessing) is a genuine unsolicited held at REST, but
+   must NOT mask the inventory the operator just asked to see, so it does not own
+   the surface during the Begin reveal. It returns to the surface once the roster
+   settles. Nothing is hidden; only the precedence during the reveal changes. */
+function ownsSurface(decision) {
+  return Boolean(decision) && (Boolean(decision.id) || isCalibration(decision));
+}
+
 /* The proposed change, as the one handle the glass may hold when reached for:
    a compact "permit 0.34 → 0.32" the operator reads and takes, never a table. */
 function proposedChangeHandle(decision) {
@@ -1337,7 +1349,8 @@ export default function Vigil() {
           never the two sentences mushed on top of each other. It also recedes
           during the gate-verification pause, so the deliberation mark reads alone
           before the answer arrives. */}
-      {!doorOpen && !mapping && state === "held" && decision && !sealed && (
+      {!doorOpen && !mapping && state === "held" && decision && !sealed &&
+        (ownsSurface(decision) || !(rosterShown && Array.isArray(roster))) && (
         <div className={`tex-held${answer || verifying ? " is-receded" : ""}`}>
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
           {heldDetail(decision) && (
@@ -1454,7 +1467,7 @@ export default function Vigil() {
           auto-pops later and never auto-refreshes; it is dismissible back to
           silence and reachable again only on a deliberate pull. When the surface
           is otherwise busy (a held card, an answer, mapping) it steps aside. */}
-      {!doorOpen && !mapping && !answer && state !== "held" && !sealed &&
+      {!doorOpen && !mapping && !answer && !ownsSurface(liveDecision) && !sealed &&
         rosterShown && Array.isArray(roster) && (
           <div
             className="tex-roster"
