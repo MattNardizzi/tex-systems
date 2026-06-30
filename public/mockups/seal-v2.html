@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — The Seal (v2, etched)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   THE SEAL — v2, "Etched Light", to the researched motion language.
+   ────────────────────────────────────────────────────────────
+   One earned moment on a still white field. A decision is declared,
+   then its sha-256 computes itself character-by-character, left to
+   right, and locks. The proof is achromatic: the hash deepens from
+   scramble-grey to FULL TRUE INK at the instant it seals. No blur,
+   no glow, no colour, no loop. It fires once. The value jump is the
+   whole payoff. Everything else is perfectly still.
+   ============================================================ */
+:root{
+  /* ink — neutral VALUE ladder, R=G=B, zero hue (Tex doctrine) */
+  --ink:#0b0b0b;          /* the sealed truth — full ink */
+  --ink-lock:#2c2c2c;     /* a char that has locked, not yet sealed */
+  --ink-mute:#9a9a9a;     /* the credibility micro-label */
+  --scram:#c7c7c7;        /* a glyph still scrambling — the quietest mark */
+  --paper:#ffffff;
+  --mic:"Michroma","Eurostile",system-ui,sans-serif;
+  --mono:"Geist Mono","SF Mono","JetBrains Mono",monospace;
+  /* the one entrance curve — expo decelerate, weighty, never bouncy */
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--mic);color:var(--ink);background:var(--paper);overflow:hidden;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
+
+/* GRAIN — luminance-only paper texture (soft-light of grey = no tint, no darkening) */
+.grain{position:fixed;inset:0;z-index:9;pointer-events:none;mix-blend-mode:soft-light;opacity:.28;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px}
+/* LIGHT — one soft overhead light, biased above-centre; a ~2% neutral fall-off, felt not seen */
+.field{position:fixed;inset:0;background:
+  radial-gradient(130% 110% at 50% -8%, #ffffff 0%, #fdfdfd 58%, #f8f8f8 100%)}
+
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+.wrap{text-align:center;transform:translateY(-3%)}
+
+/* THE VERDICT — declared, not popped. A clip-reveal: the word rises from
+   behind a mask. No blur. Modest size — restraint reads as confidence. */
+.verdict-mask{overflow:hidden;display:inline-block;vertical-align:bottom}
+.verdict{display:inline-block;font-size:clamp(22px,3vw,30px);line-height:1.08;
+  letter-spacing:-.02em;color:var(--ink);transform:translateY(110%)}
+
+/* THE HASH — the one thing that moves. Geist Mono so the row is a fixed grid
+   that never reflows while scrambling. Each glyph snaps as it locks. */
+.hash{margin-top:32px;font-family:var(--mono);font-size:clamp(9px,1.5vw,15px);
+  letter-spacing:.07em;white-space:nowrap;color:var(--ink);opacity:0}
+.hash .c{display:inline-block;color:var(--scram);will-change:transform,opacity;
+  transition:color .26s var(--ease)}
+.hash .c.lock{color:var(--ink-lock)}          /* locked: mid ink */
+.hash.sealed .c{color:var(--ink)}             /* SEALED: full true ink — the payoff */
+
+/* THE CREDIBILITY LINE — appears only once sealed. Quiet, grey, achromatic. */
+.meta{margin-top:24px;font-size:11px;letter-spacing:.24em;text-indent:.24em;
+  text-transform:uppercase;color:var(--ink-mute);opacity:0}
+
+.replay{position:fixed;right:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.22em;text-indent:.22em;text-transform:uppercase;
+  color:#cfcfcf;background:none;border:0;cursor:pointer;transition:color .16s var(--ease)}
+.replay:hover{color:var(--ink-mute)}
+.tag{position:fixed;left:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.28em;text-indent:.28em;text-transform:uppercase;color:#cfcfcf}
+</style>
+</head>
+<body>
+<div class="field"></div>
+<div class="grain"></div>
+
+<div class="stage">
+  <div class="wrap">
+    <span class="verdict-mask"><span class="verdict" id="verdict">Sealed.</span></span>
+    <div class="hash" id="hash" aria-hidden="true"></div>
+    <p class="meta" id="meta">Anchored · SHA-256</p>
+  </div>
+</div>
+
+<button class="replay" id="replay">Replay ↻</button>
+<div class="tag">The Seal</div>
+
+<script>
+(function(){
+  var HEX="0123456789abcdef", N=64;
+  var STAGGER=22, SETTLE=140, TICK=45;     /* researched cadence */
+  var EASE="cubic-bezier(0.16,1,0.3,1)";
+
+  var hashEl=document.getElementById("hash");
+  var verdict=document.getElementById("verdict");
+  var meta=document.getElementById("meta");
+  var replay=document.getElementById("replay");
+  var reduce=false; try{ reduce=matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
+
+  /* a real, fixed sha-256 so the lock target is honest hex */
+  var TARGET="3f9a1c7e0b6d2548a1f4c93e7b08d65c2e9f1a4b8c3d70e6f5a2b9c8d1e0f7a6".split("");
+  var cells=[];
+  function build(){ hashEl.innerHTML=""; cells=[];
+    for(var i=0;i<N;i++){ var s=document.createElement("span"); s.className="c";
+      s.textContent=HEX[(Math.random()*16)|0]; hashEl.appendChild(s); cells.push(s); } }
+
+  function snap(el){ if(!el.animate) return;
+    el.animate([
+      {transform:"translateY(3px) scale(1.0)"},
+      {transform:"translateY(0) scale(1.06)",offset:0.6},
+      {transform:"translateY(0) scale(1.0)"}],
+      {duration:SETTLE,easing:EASE,fill:"both"}); }
+
+  var raf=0; function stop(){ if(raf){cancelAnimationFrame(raf);raf=0;} }
+  function seal(){ hashEl.classList.add("sealed");
+    if(meta.animate) meta.animate([{opacity:0},{opacity:.95}],{duration:560,easing:EASE,fill:"both"}); else meta.style.opacity=.95; }
+
+  function revealVerdict(){
+    if(reduce){ verdict.style.transform="none"; return; }
+    verdict.animate([{transform:"translateY(110%)"},{transform:"translateY(0)"}],
+      {duration:720,easing:EASE,fill:"both"});
+  }
+
+  function lockSweep(){
+    hashEl.style.opacity=1;
+    if(reduce){ for(var i=0;i<N;i++){cells[i].textContent=TARGET[i];cells[i].classList.add("lock");} setTimeout(seal,180); return; }
+    var locked=new Array(N).fill(false), start=performance.now(), last=start;
+    function frame(now){ if(document.hidden){ raf=requestAnimationFrame(frame); return; }
+      var el=now-start, flick=(now-last)>=TICK; if(flick) last=now; var done=true;
+      for(var i=0;i<N;i++){ if(locked[i]) continue;
+        if(el>=i*STAGGER){ locked[i]=true; cells[i].textContent=TARGET[i]; cells[i].classList.add("lock"); snap(cells[i]); }
+        else{ done=false; if(flick) cells[i].textContent=HEX[(Math.random()*16)|0]; } }
+      if(done){ stop(); setTimeout(seal,SETTLE-10); return; }
+      raf=requestAnimationFrame(frame); }
+    raf=requestAnimationFrame(frame);
+  }
+
+  function run(){
+    stop();
+    hashEl.classList.remove("sealed"); hashEl.style.opacity=0;
+    meta.style.opacity=0; verdict.style.transform="translateY(110%)";
+    build();
+    if(reduce){ revealVerdict(); lockSweep(); return; }
+    setTimeout(revealVerdict, 220);     /* decision is declared */
+    setTimeout(lockSweep, 760);         /* then the proof computes + seals */
+  }
+
+  replay.addEventListener("click", run);
+  build();
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(run,120); }); }
+  else { setTimeout(run, 300); }
+})();
+</script>
+</body>
+</html>

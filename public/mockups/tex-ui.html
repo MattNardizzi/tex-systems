@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — The Interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=block" rel="stylesheet" />
+<style>
+/* ============================================================
+   TEX — THE INTERFACE.  One surface. Eight states. One language.
+   ────────────────────────────────────────────────────────────
+   A sheet of backlit white glass that never breaks character. Every
+   state is the same surface in a different posture; states MORPH into
+   one another (View Transitions), nothing page-swaps. One type voice
+   (Michroma), one machine register (Geist Mono), one neutral ink
+   ladder (zero hue). One earned moment: the seal. Everything else is
+   so fast it is felt, not seen.   (v2 — hardened against the critique.)
+   ============================================================ */
+:root{
+  --ink:#0b0b0b; --ink-2:#2c2c2c; --ink-soft:#5d5d5d; --ink-mute:#9a9a9a; --ink-faint:#c7c7c7;
+  --hair:rgba(0,0,0,.075); --hair-2:rgba(0,0,0,.14);
+  --paper:#ffffff; --paper-edge:#f4f4f4;
+  --cold:#4a525a;            /* the one sanctioned hue — the cold faltering breath */
+  --mic:"Michroma","Eurostile","Aldrich",system-ui,sans-serif;
+  --mono:"Geist Mono","SF Mono","JetBrains Mono","Menlo",monospace;
+  --ease:cubic-bezier(0.16,1,0.3,1);          /* entrances, the seal settle */
+  --ease-micro:cubic-bezier(0.32,0.72,0,1);   /* on-screen morph / rearrange */
+  --ease-inout:cubic-bezier(0.76,0,0.24,1);   /* things that breathe */
+  --t1:120ms; --t2:180ms; --t3:240ms; --t4:320ms; --t5:420ms;
+  --cap:clamp(10px,1.05vw,11.5px);            /* one caption size */
+  --track-cap:.26em;                          /* one caption tracking */
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--mic); color:var(--ink); background:var(--paper); overflow:hidden;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility; letter-spacing:0;   /* Michroma is WIDE — never negative */
+}
+::selection{background:rgba(11,11,11,.12); color:var(--ink)}   /* a quiet value-shift, not an inversion */
+
+/* ── The lit surface + a whisper of grain (Etched Light doctrine) ── */
+.field{position:fixed; inset:0; z-index:0; transition:background var(--t5) var(--ease);
+  background:radial-gradient(140% 120% at 50% -10%, #ffffff 0%, #fcfcfc 48%, var(--paper-edge) 100%);}
+.field.cold{background:radial-gradient(140% 120% at 50% -10%, #ffffff 0%, #fbfcfd 48%, #eef1f3 100%);}
+.grain{position:fixed; inset:0; z-index:1; pointer-events:none; mix-blend-mode:soft-light; opacity:.14;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size:180px;}
+
+.stage{position:fixed; inset:0; z-index:2; display:grid; place-items:center; padding:6vmin;}
+.scene{position:relative; width:min(900px,92vw); text-align:center;
+  transform:translateY(var(--optical,-1.5%)); transition:transform var(--t4) var(--ease);
+  display:flex; flex-direction:column; align-items:center;}
+
+.mask{overflow:hidden; display:block;}
+.up{display:block; transform:translateY(100%);}
+
+/* registers — Michroma at 0/positive tracking only ----------------- */
+.statement{font-family:var(--mic); font-size:clamp(20px,3vw,30px); line-height:1.28; letter-spacing:0; text-wrap:balance; color:var(--ink);}
+.line{font-family:var(--mic); font-size:clamp(14px,1.5vw,18px); line-height:1.6; letter-spacing:.01em; color:var(--ink); max-width:26em;}
+.micro,.held-type,.tier{font-family:var(--mic); font-size:var(--cap); line-height:1.4; letter-spacing:var(--track-cap); text-indent:var(--track-cap); text-transform:uppercase;}
+.micro{color:var(--ink-mute);}
+.held-type,.tier{color:var(--ink-soft);}
+.handle{font-family:var(--mono); font-size:clamp(11px,1.4vw,15px); letter-spacing:.02em; color:var(--ink-2); font-variant-numeric:tabular-nums;}
+
+/* the seal hash — fixed mono grid, machine-exact ----------------- */
+.hash{font-family:var(--mono); font-size:clamp(9px,1.55vw,14px); letter-spacing:.03em; white-space:nowrap; color:var(--ink); font-variant-numeric:tabular-nums;}
+.hash .c{display:inline-block; color:var(--ink-faint); transition:color var(--t3) var(--ease);}
+.hash .c.lock{color:var(--ink-2);}     /* assembled: mid ink */
+.hash .c.deep{color:var(--ink);}       /* sealed: full true ink — the earned payoff */
+
+/* the single primary act ----------------------------------------- */
+.act{font-family:var(--mic); font-size:var(--cap); letter-spacing:.32em; text-indent:.32em; text-transform:uppercase;
+  color:var(--ink); cursor:pointer; padding:14px 4px; min-height:46px; display:inline-flex; align-items:center; gap:14px; background:none; border:0;
+  transition:color var(--t2) var(--ease-micro);}
+.act::after{content:""; width:30px; height:1px; background:var(--ink); transition:width var(--t2) var(--ease-micro), height var(--t2) var(--ease-micro), background-color var(--t2) var(--ease-micro);}
+.act:hover::after{width:56px;}
+.act:focus-visible{outline:none; color:var(--ink);}
+.act:focus-visible::after{width:56px; height:2px;}     /* focus is etched, distinct from hover */
+.act:active{color:var(--ink-soft);}
+.act.ghost{color:var(--ink-mute);} .act.ghost::after{background:var(--ink-faint);}
+.act.ghost:hover{color:var(--ink-soft);} .act.ghost:hover::after{width:44px; background:var(--ink-mute);}
+/* the consequential act carries more weight than its dismissals */
+.act.seal{letter-spacing:.36em; text-indent:.36em; min-height:52px;}
+.act.seal::after{width:44px;} .act.seal:hover::after,.act.seal:focus-visible::after{width:72px;}
+
+/* a presence mark — a crisp square that holds still, not a thinking-orb */
+.pulse{width:7px; height:7px; background:var(--ink); animation:breathe 2600ms var(--ease-inout) infinite;}
+@keyframes breathe{0%,100%{opacity:.24}50%{opacity:.74}}
+
+.held{display:flex; flex-direction:column; align-items:center; gap:24px; max-width:30em;}
+.held-acts{display:flex; align-items:center; gap:40px; margin-top:8px;}
+.held-acts .seal{margin-left:24px;}
+
+.cold{color:var(--cold);}
+
+/* the all-knowing tell — vast unseen activity, fixed-width, near-silent */
+.scale{position:fixed; left:0; right:0; bottom:26px; z-index:2; display:flex; justify-content:center; gap:.6em;
+  font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--ink); opacity:0; transition:opacity var(--t4) var(--ease);}
+.scale .n{font-variant-numeric:tabular-nums; transition:opacity var(--t3) var(--ease-micro);}
+.scale.show{opacity:.17;}
+
+/* director — prototype scaffolding only (never ships) ------------- */
+.director{position:fixed; right:20px; bottom:18px; z-index:5; display:flex; align-items:center; gap:10px;
+  font-family:var(--mic); font-size:9px; letter-spacing:.2em; text-indent:.2em; text-transform:uppercase; color:var(--ink-faint);}
+.director button{font:inherit; letter-spacing:inherit; color:var(--ink-faint); background:none; border:0; cursor:pointer; padding:6px; transition:color var(--t2) var(--ease);}
+.director button:hover{color:var(--ink);}
+.director .name{color:var(--ink-soft);}
+.proto-tag{position:fixed; left:20px; bottom:18px; z-index:5; font-family:var(--mic); font-size:9px; letter-spacing:.26em; text-indent:.26em; text-transform:uppercase; color:var(--ink-faint);}
+button:focus-visible{outline:1px solid var(--ink); outline-offset:4px;}
+
+::view-transition-old(root),::view-transition-new(root){animation-duration:var(--t2); animation-timing-function:var(--ease);}
+::view-transition-group(sealhash){animation-duration:var(--t4); animation-timing-function:var(--ease-micro);}
+
+@media (prefers-reduced-motion: reduce){
+  .pulse{animation:none; opacity:.6}
+  .scale,.scale .n,.field,.scene{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="field" id="field"></div>
+<div class="grain"></div>
+
+<main class="stage"><div class="scene" id="scene"></div></main>
+
+<div class="scale" id="scale"><span>SEALED</span><span class="n" id="scaleN">0</span></div>
+
+<nav class="director" id="director">
+  <button id="prev" title="Previous state">‹</button>
+  <span class="name" id="stateName">threshold</span>
+  <button id="next" title="Next state">›</button>
+</nav>
+<div class="proto-tag">Tex · prototype</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduce=false; try{ reduce=matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
+  var EASE="cubic-bezier(0.16,1,0.3,1)", EMICRO="cubic-bezier(0.32,0.72,0,1)", EINOUT="cubic-bezier(0.76,0,0.24,1)";
+  var scene=document.getElementById("scene"), field=document.getElementById("field");
+  var scaleEl=document.getElementById("scale"), scaleN=document.getElementById("scaleN");
+  var nameEl=document.getElementById("stateName");
+  var HEX="0123456789abcdef";
+  var TARGET="3f9a1c7e0b6d2548a1f4c93e7b08d65c2e9f1a4b8c3d70e6f5a2b9c8d1e0f7a6";
+
+  /* ---- anim helpers (WAAPI) ---- */
+  function clipReveal(maskEl, delay){
+    var inner=maskEl && maskEl.querySelector(".up"); if(!inner) return;
+    if(reduce){ inner.style.transform="none"; return; }
+    inner.animate([{transform:"translateY(100%)"},{transform:"translateY(0)"}],{duration:420, delay:delay||0, easing:EASE, fill:"both"});
+  }
+  function fade(el, delay, to){ if(!el) return;
+    if(reduce){ el.style.opacity=(to==null?1:to); return; }
+    el.animate([{opacity:0},{opacity:(to==null?1:to)}],{duration:300, delay:delay||0, easing:EASE, fill:"both"}); }
+  function rise(el, delay){ if(!el) return;
+    if(reduce){ el.style.opacity=1; el.style.transform="none"; return; }
+    el.animate([{opacity:0,transform:"translateY(6px)"},{opacity:1,transform:"translateY(0)"}],{duration:280, delay:delay||0, easing:EASE, fill:"both"}); }
+
+  function buildHash(hashEl, resting){
+    var h=""; for(var i=0;i<64;i++) h+="<span class='c"+(resting?" lock":"")+"'>"+(resting?TARGET[i]:HEX[(Math.random()*16)|0])+"</span>";
+    hashEl.innerHTML=h;
+  }
+
+  /* ---- the seal: hex computes itself, locks L→R to mid-ink, then a
+         trailing wave deepens each char to true ink — assembles, then becomes true ---- */
+  function runSeal(hashEl, onDone){
+    var cells=hashEl.querySelectorAll(".c"); var N=cells.length;
+    var STAG=22, SETTLE=140, TICK=33, DEEP_LAG=180;
+    if(reduce){
+      for(var i=0;i<N;i++){ cells[i].textContent=TARGET[i]; cells[i].classList.add("lock","deep"); }
+      if(onDone) setTimeout(onDone,200); return function(){};
+    }
+    hashEl.style.willChange="contents";
+    var locked=new Array(N).fill(false), start=performance.now(), last=start, raf=0, alive=true;
+    function snap(el){ el.animate([{transform:"translateY(3px) scale(1)"},{transform:"translateY(0) scale(1.04)",offset:.6},{transform:"translateY(0) scale(1)"}],{duration:SETTLE,easing:EASE,fill:"both"}); }
+    function frame(now){
+      if(!alive) return;
+      if(document.hidden){ raf=requestAnimationFrame(frame); return; }
+      var el=now-start, flick=(now-last)>=TICK; if(flick) last=now; var done=true;
+      for(var i=0;i<N;i++){ if(locked[i]) continue;
+        if(el>=i*STAG){ locked[i]=true; var c=cells[i]; c.textContent=TARGET[i]; c.classList.add("lock"); snap(c);
+          (function(cell){ setTimeout(function(){ if(alive) cell.classList.add("deep"); }, DEEP_LAG); })(c);
+        } else { done=false; if(flick){ var t=parseInt(TARGET[i],16), r=(Math.random()*16)|0, b=Math.random()<0.45?t:r; cells[i].textContent=HEX[b]; } }
+      }
+      if(done){ setTimeout(function(){ hashEl.style.willChange="auto"; if(onDone) onDone(); }, DEEP_LAG+120); return; }
+      raf=requestAnimationFrame(frame);
+    }
+    raf=requestAnimationFrame(frame);
+    return function(){ alive=false; if(raf) cancelAnimationFrame(raf); hashEl.style.willChange="auto"; };
+  }
+
+  /* ---- the all-knowing magnitude — fixed-width, near-silent, calm cadence ---- */
+  var sealedCount=12948330, scaleTimer=null;
+  function fmt(n){ return n.toLocaleString("en-US"); }
+  function showScale(on, bump){
+    scaleEl.classList.toggle("show", !!on);
+    if(scaleTimer){ clearTimeout(scaleTimer); scaleTimer=null; }
+    if(!on) return;
+    if(bump) sealedCount += 1 + ((Math.random()*3)|0);
+    scaleN.textContent=fmt(sealedCount);
+    if(reduce) return;
+    function tick(){
+      sealedCount += 1 + ((Math.random()*3)|0);
+      if(scaleN.animate){ scaleN.animate([{opacity:.45},{opacity:1}],{duration:220,easing:EMICRO,fill:"both"}); }
+      scaleN.textContent=fmt(sealedCount);
+      scaleTimer=setTimeout(tick, 2200 + ((Math.random()*1400)|0));   /* discrete events, not a metronome */
+    }
+    scaleTimer=setTimeout(tick, 2600);
+  }
+
+  /* ================= STATES ================= */
+  var cancelSeal=null, running=false;
+  function clearTimers(){ if(cancelSeal){ cancelSeal(); cancelSeal=null; } running=false; field.classList.remove("cold"); }
+  function optic(v){ scene.style.setProperty("--optical", v); }
+
+  var STATES={
+    /* 1 — the day-one threshold: declare, claim, hand over (canonical Tex arc) */
+    threshold:function(){
+      optic("-1.5%"); showScale(false);
+      scene.innerHTML='<div class="statement"><span class="mask"><span class="up">I am Tex.</span></span></div>';
+      var lines=["I am Tex.","Nothing happens without me.","The weight is mine now."];
+      var beats=[1300,1500]; running=true; var step=0;
+      clipReveal(scene.querySelector(".mask"),100);
+      function advance(){
+        if(!running) return;
+        if(step>=lines.length-1){
+          var begin=document.createElement("div"); begin.style.marginTop="40px";
+          begin.innerHTML='<button class="act" id="beginBtn">Begin</button>';
+          scene.appendChild(begin); rise(begin,160);
+          begin.querySelector("#beginBtn").addEventListener("click",function(){ go("mapping"); });
+          return;
+        }
+        var cur=scene.querySelector(".mask .up");
+        var out=cur.animate([{opacity:1,transform:"translateY(0)"},{opacity:0,transform:"translateY(-14%)"}],{duration:300,easing:EMICRO,fill:"both"});
+        out.finished.then(function(){
+          if(!running) return; step++;
+          scene.innerHTML='<div class="statement"><span class="mask"><span class="up">'+lines[step]+'</span></span></div>';
+          clipReveal(scene.querySelector(".mask"),0);
+          setTimeout(advance, beats[Math.min(step,beats.length-1)] || 1500);
+        });
+      }
+      if(reduce){ scene.innerHTML='<div class="statement">The weight is mine now.</div><div style="margin-top:40px"><button class="act" id="beginBtn">Begin</button></div>'; scene.querySelector("#beginBtn").addEventListener("click",function(){go("mapping");}); return; }
+      setTimeout(advance, beats[0]);
+    },
+
+    /* 2 — mapping: the field takes in the estate. One hairline draws once. Never a spinner. */
+    mapping:function(){
+      optic("-1.5%"); showScale(false);
+      scene.innerHTML='<div class="micro" id="mapLine">Reading the estate</div>'+
+        '<div id="mapBar" style="margin-top:18px;width:120px;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:left center"></div>';
+      var line=scene.querySelector("#mapLine"), bar=scene.querySelector("#mapBar");
+      fade(line,0,.7); running=true;
+      if(!reduce && bar.animate) bar.animate([{transform:"scaleX(0)"},{transform:"scaleX(1)"}],{duration:1600,easing:EINOUT,fill:"both"});
+      var wait=reduce?200:1900;
+      setTimeout(function(){
+        if(!running) return;
+        var leave=line.animate?line.animate([{opacity:.7},{opacity:0}],{duration:280,easing:EASE,fill:"both"}).finished:Promise.resolve();
+        if(bar.animate) bar.animate([{opacity:1},{opacity:0}],{duration:280,easing:EASE,fill:"both"});
+        leave.then(function(){
+          if(!running) return;
+          scene.innerHTML='<div class="line"><span class="mask"><span class="up">Two hundred agents, all yours.</span></span></div>'+
+            '<div class="line" style="margin-top:12px"><span class="mask"><span class="up">I’ll begin.</span></span></div>';
+          clipReveal(scene.querySelectorAll(".mask")[0],0);
+          clipReveal(scene.querySelectorAll(".mask")[1],120);
+          setTimeout(function(){ if(running) go("vigil"); }, reduce?1400:2400);
+        });
+      }, wait);
+    },
+
+    /* 3 — vigil at rest: silence. empty white. alive, watching. */
+    vigil:function(){ optic("-1.5%"); scene.innerHTML=''; showScale(true); },
+
+    /* 4 — the reach: you held the surface. it answers, then silence. */
+    reach:function(){
+      optic("-1.5%"); showScale(false);
+      scene.innerHTML='<div class="pulse" id="pulse"></div>'; fade(scene.querySelector("#pulse"),0,1); running=true;
+      setTimeout(function(){
+        if(!running) return;
+        scene.innerHTML='<div class="tier" id="tier" style="opacity:0">Verified</div>'+
+          '<div class="line" id="ans" style="margin-top:16px">Every wire is accounted for. Nothing moved that I didn’t allow.</div>';
+        var tier=scene.querySelector("#tier"), ans=scene.querySelector("#ans");
+        fade(tier,0,1);          /* the stamp settles first */
+        rise(ans,200);           /* then the sentence rises beneath it */
+        setTimeout(function(){
+          if(!running) return;
+          [tier,ans].forEach(function(el){ if(el.animate) el.animate([{opacity:1},{opacity:0}],{duration:320,easing:EASE,fill:"both"}); });
+          setTimeout(function(){ if(running){ scene.innerHTML=''; showScale(true);} }, 360);
+        }, 3200);
+      }, reduce?120:700);
+    },
+
+    /* 5 — the surfaced object: a real anchored proof you grab and walk away with */
+    object:function(){
+      optic("-1%"); showScale(false);
+      scene.innerHTML='<div class="micro" style="margin-bottom:18px">The proof</div>'+
+        '<div class="hash" id="objHash" style="view-transition-name:sealhash;cursor:pointer" title="Click to take"></div>'+
+        '<div class="micro" id="objMeta" style="margin-top:18px;color:var(--ink-faint);letter-spacing:.16em;text-indent:.16em">Anchored · block 8,241,003 · 03:14:02Z</div>'+
+        '<div class="micro" id="objTaken" style="margin-top:14px;opacity:0">Taken</div>';
+      var oh=scene.querySelector("#objHash"); buildHash(oh,true);
+      fade(oh,80,1); fade(scene.querySelector("#objMeta"),220,1);
+      oh.addEventListener("click",function(){
+        try{ navigator.clipboard && navigator.clipboard.writeText(TARGET); }catch(e){}
+        var taken=scene.querySelector("#objTaken");
+        if(taken && taken.animate) taken.animate([{opacity:0},{opacity:.9},{opacity:.9},{opacity:0}],{duration:1400,easing:EASE});
+      });
+    },
+
+    /* 6 — held / ABSTAIN: the one decision only the human can seal.
+           The anchor rests here UNRESOLVED (faint, not locked) and morphs into the seal. */
+    held:function(){
+      optic("-0.5%"); showScale(false);
+      scene.innerHTML=
+        '<div class="held">'+
+          '<div class="held-type"><span class="mask"><span class="up">Held for you</span></span></div>'+
+          '<div class="statement" style="font-size:clamp(18px,2.3vw,24px)"><span class="mask"><span class="up">A wire wants to leave — to an account I’ve never seen.</span></span></div>'+
+          '<div class="line" id="heldQ" style="font-size:clamp(13px,1.4vw,16px);color:var(--ink-soft)">No fact settles this — it’s a judgment, and it’s yours.</div>'+
+          '<div class="hash" id="heldHash" style="view-transition-name:sealhash;font-size:clamp(7px,1.2vw,11px)"></div>'+
+          '<div class="held-acts">'+
+            '<button class="act ghost" data-act="refuse">Refuse</button>'+
+            '<button class="act ghost" data-act="hold">Keep holding</button>'+
+            '<button class="act seal" data-act="seal" id="sealAct">Seal</button>'+
+          '</div>'+
+        '</div>';
+      var masks=scene.querySelectorAll(".mask"); clipReveal(masks[0],80); clipReveal(masks[1],200);
+      rise(scene.querySelector("#heldQ"),360); rise(scene.querySelector(".held-acts"),560);
+      var hh=scene.querySelector("#heldHash"); buildHash(hh,false);   /* faint, unresolved — awaiting your seal */
+      fade(hh,460,.7);
+      scene.querySelector("#sealAct").addEventListener("click",function(){ go("seal"); });
+      scene.querySelector('[data-act="refuse"]').addEventListener("click",function(){ go("vigil"); });
+      scene.querySelector('[data-act="hold"]').addEventListener("click",function(){ go("vigil"); });
+    },
+
+    /* 7 — the seal: the one earned moment */
+    seal:function(){
+      optic("0%"); showScale(false);
+      scene.innerHTML=
+        '<div class="statement"><span class="mask"><span class="up" id="verdict">Sealed.</span></span></div>'+
+        '<div class="hash" id="sealHash" style="view-transition-name:sealhash;margin-top:28px;font-size:clamp(9px,1.7vw,17px)"></div>'+
+        '<div class="micro" id="sealMeta" style="margin-top:22px;opacity:0">Anchored · SHA-256</div>';
+      var hashEl=scene.querySelector("#sealHash"); buildHash(hashEl,false);
+      clipReveal(scene.querySelector(".mask"),100); running=true;
+      setTimeout(function(){
+        if(!running) return;
+        cancelSeal=runSeal(hashEl, function(){
+          var meta=scene.querySelector("#sealMeta"), v=scene.querySelector("#verdict");
+          if(meta && meta.animate) meta.animate([{opacity:0},{opacity:.95}],{duration:560,easing:EASE,fill:"both"});
+          if(v && v.animate) v.animate([{color:"#0b0b0b"},{color:"#5d5d5d"}],{duration:560,easing:EASE,fill:"both"}); /* verdict recedes; the hash is the hero */
+          setTimeout(function(){ if(running) go("vigil"); }, 3400);
+        });
+      }, reduce?60:700);
+    },
+
+    /* 8 — faltering: the cold confession. the room itself goes cold. */
+    faltering:function(){
+      optic("-1%"); showScale(false); field.classList.add("cold");
+      scene.innerHTML=
+        '<div class="micro cold" style="margin-bottom:22px"><span class="mask"><span class="up">Integrity failed</span></span></div>'+
+        '<div class="line cold" style="max-width:26em"><span class="mask"><span class="up">My evidence chain broke at 03:14. I can’t prove what I’ve sealed since.</span></span></div>'+
+        '<div class="line cold" style="max-width:26em;margin-top:12px"><span class="mask"><span class="up">Don’t trust me until this is resolved.</span></span></div>';
+      var masks=scene.querySelectorAll(".mask"); clipReveal(masks[0],80); clipReveal(masks[1],200); clipReveal(masks[2],320);
+    }
+  };
+
+  var ORDER=["threshold","mapping","vigil","reach","object","held","seal","faltering"];
+  var current="threshold";
+  function render(state){ clearTimers(); current=state; nameEl.textContent=state; (STATES[state]||STATES.vigil)(); }
+  function go(state){ if(document.startViewTransition && !reduce){ document.startViewTransition(function(){ render(state); }); } else render(state); }
+  window.__texGo=go;
+
+  function step(d){ var i=ORDER.indexOf(current); i=(i+d+ORDER.length)%ORDER.length; go(ORDER[i]); }
+  document.getElementById("next").addEventListener("click",function(){ step(1); });
+  document.getElementById("prev").addEventListener("click",function(){ step(-1); });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="ArrowRight") step(1); else if(e.key==="ArrowLeft") step(-1);
+    else if(e.key>="1" && e.key<="8") go(ORDER[(+e.key)-1]);
+  });
+
+  function boot(){ render("threshold"); }
+  var booted=false; function once(){ if(booted) return; booted=true; boot(); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(once,80); }); }
+  setTimeout(once, 2500);   /* never leave a blank stage if fonts fail */
+})();
+</script>
+</body>
+</html>
