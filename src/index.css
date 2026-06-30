@@ -33,29 +33,29 @@
     Georgia, "Times New Roman", serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
     monospace;
-  /* The first-sequence display face. Exo 2 — a modern, techy geometric sans
-     with a full thin–bold range — speaks the day-one manifesto ("I am Tex." …
-     "The weight is mine now."). Set light (wght 300) for an airy, un-heavy look.
-     Mid/narrow width, so the door sits at a comfortable display size. Opening
-     sequence only; the in-system voice keeps the serif. */
-  --tex-display: "Exo 2", system-ui, sans-serif;
+  /* The first-sequence display face. Michroma — wide, thin, geometric — speaks
+     the day-one manifesto ("I am Tex." … "The weight is mine now."). Single
+     weight; it sets far wider than the serif voice, so the door scales it down
+     and lets the beats wrap. Opening sequence only; the voice keeps the serif. */
+  --tex-display: "Michroma", "Eurostile", system-ui, sans-serif;
 
   /* There is no mark. The surface at rest is silence — empty paper,
      fully empty. The slab-mark token was retired when the T was
      removed; nothing in the product renders a glyph now. */
 
-  /* Ink — black on paper, two soft greys for asides and proof. */
-  --tex-ink: #14110d;
-  --tex-ink-soft: #5e564c;
-  --tex-ink-mute: #9b9388;
-  --tex-ink-hair: #d8d4cc;
+  /* Ink — cool near-black on paper, two cool greys for asides and proof. Pulled
+     off the old warm browns (#14110d / #5e564c / #9b9388) to a neutral-cool cast
+     so nothing on the white reads as a yellow tint and the display face pops. */
+  --tex-ink: #0b0d12;
+  --tex-ink-soft: #565d68;
+  --tex-ink-mute: #969ca6;
+  --tex-ink-hair: #e1e4ea;
 
-  /* Paper — the room. Stark, clean #fff: a true white surface so the thin
-     display face and dark ink read at maximum clarity. (Was a hair-warm
-     #fcfbf9; pulled to clinical white by intent.) */
+  /* Paper — the room. Stark, clean #fff with cool (never cream) off-white
+     surfaces, so the page reads as a true, slightly glassy white. */
   --tex-paper: #ffffff;
-  --tex-paper-2: #fafaf8;
-  --tex-paper-3: #f4f3ef;
+  --tex-paper-2: #fbfcfd;
+  --tex-paper-3: #eef1f5;
 
   /* There is no glass. There is no orb. The page is paper, ink, and
      one monospace hash. If a soft glowing object ever feels necessary,
@@ -83,7 +83,12 @@ body,
 body {
   font-family: var(--tex-sans);
   color: var(--tex-ink);
-  background: var(--tex-paper);
+  /* A subtle cool "lit glass" wash behind everything: bright white where the
+     words sit, fading to a faint cool grey at the edges, so the page reads like
+     an illuminated glass pane and the manifesto pops off it. The full-screen
+     .tex-field carries the same wash (see end of file). */
+  background:
+    radial-gradient(150% 130% at 50% 32%, #ffffff 0%, #ffffff 52%, #e8edf4 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -123,28 +128,39 @@ a {
   }
 }
 
-/* ── First sequence — the day-one manifesto, set in Exo 2 ──
+/* ── First sequence — the day-one manifesto, set in Michroma ──
    The opening door ("touch to wake Tex" → "I am Tex." → "Nothing happens
-   without me." → "The weight is mine now.") speaks in --tex-display (Exo 2,
-   light/300). Exo 2 is a mid/narrow geometric sans, so the beats sit at a
-   comfortable display size and wrap when they must (one line on desktop, two on
+   without me." → "The weight is mine now.") speaks in --tex-display (Michroma).
+   Michroma is a wide geometric face, so the beats render at a smaller display
+   size with open tracking and wrap when they must (one line on desktop, two on
    a phone), never clipping. Scoped to .tex-door so the in-system voice ("Here.",
    the count) keeps its own EB Garamond register. Lives here (global) rather than
    in Vigil.css so the font change stays isolated from in-flight component work. */
 .tex-door .tex-door-sentence,
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
-  font-weight: 300;
-  font-variation-settings: "wght" 300;
-  letter-spacing: 0.03em;
+  font-weight: 400;
+  font-variation-settings: normal;
+  letter-spacing: 0.04em;
 }
 .tex-door .tex-door-sentence {
-  font-size: clamp(26px, 4.2vw, 46px);
-  line-height: 1.22;
+  font-size: clamp(24px, 3.4vw, 38px);
+  line-height: 1.25;
 }
 .tex-door .tex-door-line {
   white-space: normal;
   text-wrap: balance;
-  font-size: clamp(22px, 3.6vw, 38px);
-  line-height: 1.28;
+  font-size: clamp(20px, 3vw, 32px);
+  line-height: 1.32;
+}
+
+/* ── The glass surface ──
+   The full-screen vigil backdrop carries the same cool "lit glass" wash as the
+   body, so the manifesto sits on a bright, slightly luminous center that fades
+   to a faint cool edge — clean, clear, futuristic, the words popping off it.
+   Excludes the faltering state, which keeps its own warm "sick" tint. More
+   specific than Vigil's flat .tex-field so it wins from this isolated commit. */
+body .tex-field:not(.tex-field--faltering) {
+  background:
+    radial-gradient(150% 130% at 50% 32%, #ffffff 0%, #ffffff 52%, #e8edf4 100%);
 }
