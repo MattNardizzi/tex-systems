@@ -427,8 +427,14 @@ export default function Vigil() {
      and ONLY when the fragment is unambiguous (Nomon: commit when confident).
      `ghost` is the suggested remainder, shown as a faint native selection. */
   const [ghost, setGhost] = useState("");
-  const rosterNamesRef = useRef([]); /* real agent names; the completion vocabulary */
+  const rosterNamesRef = useRef([]); /* real agent names; the GROUNDED completion vocabulary */
   const rosterLoadedRef = useRef(false);
+  /* The general keyboard aid (SymSpell autocorrect + frequency-trie completion),
+     lazy-loaded as its own chunk the first time someone types. Grounded agents
+     always win; this only fills the gap and corrects ordinary typos. */
+  const assistRef = useRef(null); /* the loaded module, or "loading" / null */
+  const lastFixRef = useRef(null); /* { from, to, end } — for Backspace-to-revert */
+  const noFixRef = useRef(null); /* a just-reverted word, locked from re-correction */
   useEffect(() => {
     typingRef.current = typed !== null;
   }, [typed]);
@@ -453,6 +459,15 @@ export default function Vigil() {
       });
   }, [watchTenant]);
 
+  /* Load the general typing aid (its own chunk) the first time someone types. */
+  const loadAssist = useCallback(() => {
+    if (assistRef.current) return;
+    assistRef.current = "loading";
+    import("../../lib/typingAssist")
+      .then((m) => m.init().then(() => { assistRef.current = m; }))
+      .catch(() => { assistRef.current = null; });
+  }, []);
+
   /* The ghost = the real remainder of the ONE agent name the trailing token
      unambiguously prefixes. Abstains (returns "") on a deletion, a too-short
      fragment, or any ambiguity — so it completes only toward what Tex can prove,
@@ -464,10 +479,23 @@ export default function Vigil() {
     const frag = m[1];
     if (frag.length < 2) return "";
     const lower = frag.toLowerCase();
+    /* 1. GROUNDED — a real signed agent (always wins; this is the product's
+       voice, completing only toward what Tex can prove). */
     const hits = rosterNamesRef.current.filter(
       (n) => n.length > frag.length && n.toLowerCase().startsWith(lower)
     );
-    return hits.length === 1 ? hits[0].slice(frag.length) : "";
+    if (hits.length === 1) return hits[0].slice(frag.length);
+    /* 2. GENERAL — a common English word (the user's quiet keyboard aid). ONLY
+       when no agent could match, so grounded always wins and general never
+       guesses a name or fact. Abstains generously (min prefix 3). */
+    if (hits.length === 0) {
+      const a = assistRef.current;
+      if (a && a.complete) {
+        const suf = a.complete(frag, 3);
+        if (suf) return suf;
+      }
+    }
+    return "";
   }, []);
 
   /* When a completed line's trailing token IS a real agent, commit it in the
@@ -1006,6 +1034,7 @@ export default function Vigil() {
   const beginTyping = useCallback(
     (firstChar) => {
       loadRoster();
+      loadAssist();
       clearAnswer();
       stopSpeaking();
       setTyped(firstChar);
@@ -1023,7 +1052,7 @@ export default function Vigil() {
         }
       });
     },
-    [clearAnswer, loadRoster]
+    [clearAnswer, loadRoster, loadAssist]
   );
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
@@ -1061,6 +1090,42 @@ export default function Vigil() {
     (e) => {
       e.stopPropagation();
       if (composingRef.current || e.isComposing || e.keyCode === 229) return;
+      /* Backspace immediately after an autocorrect UNDOES it (the iOS pattern):
+         restore the original word, keep the boundary, and lock that word from
+         being re-corrected. Only in the exact window (caret just past the fix). */
+      if (e.key === "Backspace" && lastFixRef.current) {
+        const lc = lastFixRef.current;
+        const el = inputRef.current;
+        if (
+          el &&
+          el.selectionStart === el.selectionEnd &&
+          el.selectionStart === lc.end + 1
+        ) {
+          e.preventDefault();
+          const v = el.value;
+          const start = lc.end - lc.to.length;
+          const reverted = v.slice(0, start) + lc.from + v.slice(lc.end);
+          const caret = start + lc.from.length;
+          noFixRef.current = lc.from;
+          lastFixRef.current = null;
+          setTyped(reverted);
+          setGhost("");
+          requestAnimationFrame(() => {
+            const node = inputRef.current;
+            if (node) {
+              try {
+                node.setSelectionRange(caret, caret);
+              } catch {
+                /* ignore */
+              }
+            }
+          });
+          return;
+        }
+        lastFixRef.current = null;
+      } else if (lastFixRef.current) {
+        lastFixRef.current = null; /* the revert window is only the immediate next key */
+      }
       /* Accept the grounded ghost with one gesture: commit it into the line and
          drop the caret at the end. Reject is just to keep typing (it replaces the
          selected ghost) or Escape. */
@@ -1099,6 +1164,72 @@ export default function Vigil() {
   const onTypedBlur = useCallback(() => {
     if (!typed || !typed.trim()) cancelTyping();
   }, [typed, cancelTyping]);
+
+  /* Every keystroke into the line. Stores the user's text, recomputes the ghost
+     (grounded → general), and — when a word boundary was just typed — gently
+     autocorrects the word before it. The correction is conservative (the engine
+     protects caps/acronyms/real words) and NEVER touches a word that prefixes a
+     real agent (a grounded entity must not be "fixed" into English). It is
+     reversible: the very next Backspace undoes it (see onTypedKeyDown). */
+  const onTypedChange = useCallback(
+    (e) => {
+      let value = e.target.value;
+      const it = (e.nativeEvent && e.nativeEvent.inputType) || "";
+      const data = (e.nativeEvent && e.nativeEvent.data) || "";
+      const del = it.startsWith("delete");
+      let caretFix = null;
+
+      if (
+        !del &&
+        !composingRef.current &&
+        it === "insertText" &&
+        data &&
+        /[\s.,!?;:]/.test(data)
+      ) {
+        const caret = e.target.selectionStart; /* just after the boundary char */
+        const before = value.slice(0, caret - 1);
+        const wm = before.match(/([A-Za-z]+)$/);
+        const a = assistRef.current;
+        if (wm && a && a.correct) {
+          const word = wm[1];
+          const start = caret - 1 - word.length;
+          const isGrounded = rosterNamesRef.current.some((n) =>
+            n.toLowerCase().startsWith(word.toLowerCase())
+          );
+          if (noFixRef.current === word) {
+            noFixRef.current = null; /* respected once, then released */
+          } else if (!isGrounded) {
+            const fixed = a.correct(word);
+            if (fixed && fixed !== word) {
+              value = value.slice(0, start) + fixed + value.slice(caret - 1);
+              caretFix = caret + (fixed.length - word.length);
+              lastFixRef.current = { from: word, to: fixed, end: start + fixed.length };
+            }
+          }
+        }
+      } else if (!del) {
+        lastFixRef.current = null; /* a non-boundary edit closes the revert window */
+      }
+
+      setTyped(value);
+      setGhost(composingRef.current ? "" : computeGhost(value, del));
+
+      if (caretFix != null) {
+        const c = caretFix;
+        requestAnimationFrame(() => {
+          const el = inputRef.current;
+          if (el) {
+            try {
+              el.setSelectionRange(c, c);
+            } catch {
+              /* ignore */
+            }
+          }
+        });
+      }
+    },
+    [computeGhost]
+  );
 
   /* Desktop "just start typing": one document-level keydown listener catches the
      first printable key on a cold surface (nothing is focused at rest). It is the
@@ -1810,16 +1941,7 @@ export default function Vigil() {
             data-act="write"
             className={"tex-line" + (typed === null ? " tex-line--latent" : "")}
             value={(typed ?? "") + ghost}
-            onChange={(e) => {
-              const v = e.target.value;
-              /* A deletion never re-suggests (no stuck backspace): pass it through
-                 to computeGhost, which abstains on it. */
-              const del = ((e.nativeEvent && e.nativeEvent.inputType) || "").startsWith(
-                "delete"
-              );
-              setTyped(v);
-              setGhost(composingRef.current ? "" : computeGhost(v, del));
-            }}
+            onChange={onTypedChange}
             onKeyDown={onTypedKeyDown}
             onKeyUp={(e) => e.stopPropagation()}
             onBlur={onTypedBlur}
@@ -1860,6 +1982,7 @@ export default function Vigil() {
             onClick={(e) => {
               e.stopPropagation();
               loadRoster();
+              loadAssist();
               const el = inputRef.current;
               if (el) {
                 try {

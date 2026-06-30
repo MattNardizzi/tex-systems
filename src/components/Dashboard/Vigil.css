@@ -1059,10 +1059,11 @@
   font-family: var(--tex-serif);
   font-weight: 400;
   font-variation-settings: "wght" 400;
-  /* The exact display scale + tracking of the voice line — you type in the
-     register Tex speaks in. */
-  font-size: clamp(32px, 4.6vw, 58px);
-  line-height: 1.2;
+  /* Smaller than the spoken-voice register — a calmer, more typeable question
+     line. line-height is generous so the serif's deep descenders (g, y, p) get
+     full vertical room inside the input box and never clip at the bottom. */
+  font-size: clamp(22px, 3.2vw, 34px);
+  line-height: 1.5;
   letter-spacing: -0.015em;
   color: var(--tex-ink);
   caret-color: var(--tex-ink);
