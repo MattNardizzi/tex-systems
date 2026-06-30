@@ -192,9 +192,9 @@ body .tex-field:not(.tex-field--faltering) {
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
   font-weight: 400;
-  /* Small and precise — the manifesto is spoken quietly, not shouted. Restraint
-     reads as confidence; the white + frame do the work. */
-  font-size: clamp(15px, 1.45vw, 20px);
+  /* Sized to match the rest of Tex's voice — 50% larger than the original quiet
+     register, so the opening declaration reads with presence on the white. */
+  font-size: clamp(22.5px, 2.175vw, 30px);
   line-height: 1.55;
   letter-spacing: -0.005em;
   white-space: normal;
