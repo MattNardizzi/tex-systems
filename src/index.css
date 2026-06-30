@@ -33,11 +33,11 @@
     Georgia, "Times New Roman", serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
     monospace;
-  /* The first-sequence display face. Syncopate — a very wide, geometric sans —
-     speaks the day-one manifesto ("I am Tex." … "The weight is mine now."). Only
-     two weights (400 / 700); set regular. It sets very wide, so the door uses a
-     small display size and lets the beats wrap. Opening sequence only. */
-  --tex-display: "Syncopate", system-ui, sans-serif;
+  /* The first-sequence display face. Orbitron — the classic geometric sci-fi
+     sans — speaks the day-one manifesto ("I am Tex." … "The weight is mine
+     now."). Variable wght (400 is its lightest); set regular. Mid-width, so the
+     door sits at a moderate display size and wraps when it must. Opening only. */
+  --tex-display: "Orbitron", system-ui, sans-serif;
 
   /* There is no mark. The surface at rest is silence — empty paper,
      fully empty. The slab-mark token was retired when the T was
@@ -122,11 +122,11 @@ a {
   }
 }
 
-/* ── First sequence — the day-one manifesto, set in Syncopate ──
+/* ── First sequence — the day-one manifesto, set in Orbitron ──
    The opening door ("touch to wake Tex" → "I am Tex." → "Nothing happens
-   without me." → "The weight is mine now.") speaks in --tex-display (Syncopate,
-   regular). Syncopate is a very wide geometric face, so the beats render at a
-   small display size and wrap when they must (one line on desktop, two on a
+   without me." → "The weight is mine now.") speaks in --tex-display (Orbitron,
+   regular). Orbitron is a mid-width geometric sci-fi face, so the beats sit at a
+   moderate display size and wrap when they must (one line on desktop, two on a
    phone), never clipping. Scoped to .tex-door so the in-system voice ("Here.",
    the count) keeps its own EB Garamond register. Lives here (global) rather than
    in Vigil.css so the font change stays isolated from in-flight component work. */
@@ -134,16 +134,16 @@ a {
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-variation-settings: normal;
+  font-variation-settings: "wght" 400;
   letter-spacing: 0.02em;
 }
 .tex-door .tex-door-sentence {
-  font-size: clamp(20px, 3.2vw, 34px);
+  font-size: clamp(22px, 3.6vw, 38px);
   line-height: 1.25;
 }
 .tex-door .tex-door-line {
   white-space: normal;
   text-wrap: balance;
-  font-size: clamp(16px, 2.6vw, 28px);
-  line-height: 1.35;
+  font-size: clamp(18px, 2.8vw, 30px);
+  line-height: 1.3;
 }
