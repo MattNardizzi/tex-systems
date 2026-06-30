@@ -1020,3 +1020,113 @@
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* TYPE TO WRITE — the transient typed line. The question forming, in   */
+/* the SAME display voice Tex answers in. A real <input> stripped to a  */
+/* bare line: no box, no border, no send button. It overrides the       */
+/* field's user-select/touch-action lock so text can be selected and    */
+/* the OS keyboard behaves natively. It rises like the spoken line and   */
+/* dissolves on submit — never persisted.                               */
+/* ------------------------------------------------------------------ */
+/* The slot CENTERS (absolute + translate); the input inside it ANIMATES. They
+   are split deliberately: tex-rise animates `transform`, so a single element
+   can't both center via transform AND rise — the rise would clobber the
+   centering (and clip the line off-screen). This mirrors .tex-voice / .tex-voice-
+   line. The slot never intercepts the surface hold; the live input re-enables
+   its own pointer events. */
+.tex-line-slot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* The full outer measure (NOT a 20em reading measure — a single-line input
+     never wraps, so a wide box lets a long question sit on one line instead of
+     scrolling its start off-screen). */
+  width: min(92vw, 60rem);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.tex-line {
+  width: 100%;
+  padding: 0 24px;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  text-align: center;
+  font-family: var(--tex-serif);
+  font-weight: 400;
+  font-variation-settings: "wght" 400;
+  /* The exact display scale + tracking of the voice line — you type in the
+     register Tex speaks in. */
+  font-size: clamp(32px, 4.6vw, 58px);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--tex-ink);
+  caret-color: var(--tex-ink);
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
+  pointer-events: auto;
+  animation: tex-rise 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tex-line::placeholder {
+  color: var(--tex-ink-mute);
+  opacity: 0.45;
+}
+/* The grounded ghost is a native selection on the trailing suffix — never the
+   OS blue highlight. It reads as a faint suggestion: muted ink on a barely-there
+   tint, the same ink the surface speaks in. (All selection in this transient
+   line renders this way; a manual drag-select is rare on a one-line question.) */
+.tex-line::selection {
+  background: rgba(20, 18, 16, 0.05);
+  color: var(--tex-ink-mute);
+}
+.tex-line::-moz-selection {
+  background: rgba(20, 18, 16, 0.05);
+  color: var(--tex-ink-mute);
+}
+
+/* Latent (touch, at rest): mounted so the glyph can focus it synchronously,
+   but collapsed to nothing, inert, and off the visible surface. Font-size is
+   held at 16px so focusing it never triggers an iOS zoom; it grows to the
+   display scale the instant a character lands and it becomes .tex-line. */
+.tex-line--latent {
+  width: 1px;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  font-size: 16px;
+  caret-color: transparent;
+  animation: none;
+}
+
+/* The one resident concession on touch: a single tiny, static, low-contrast
+   mark. A 44px tap target (a11y) around a 12px hairline (the writing baseline).
+   No animation, no pulse — it never asks for attention. */
+.tex-write-glyph {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: text;
+  -webkit-tap-highlight-color: transparent;
+}
+.tex-write-glyph::before {
+  content: "";
+  width: 12px;
+  height: 1px;
+  background: var(--tex-ink);
+  opacity: 0.16;
+}

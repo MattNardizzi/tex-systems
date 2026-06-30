@@ -22,3 +22,10 @@ yarn-error.log*
 
 # OS
 .DS_Store
+
+# Internal loop constitutions + buildlogs (strategy — never commit to the public repo)
+TYPING_SOTA_LOOP.md
+TYPING_SOTA_BUILDLOG.md
+
+# Local-only dev/preview tooling (never commit to the public repo)
+.claude/launch.json
