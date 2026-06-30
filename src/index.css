@@ -33,11 +33,12 @@
     Georgia, "Times New Roman", serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
     monospace;
-  /* The first-sequence display face. Orbitron — the classic geometric sci-fi
-     sans — speaks the day-one manifesto ("I am Tex." … "The weight is mine
-     now."). Variable wght (400 is its lightest); set regular. Mid-width, so the
-     door sits at a moderate display size and wraps when it must. Opening only. */
-  --tex-display: "Orbitron", system-ui, sans-serif;
+  /* The first-sequence display face. Exo 2 — a modern, techy geometric sans
+     with a full thin–bold range — speaks the day-one manifesto ("I am Tex." …
+     "The weight is mine now."). Set light (wght 300) for an airy, un-heavy look.
+     Mid/narrow width, so the door sits at a comfortable display size. Opening
+     sequence only; the in-system voice keeps the serif. */
+  --tex-display: "Exo 2", system-ui, sans-serif;
 
   /* There is no mark. The surface at rest is silence — empty paper,
      fully empty. The slab-mark token was retired when the T was
@@ -122,28 +123,28 @@ a {
   }
 }
 
-/* ── First sequence — the day-one manifesto, set in Orbitron ──
+/* ── First sequence — the day-one manifesto, set in Exo 2 ──
    The opening door ("touch to wake Tex" → "I am Tex." → "Nothing happens
-   without me." → "The weight is mine now.") speaks in --tex-display (Orbitron,
-   regular). Orbitron is a mid-width geometric sci-fi face, so the beats sit at a
-   moderate display size and wrap when they must (one line on desktop, two on a
-   phone), never clipping. Scoped to .tex-door so the in-system voice ("Here.",
+   without me." → "The weight is mine now.") speaks in --tex-display (Exo 2,
+   light/300). Exo 2 is a mid/narrow geometric sans, so the beats sit at a
+   comfortable display size and wrap when they must (one line on desktop, two on
+   a phone), never clipping. Scoped to .tex-door so the in-system voice ("Here.",
    the count) keeps its own EB Garamond register. Lives here (global) rather than
    in Vigil.css so the font change stays isolated from in-flight component work. */
 .tex-door .tex-door-sentence,
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
-  font-weight: 400;
-  font-variation-settings: "wght" 400;
-  letter-spacing: 0.02em;
+  font-weight: 300;
+  font-variation-settings: "wght" 300;
+  letter-spacing: 0.03em;
 }
 .tex-door .tex-door-sentence {
-  font-size: clamp(22px, 3.6vw, 38px);
-  line-height: 1.25;
+  font-size: clamp(26px, 4.2vw, 46px);
+  line-height: 1.22;
 }
 .tex-door .tex-door-line {
   white-space: normal;
   text-wrap: balance;
-  font-size: clamp(18px, 2.8vw, 30px);
-  line-height: 1.3;
+  font-size: clamp(22px, 3.6vw, 38px);
+  line-height: 1.28;
 }
