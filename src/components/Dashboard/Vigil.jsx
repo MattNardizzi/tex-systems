@@ -1583,24 +1583,6 @@ export default function Vigil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doorOpen, awake]);
 
-  /* The operating-frame status — the one live word in the bottom-left of the
-     frame, tracking Tex's real state. Meaningful, never decorative. */
-  const frameStatus = !alive
-    ? "Offline"
-    : onThreshold
-    ? "Awaiting"
-    : mapping
-    ? "Mapping"
-    : holding
-    ? "Listening"
-    : verifying || thinking
-    ? "Weighing"
-    : state === "held"
-    ? "Decision held"
-    : state === "faltering"
-    ? "Chain broken"
-    : "Watching";
-
   return (
     <section
       className={fieldClass}
@@ -1613,25 +1595,6 @@ export default function Vigil() {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >
-      {/* The operating frame — quiet structural chrome (corner identity, a live
-          status, hairline rules) that makes the surface read as a made
-          instrument rather than text on a page. Pointer-transparent, so
-          hold-anywhere still works through it. Mounts once the threshold has
-          resolved; before that the surface is true silence. */}
-      {ignitionReady && (
-        <div className="tex-frame" aria-hidden="true">
-          <span className="tex-frame-label tex-frame-tl">Tex</span>
-          <span className="tex-frame-label tex-frame-tr">Sovereign Cognition</span>
-          <span className="tex-frame-rule tex-frame-rule--top" />
-          <span className="tex-frame-rule tex-frame-rule--bot" />
-          <span className="tex-frame-label tex-frame-bl">
-            <span className="tex-frame-live" />
-            {frameStatus}
-          </span>
-          <span className="tex-frame-label tex-frame-br">v1.0</span>
-        </div>
-      )}
-
       {/* A lost wire is the one death Tex cannot speak. For anyone who cannot
           see the still breath, the interface — not Tex — reports the dropped
           channel, politely, off the visible paper. */}
