@@ -259,6 +259,43 @@ const SURFACES = {
   },
 };
 
+const STATUS = {
+  door: "Awaiting",
+  wake: "Awaiting",
+  manifesto1: "Awaiting",
+  manifesto2: "Awaiting",
+  mapping: "Mapping",
+  held: "Decision held",
+  deliberation: "Weighing",
+  here: "Watching",
+  ignite: "Watching",
+  falter: "Chain broken",
+  "presence-sealed": "Watching",
+  "presence-derived": "Watching",
+  "presence-abstain": "Watching",
+  object: "Watching",
+  seal: "Sealed",
+  roster: "Watching",
+};
+
+/* The operating frame, mirrored from Vigil so each surface previews with its
+   real chrome. */
+function Frame({ status }) {
+  return (
+    <div className="tex-frame" aria-hidden="true">
+      <span className="tex-frame-label tex-frame-tl">Tex</span>
+      <span className="tex-frame-label tex-frame-tr">Sovereign Cognition</span>
+      <span className="tex-frame-rule tex-frame-rule--top" />
+      <span className="tex-frame-rule tex-frame-rule--bot" />
+      <span className="tex-frame-label tex-frame-bl">
+        <span className="tex-frame-live" />
+        {status}
+      </span>
+      <span className="tex-frame-label tex-frame-br">v1.0</span>
+    </div>
+  );
+}
+
 function Screen({ id }) {
   const s = SURFACES[id];
   if (!s) return null;
@@ -268,6 +305,7 @@ function Screen({ id }) {
       data-gallery={id}
       style={{ cursor: "default" }}
     >
+      <Frame status={STATUS[id] || "Watching"} />
       <span className="gallery-tag">{s.label}</span>
       {s.node}
     </section>

@@ -192,17 +192,17 @@ body .tex-field:not(.tex-field--faltering) {
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(27px, 4.7vw, 54px);
-  line-height: 1.08;
-  letter-spacing: -0.028em;
+  /* Small and precise — the manifesto is spoken quietly, not shouted. Restraint
+     reads as confidence; the white + frame do the work. */
+  font-size: clamp(15px, 1.45vw, 20px);
+  line-height: 1.55;
+  letter-spacing: -0.005em;
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
   hyphens: none;
-  /* A short measure so a beat STACKS into a carved 2-line block instead of
-     sprawling on one wide line — the single-line tell a wide geometric face
-     punishes hardest. Balanced so the split lands evenly. */
-  max-width: 11em;
+  /* A calm measure — short beats sit on one line, longer ones break to two. */
+  max-width: 24em;
   margin: 0 auto;
   text-align: center;
   text-wrap: balance;
@@ -255,70 +255,63 @@ body .tex-field:not(.tex-field--faltering) {
    one treatment — there is one primary act in the whole product, and this
    is what it looks like. Scoped here to the door; the in-system .tex-act
    --approve picks up the same look from Vigil.css. */
+/* Begin — not a key, a command. A precise tracked label with a single hairline
+   that extends on hover, like an instrument's enter. No fill, no pill, no shadow:
+   the sharpest possible primary action on a clean surface. */
 .tex-door-acts .tex-act,
 .tex-door [data-act="begin"] {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(10.5px, 1.1vw, 12.5px);
-  letter-spacing: 0.22em;
-  text-indent: 0.22em;
+  font-size: clamp(10px, 1.05vw, 11.5px);
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
   text-transform: uppercase;
-  color: var(--tex-paper);
+  color: var(--tex-ink);
   cursor: pointer;
-  padding: 1.2em 2.85em;
-  border-radius: 999px;
-  /* True-black key with a crisp hairline ring so the edge stays razor-clean
-     against white, a 1px inner top-rim catching the overhead light, and a
-     tight contact shadow over a faint ambient one — a real object, not gloss. */
-  border: none;
-  background-color: #0a0a0a;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 1px 1px rgba(0, 0, 0, 0.16),
-    0 12px 26px -18px rgba(0, 0, 0, 0.42);
-  transition:
-    transform var(--tex-micro) var(--tex-ease-micro),
-    box-shadow var(--tex-micro) var(--tex-ease-micro),
-    background-color var(--tex-micro) var(--tex-ease-micro);
+  padding: 14px 4px;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transition: color var(--tex-micro) var(--tex-ease-micro);
   -webkit-font-smoothing: antialiased;
 }
-
-.tex-door-acts .tex-act:hover,
-.tex-door [data-act="begin"]:hover {
-  transform: translateY(-1.5px);
-  background-color: #000;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 2px 3px rgba(0, 0, 0, 0.18),
-    0 20px 38px -18px rgba(0, 0, 0, 0.5);
+.tex-door-acts .tex-act::after,
+.tex-door [data-act="begin"]::after {
+  content: "";
+  width: 30px;
+  height: 1px;
+  background: var(--tex-ink);
+  transition: width var(--tex-micro) var(--tex-ease-micro),
+    background-color var(--tex-micro) var(--tex-ease-micro);
 }
-
+.tex-door-acts .tex-act:hover::after,
+.tex-door [data-act="begin"]:hover::after {
+  width: 56px;
+}
 .tex-door-acts .tex-act:active,
 .tex-door [data-act="begin"]:active {
-  transform: scale(0.985) translateY(0);
-  transition-duration: 100ms;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.32),
-    0 1px 2px rgba(0, 0, 0, 0.18);
+  color: var(--tex-ink-soft);
 }
-
 .tex-door-acts .tex-act:focus-visible,
 .tex-door [data-act="begin"]:focus-visible {
   outline: none;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 12px 26px -18px rgba(0, 0, 0, 0.42),
-    0 0 0 2px var(--tex-paper),
-    0 0 0 4px rgba(0, 0, 0, 0.5);
+  color: var(--tex-ink);
 }
-
+.tex-door-acts .tex-act:focus-visible::after,
+.tex-door [data-act="begin"]:focus-visible::after {
+  width: 56px;
+}
 .tex-door-acts .tex-act:disabled,
 .tex-door [data-act="begin"]:disabled {
   cursor: default;
-  color: rgba(255, 255, 255, 0.55);
-  background-color: var(--tex-ink-mute);
-  transform: none;
-  box-shadow: 0 8px 18px -16px rgba(0, 0, 0, 0.35);
+  color: var(--tex-ink-mute);
+}
+.tex-door-acts .tex-act:disabled::after,
+.tex-door [data-act="begin"]:disabled::after {
+  background: var(--tex-ink-faint);
 }

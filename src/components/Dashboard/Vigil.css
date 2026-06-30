@@ -36,6 +36,124 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* THE OPERATING FRAME — the structural chrome that turns an empty white */
+/* surface into a made instrument: corner identity, one live status, and */
+/* hairline rules framing the content band. Pointer-transparent so the    */
+/* hold-anywhere gesture passes through. Achromatic, surgical, quiet.     */
+/* ------------------------------------------------------------------ */
+.tex-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.tex-frame-label {
+  position: absolute;
+  font-family: var(--tex-display);
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tex-frame-tl {
+  top: 38px;
+  left: 46px;
+  color: var(--tex-ink);
+}
+.tex-frame-tr {
+  top: 38px;
+  right: 46px;
+  letter-spacing: 0.3em;
+  color: var(--tex-ink-mute);
+}
+.tex-frame-bl {
+  bottom: 36px;
+  left: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  letter-spacing: 0.28em;
+  color: var(--tex-ink-soft);
+}
+.tex-frame-br {
+  bottom: 36px;
+  right: 46px;
+  font-family: var(--tex-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: none;
+  color: var(--tex-ink-mute);
+}
+/* The one living element on the whole surface — a slow breath. */
+.tex-frame-live {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tex-ink);
+  animation: tex-breathe 3400ms var(--tex-ease-inout) infinite;
+}
+@keyframes tex-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* The faltering breath goes arrhythmic — the live light stutters as the
+   chain breaks (still ink, no colour). */
+.tex-field--faltering .tex-frame-live {
+  animation-duration: 1700ms;
+}
+.tex-frame-rule {
+  position: absolute;
+  left: 46px;
+  right: 46px;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.05);
+}
+.tex-frame-rule--top {
+  top: 70px;
+}
+.tex-frame-rule--bot {
+  bottom: 64px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-frame-live {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+/* On a narrow screen the frame tightens to the edges and sheds the rules +
+   the long context label, keeping just identity / status / build marker. */
+@media (max-width: 640px) {
+  .tex-frame-tl,
+  .tex-frame-tr {
+    top: 26px;
+  }
+  .tex-frame-bl,
+  .tex-frame-br {
+    bottom: 24px;
+  }
+  .tex-frame-tl {
+    left: 24px;
+  }
+  .tex-frame-br {
+    right: 24px;
+  }
+  .tex-frame-bl {
+    left: 24px;
+  }
+  .tex-frame-tr,
+  .tex-frame-rule {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* The surface at rest is empty, lit white. No sign of life by design.  */
 /* The only thing the held gesture summons in silence is the listening   */
 /* ring below, and only while held.                                      */
@@ -90,9 +208,12 @@
   font-family: var(--tex-display);
   font-weight: 400;
   font-variation-settings: normal;
-  font-size: clamp(27px, 4.6vw, 54px);
-  line-height: 1.08;
-  letter-spacing: -0.028em;
+  /* Restraint, not volume. A small, precise line of Michroma in a vast field of
+     white reads as a refined instrument; a giant headline reads loud. The size
+     stays modest and lets the frame + negative space carry the weight. */
+  font-size: clamp(15px, 1.4vw, 20px);
+  line-height: 1.55;
+  letter-spacing: -0.005em;
   color: var(--tex-ink);
   text-wrap: balance;
 }
@@ -251,34 +372,22 @@
   outline: none;
   box-shadow: 0 0 0 2px var(--tex-paper), 0 0 0 4px rgba(0, 0, 0, 0.5);
 }
-/* The one primary act — a solid object resting on the white, the same key
-   as Begin: true-black, hairline ring, inner top-rim, tight contact shadow. */
+/* The one primary act — a flat, sharp ink fill. No drop shadow, no gloss: on a
+   clean instrument surface, flatness reads sharper than a lifted key. */
 .tex-act--approve {
   color: var(--tex-paper);
-  background: #0a0a0a;
-  border: none;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 1px 1px rgba(0, 0, 0, 0.16),
-    0 12px 26px -18px rgba(0, 0, 0, 0.42);
+  background: var(--tex-ink);
+  border-color: var(--tex-ink);
 }
 .tex-act--approve:hover {
   background: #000;
   color: var(--tex-paper);
-  transform: translateY(-1.5px);
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 2px 3px rgba(0, 0, 0, 0.18),
-    0 20px 38px -18px rgba(0, 0, 0, 0.5);
+  border-color: #000;
+  transform: translateY(-1px);
 }
 .tex-act--approve:active {
   transform: scale(0.985);
   transition-duration: 100ms;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.32),
-    0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .tex-held-ask {
