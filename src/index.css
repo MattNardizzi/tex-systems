@@ -33,6 +33,11 @@
     Georgia, "Times New Roman", serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
     monospace;
+  /* The first-sequence display face. Michroma — wide, thin, geometric — speaks
+     the day-one manifesto ("I am Tex." … "The weight is mine now."). Single
+     weight, no axes; it sets far wider than the serif voice, so the door scales
+     it down and lets the beats wrap. Used only on the opening sequence. */
+  --tex-display: "Michroma", "Eurostile", system-ui, sans-serif;
 
   /* There is no mark. The surface at rest is silence — empty paper,
      fully empty. The slab-mark token was retired when the T was
@@ -44,10 +49,10 @@
   --tex-ink-mute: #9b9388;
   --tex-ink-hair: #d8d4cc;
 
-  /* Paper — the room. Not clinical #fff (that reads like a blank
-     document); a hair warm, so the white reads like gallery paper while
-     still reading as white. Calibration, not decoration — no glass. */
-  --tex-paper: #fcfbf9;
+  /* Paper — the room. Stark, clean #fff: a true white surface so the thin
+     display face and dark ink read at maximum clarity. (Was a hair-warm
+     #fcfbf9; pulled to clinical white by intent.) */
+  --tex-paper: #ffffff;
   --tex-paper-2: #fafaf8;
   --tex-paper-3: #f4f3ef;
 
@@ -115,4 +120,30 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ── First sequence — the day-one manifesto, set in Michroma ──
+   The opening door ("touch to wake Tex" → "I am Tex." → "Nothing happens
+   without me." → "The weight is mine now.") speaks in --tex-display (Michroma)
+   instead of the serif voice. Michroma is a wide geometric face, so the long
+   beats can no longer be forced onto one line at the serif's 58px — here they
+   wrap, at a smaller display size, with the open tracking a geometric face
+   wants. Scoped to .tex-door so the in-system voice ("Here.", the count) keeps
+   its own EB Garamond register. Lives here (global) rather than in Vigil.css so
+   the font change stays isolated from in-flight component work. */
+.tex-door .tex-door-sentence,
+.tex-door .tex-door-line {
+  font-family: var(--tex-display);
+  font-variation-settings: normal;
+  letter-spacing: 0.04em;
+}
+.tex-door .tex-door-sentence {
+  font-size: clamp(24px, 3.4vw, 38px);
+  line-height: 1.25;
+}
+.tex-door .tex-door-line {
+  white-space: normal;
+  text-wrap: balance;
+  font-size: clamp(20px, 3vw, 32px);
+  line-height: 1.32;
 }
