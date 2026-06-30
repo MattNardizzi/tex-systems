@@ -1,0 +1,22 @@
+/* DEV-ONLY gallery chrome — not part of the product design. */
+.gallery-root .tex-field {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+.gallery-tag {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  font-family: "Geist Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  z-index: 10;
+}
+/* In the product the object dissolves after ~6s (OBJECT_LINGER_MS) — a handle
+   you take, then it's gone. In the static gallery that fade would leave the
+   surface blank for review, so hold it lit (rise only, no dissolve). */
+.gallery-root .tex-object-value {
+  animation: tex-object-rise 720ms var(--tex-ease) both !important;
+}

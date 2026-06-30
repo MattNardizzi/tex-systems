@@ -1,15 +1,17 @@
 /* ============================================================
-   Vigil — the entire product surface.
+   Vigil — the entire product surface.  "Etched Light."
 
-   There is no T. There is no mark. At rest the surface is silence —
-   empty paper, fully empty. There is nothing at center but white. Tex
-   speaks only when it has something for you. The whole surface is the
-   ask gesture: press and hold anywhere.
+   One voice (Michroma), one ink ladder, one light. At rest the
+   surface is silence — empty lit white. Tex speaks only when it has
+   something for you. The whole surface is the ask gesture: press and
+   hold anywhere.
 
-   Color appears once or never. The only hue the surface ever shows
-   that isn't resting ink is the sickness of a faltering breath. It
-   is not a severity ramp. Held is ink. Silence is ink. Only the
-   break has a color.
+   Hierarchy is carried by SIZE × TRACKING × INK-VALUE × CASE, never by
+   weight — Michroma has one weight. Monumental statements track tight
+   and sit at full ink; supporting lines step down the ink ladder; the
+   chrome lives in the instrument register — tiny, uppercase, widely
+   tracked. Colour appears once or never: only a faltering breath, and
+   even that stays a cold neutral pallor.
    ============================================================ */
 
 .tex-field {
@@ -34,39 +36,69 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The surface at rest is empty. There is no sign of life, by design.   */
-/* Tex does not announce that it is alive — you know it is alive because */
-/* it answers when reached. The only thing the held gesture summons in   */
-/* silence is the mic-open ring below, and only while held.             */
+/* The surface at rest is empty, lit white. No sign of life by design.  */
+/* The only thing the held gesture summons in silence is the listening   */
+/* ring below, and only while held.                                      */
 /* ------------------------------------------------------------------ */
 
-/* While the surface is held (you're addressing Tex), a single ring lifts
-   outward from center — the mic is open. No hot mic: this only exists
-   while the gesture is held. */
-.tex-field.is-listening::after {
+/* While the surface is held (you're addressing Tex), a single hairline ring
+   lifts outward from centre — the mic is open. No hot mic: it exists only
+   while the gesture is held. Two faint rings, staggered, read as a calm,
+   deliberate radar rather than a loading spinner. */
+.tex-field.is-listening::after,
+.tex-field.is-listening::before {
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 220px;
-  height: 220px;
-  margin: -110px 0 0 -110px;
+  width: 240px;
+  height: 240px;
+  margin: -120px 0 0 -120px;
   border-radius: 50%;
   border: 1px solid var(--tex-ink);
   opacity: 0;
-  animation: tex-listen-ring 1900ms ease-out infinite;
+  animation: tex-listen-ring 2600ms var(--tex-ease) infinite;
   pointer-events: none;
+  z-index: 2;
+}
+.tex-field.is-listening::before {
+  animation-delay: 1300ms;
 }
 @keyframes tex-listen-ring {
-  0%   { transform: scale(0.35); opacity: 0.18; }
-  100% { transform: scale(1); opacity: 0; }
+  0% {
+    transform: scale(0.32);
+    opacity: 0.16;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 /* ------------------------------------------------------------------ */
-/* The held decision — Tex froze something and surfaces it. Tex's      */
-/* voice, the facts that ground it, and the resolved acts that seal    */
-/* it. A wire transfer is sealed by a named human act, not a spoken    */
-/* maybe — so the acts are deliberate, recorded, signable.             */
+/* THE STATEMENT — the monumental register shared by the manifesto, the */
+/* held headline, the spoken voice and the presence answer. A carved,   */
+/* full-ink declaration: tracked tight so the wide face becomes a solid  */
+/* architectural mass, balanced onto a short measure.                    */
+/* ------------------------------------------------------------------ */
+
+.tex-held-sentence,
+.tex-door-sentence,
+.tex-voice-line,
+.tex-presence-line {
+  margin: 0;
+  font-family: var(--tex-display);
+  font-weight: 400;
+  font-variation-settings: normal;
+  font-size: clamp(27px, 4.6vw, 54px);
+  line-height: 1.08;
+  letter-spacing: -0.028em;
+  color: var(--tex-ink);
+  text-wrap: balance;
+}
+
+/* ------------------------------------------------------------------ */
+/* The held decision — Tex froze something and surfaces it.            */
 /* ------------------------------------------------------------------ */
 
 .tex-held {
@@ -74,288 +106,282 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  /* Widened from 34em so the held sentence can speak at the same display scale
-     as the threshold and the voice without wrapping into a tall stack. The
-     supporting detail and question keep their own narrower measures (their own
-     max-widths below), so only the headline ever uses the full width. */
   max-width: min(92vw, 56rem);
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
   transition: opacity 520ms ease;
 }
-/* A spoken answer is overlaying the glass while this decision is held: the card
-   steps back to silence so the answer reads alone (no two sentences stacked),
-   then fades back the moment the answer dissolves. `animation: none` releases
-   the tex-rise fill-mode lock on opacity so the transition can take it to 0;
-   dropping the class restores tex-rise, which rises the card back in. */
 .tex-held.is-receded {
   animation: none;
   opacity: 0;
   pointer-events: none;
 }
 .tex-held-sentence {
-  margin: 0;
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  font-variation-settings: "wght" 400;
-  /* The held sentence is the same voice as the threshold and the count: the
-     identical EB Garamond display scale and tracking, so a held wire transfer
-     is announced with the same presence as "I am Tex.", never as a smaller
-     card headline. line-height stays a hair open for the wrap. */
-  font-size: clamp(32px, 4.6vw, 58px);
-  line-height: 1.18;
-  letter-spacing: -0.015em;
-  max-width: 17em;
-  color: var(--tex-ink);
-  text-wrap: balance;
+  max-width: 15em;
 }
 .tex-held-detail {
-  margin: 1.4em 0 0;
-  max-width: 26em;
-  font-family: var(--tex-serif);
+  margin: 1.6em 0 0;
+  max-width: 30em;
+  font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(16px, 1.7vw, 20px);
-  line-height: 1.6;
-  letter-spacing: -0.004em;
+  /* Body in a wide single-weight face: small, with generous leading and a
+     short measure so it stays calm and legible instead of dense. It steps
+     down the ink ladder to recede beneath the headline. */
+  font-size: clamp(12.5px, 1.25vw, 15px);
+  line-height: 1.62;
+  letter-spacing: 0.004em;
   color: var(--tex-ink-soft);
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 240ms both;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 200ms both;
 }
 
-/* The hold, made legible. The TYPE line names whether a fact could resolve
-   it; the QUESTION — only on an epistemic hold — is the single pivotal fact,
-   set apart so the eye lands on it. This is the held card earning the
-   interruption: it hands you the question, never the case file. */
+/* The hold, made legible. The TYPE line is an instrument label; the
+   QUESTION — the single pivotal fact — sits apart at mid-ink, the eye's
+   landing point. A hairline above the question sets it off as the thing
+   that matters, with no italic (Michroma has none) and no colour. */
 .tex-held-hold {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 1.8em;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 350ms both;
+  margin-top: 2.4em;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 350ms both;
 }
 .tex-held-type {
   margin: 0;
-  font-family: var(--tex-sans);
-  font-size: clamp(12px, 1.2vw, 14px);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-family: var(--tex-display);
+  font-size: clamp(9.5px, 0.95vw, 11px);
+  font-weight: 400;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  text-transform: uppercase;
   color: var(--tex-ink-mute);
 }
 .tex-held-question {
-  margin: 0.7em 0 0;
-  max-width: 28em;
-  font-family: var(--tex-serif);
-  font-style: italic;
+  position: relative;
+  margin: 1.5em 0 0;
+  padding-top: 1.5em;
+  max-width: 24em;
+  font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(17px, 1.9vw, 22px);
+  font-size: clamp(15px, 1.7vw, 21px);
   line-height: 1.5;
-  letter-spacing: -0.006em;
-  color: var(--tex-ink);
+  letter-spacing: -0.01em;
+  color: var(--tex-ink-2);
+  text-wrap: balance;
+}
+.tex-held-question::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 1px;
+  background: var(--tex-ink-hair-2);
 }
 
-/* The certified-band watermark — the same monospace register as the seal
-   hash. Chrome, not decoration: present only when the two-sided CRC band
-   carries a live guarantee for this hold. */
+/* The certified-band watermark — instrument chrome, the same register as the
+   seal meta. Present only when the CRC band carries a live guarantee. */
 .tex-held-cert {
-  margin: 1.6em 0 0;
+  margin: 2.4em 0 0;
   font-family: var(--tex-mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
   text-transform: lowercase;
   color: var(--tex-ink-mute);
-  opacity: 0.62;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 620ms both;
+  opacity: 0.7;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 620ms both;
 }
 
-/* The resolved acts. Quiet, deliberate. No alarm color — held is ink.
-   Approve carries the only weight; refuse is the same family, never
-   red (this is a decision, not an emergency). */
+/* ------------------------------------------------------------------ */
+/* The acts — quiet, deliberate, recorded. There is ONE primary act in   */
+/* the product: a single solid near-black key (Approve / Begin). The     */
+/* others are hairline keys that fill toward ink on hover. All set in the */
+/* instrument register: uppercase Michroma, widely tracked.              */
+/* ------------------------------------------------------------------ */
 .tex-acts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-top: 2.6em;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 460ms both;
+  gap: 14px;
+  margin-top: 3em;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 460ms both;
 }
 .tex-act {
-  font-family: var(--tex-sans);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0.012em;
-  padding: 12px 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* A real touch target, floored above the 44px (HIG) minimum — this is a
+     decision button on a high-stakes screen, never a hairline to miss. */
+  min-height: 46px;
+  font-family: var(--tex-display);
+  font-size: clamp(10.5px, 1.05vw, 12px);
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  text-transform: uppercase;
+  padding: 1.05em 2.4em;
   border-radius: 999px;
-  border: 1px solid var(--tex-ink-hair);
-  color: var(--tex-ink-soft);
+  border: 1px solid var(--tex-ink-hair-2);
+  color: var(--tex-ink-2);
   background: var(--tex-paper);
-  transition: border-color 160ms ease, color 160ms ease,
-    background 160ms ease;
+  transition:
+    border-color var(--tex-micro) var(--tex-ease-micro),
+    color var(--tex-micro) var(--tex-ease-micro),
+    background var(--tex-micro) var(--tex-ease-micro),
+    transform var(--tex-micro) var(--tex-ease-micro),
+    box-shadow var(--tex-micro) var(--tex-ease-micro);
+}
+@media (pointer: coarse) {
+  .tex-act {
+    min-height: 50px;
+  }
 }
 .tex-act:hover {
   border-color: var(--tex-ink);
   color: var(--tex-ink);
+  transform: translateY(-1px);
 }
-/* The Yes act is auto-focused when the question arrives, so kill the
-   browser's blue focus ring — at rest it must look identical to the held
-   Approve button. Keyboard navigation still shows focus, but in ink and
-   offset from the pill, never browser blue. */
 .tex-act:focus {
   outline: none;
 }
 .tex-act:focus-visible {
-  outline: 2px solid var(--tex-ink-soft);
-  outline-offset: 3px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--tex-paper), 0 0 0 4px rgba(0, 0, 0, 0.5);
 }
+/* The one primary act — a solid object resting on the white, the same key
+   as Begin: true-black, hairline ring, inner top-rim, tight contact shadow. */
 .tex-act--approve {
   color: var(--tex-paper);
-  background: var(--tex-ink);
-  border-color: var(--tex-ink);
+  background: #0a0a0a;
+  border: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 1px rgba(0, 0, 0, 0.16),
+    0 12px 26px -18px rgba(0, 0, 0, 0.42);
 }
 .tex-act--approve:hover {
   background: #000;
   color: var(--tex-paper);
+  transform: translateY(-1.5px);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 3px rgba(0, 0, 0, 0.18),
+    0 20px 38px -18px rgba(0, 0, 0, 0.5);
 }
-.tex-act--refuse:hover {
-  border-color: var(--tex-ink);
-  color: var(--tex-ink);
+.tex-act--approve:active {
+  transform: scale(0.985);
+  transition-duration: 100ms;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.32),
+    0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .tex-held-ask {
-  margin: 3.4em 0 0;
-  font-family: var(--tex-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: lowercase;
+  margin: 4em 0 0;
+  font-family: var(--tex-display);
+  font-size: clamp(9px, 0.9vw, 10.5px);
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  text-transform: uppercase;
   color: var(--tex-ink-mute);
-  opacity: 0.7;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 900ms both;
+  opacity: 0.62;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 900ms both;
 }
 
 /* ------------------------------------------------------------------ */
-/* The day-one door — Tex says hello, once, and offers to begin.       */
-/* Same paper, same serif, same pill acts as the held card: the        */
-/* greeting is not a different surface, it is the first thing this one  */
-/* surface ever says. It rises like the held sentence and dissolves     */
-/* into the live vigil the instant the threshold is crossed.            */
+/* The day-one door.                                                    */
 /* ------------------------------------------------------------------ */
-
 .tex-door {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  /* No width cap on the door: the manifesto beats are single, unbroken
-     declarations (see .tex-door-line) and the viewport — not a 34em column —
-     is the only thing allowed to bound them. The 24px side padding is the one
-     gutter, and the line scales down to honor it before it would ever clip. */
   max-width: none;
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
-  perspective: 1100px;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  perspective: 1400px;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
 }
-.tex-door-sentence {
-  margin: 0;
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  /* EB Garamond carries wght + ital only — no optical-size axis — so the
-     display craft is here, not in opsz: full weight (never light; light
-     Garamond goes wispy at size), warm near-black ink so cream paper takes
-     warm ink, and tracking pulled a touch tighter than Garamond's text-tuned
-     default. The manifesto beats are forced onto one line in .tex-door-line;
-     this base size + balance still governs the longer count line, which may
-     wrap. Presence is the weight and the verb, not the point size. */
-  font-variation-settings: "wght" 400;
-  font-size: clamp(32px, 4.6vw, 58px);
-  line-height: 1.1;
-  letter-spacing: -0.015em;
-  color: var(--tex-ink);
-  text-wrap: balance;
+/* The "Mapping…" working state. The dots reserve a fixed width so the word
+   never shifts as the ellipsis grows. Set in the statement register but a
+   step down the ink ladder — Tex is working, not declaring. */
+.tex-mapping {
+  color: var(--tex-ink-2);
 }
-/* The "Mapping…" working state. The dots span reserves a fixed width so
-   the word never shifts as the ellipsis grows; the dots sit a touch
-   lighter than the word, breathing on the same slow rhythm as the field. */
 .tex-mapping-dots {
   display: inline-block;
   width: 1.1em;
   text-align: left;
-  color: var(--tex-ink);
-  opacity: 0.55;
+  color: var(--tex-ink-mute);
 }
-/* The opener beats are VOICE-DRIVEN (texSpeakSequence): a line RISES in on mount,
-   HOLDS for exactly as long as Tex speaks it — word-synced, no fixed duration —
-   then DISSOLVES only when JS adds .is-leaving as the sequence advances. The
-   enter and leave are split into their own keyframes (each keeping the whisper of
-   rotateX, like a page turning toward you — never a spin) so the hold can be any
-   length and a line can never fade out mid-word, which the old single fixed-
-   duration cycle did once the voice ran longer than its beat. */
+/* The opener beats are VOICE-DRIVEN (texSpeakSequence): a line RISES in on
+   mount, HOLDS for as long as Tex speaks it, then DISSOLVES when JS adds
+   .is-leaving. Enter and leave are split so the hold can be any length and a
+   line can never fade out mid-word. */
 .tex-door-line {
   transform-origin: 50% 0;
-  /* Each beat is one unbroken line — a declaration, not a sentence that ran
-     long. A wrap inserts a pause Tex never asked for, so we override the base
-     balance and refuse to wrap. The size is measured to the widest beat
-     ("Nothing happens without me." ≈ 11.6em): pinned at 58px on any real
-     desktop, and scaled by the viewport below ~795px so it stays on one line
-     down to a 320px phone without ever reaching the 24px gutter. */
-  white-space: nowrap;
-  text-wrap: nowrap;
-  font-size: clamp(22px, 7.3vw, 58px);
-  animation: tex-door-enter 820ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-door-enter 700ms var(--tex-ease) both;
 }
-/* The dissolve — added when the line has been spoken and breathed. Its duration
-   is kept in sync with MANIFESTO_LEAVE_MS in Vigil.jsx. */
+/* The dissolve — duration kept in sync with MANIFESTO_LEAVE_MS in Vigil.jsx. */
 .tex-door-line.is-leaving {
   animation: tex-door-leave 560ms cubic-bezier(0.4, 0, 0.7, 0.2) both;
 }
-/* The final line — the handover — only arrives; it does not leave. It eases
-   in slowly, so the cross from the claim never feels abrupt. */
+/* The final line — the handover — only arrives; it does not leave. */
 .tex-door-line--hold {
-  animation: tex-door-arrive 1300ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-door-arrive 900ms var(--tex-ease) both;
 }
+/* The signature entrance — a precise clip-reveal: the statement wipes up into
+   existence from its own baseline, riding a small rise, expo-eased, zero bounce.
+   One element moves; the surface is otherwise still. The over-clip (105% / -5%)
+   keeps ascenders and descenders from kissing the mask edge. */
 @keyframes tex-door-enter {
   0% {
     opacity: 0;
-    transform: translateY(10px) rotateX(7deg);
+    clip-path: inset(105% 0 0 0);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) rotateX(0deg);
+    clip-path: inset(-5% 0 0 0);
+    transform: translateY(0);
   }
 }
 @keyframes tex-door-leave {
   0% {
     opacity: 1;
-    transform: translateY(0) rotateX(0deg);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(-8px) rotateX(-6deg);
+    transform: translateY(-10px);
   }
 }
 @keyframes tex-door-arrive {
   0% {
     opacity: 0;
-    transform: translateY(10px) rotateX(7deg);
+    clip-path: inset(105% 0 0 0);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) rotateX(0deg);
+    clip-path: inset(-5% 0 0 0);
+    transform: translateY(0);
   }
 }
-/* The Begin slot is RESERVED for the whole opener so revealing it never reflows
-   the line above — the manifesto never jumps up. We override the .tex-acts
-   tex-rise (its `both` fill would otherwise pin opacity to 1 and defeat the
-   reserve) and instead hold the slot invisible + inert, then fade Begin in once
-   the final line has landed (.is-revealed). */
+/* The Begin slot is RESERVED for the whole opener so revealing it never
+   reflows the line above. */
 .tex-door-acts {
-  margin-top: 2.6em;
+  margin-top: 3.2em;
   animation: none;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 760ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: opacity 760ms var(--tex-ease);
 }
 .tex-door-acts.is-revealed {
   opacity: 1;
@@ -367,67 +393,63 @@
   }
 }
 
-/* While ignition is in flight the acts hold still — no spinner, just a
-   quiet, un-pressable pause, so a double-press cannot double-fire. */
+/* While ignition is in flight the acts hold still — no spinner. */
 .tex-act:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: default;
   pointer-events: none;
 }
 
 /* ------------------------------------------------------------------ */
 /* The seal — a resolved decision, shown briefly, then silence.        */
-/* The hash is the proof the human acted; chrome, not decoration.      */
 /* ------------------------------------------------------------------ */
-
 .tex-seal {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  /* Lifted to optical centre — the short top-light block would otherwise read
+     as bottom-heavy in the empty field. Matches the held card's -2vh lift so
+     the seal lands where the card it replaces sat. */
+  transform: translateY(-3vh);
+  animation: tex-rise 900ms var(--tex-ease) both;
 }
 .tex-seal-line {
   margin: 0;
-  font-family: var(--tex-serif);
+  font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(20px, 2.4vw, 28px);
-  line-height: 1.4;
-  letter-spacing: -0.008em;
+  font-size: clamp(20px, 2.6vw, 30px);
+  line-height: 1.18;
+  letter-spacing: -0.022em;
   color: var(--tex-ink);
+  max-width: 9em;
+  text-wrap: balance;
 }
 .tex-seal-hash {
-  margin: 1.1em 0 0;
+  margin: 1.6em 0 0;
   font-family: var(--tex-mono);
-  font-size: 12px;
+  font-size: 11.5px;
   letter-spacing: 0.04em;
   color: var(--tex-ink-mute);
 }
-
 .tex-seal-sig {
-  margin: 0.5em 0 0;
-  font-family: var(--tex-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  margin: 0.6em 0 0;
+  font-family: var(--tex-display);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--tex-ink-mute);
   opacity: 0.7;
 }
 
 /* ------------------------------------------------------------------ */
-/* The voice — Tex speaks; the glass stays clean. An answer is never     */
-/* written. The only spoken lines that touch the paper are presence      */
-/* ("Here.") and the faltering warning — states Tex is in, not answers.  */
+/* The voice — Tex speaks; the glass stays clean.                       */
 /* ------------------------------------------------------------------ */
-
 .tex-voice {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  /* Wide enough that a short spoken line — the count, "Here." — stands on one
-     line at the full display size, exactly as the threshold lines do. The
-     reading measure for a line that wraps (the faltering warning) is held on
-     .tex-voice-line itself, in em, so it stays a tidy column at any size. */
   max-width: min(92vw, 60rem);
   padding: 0 24px;
   pointer-events: none;
@@ -437,54 +459,31 @@
   transform: translate(-50%, -50%);
 }
 .tex-voice-line {
-  margin: 0;
   text-align: center;
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  font-variation-settings: "wght" 400;
-  /* Inside the system Tex still speaks in the SAME voice it opened in: the
-     count and the faltering warning carry the exact EB Garamond display scale
-     and tracking as the threshold lines (.tex-door-sentence) — never the
-     smaller, second-class register they used to drop to once you were past
-     Begin. line-height is the one concession: a hair more open than the door's
-     1.1 so the warning, which wraps, can breathe; it reads identically on the
-     single-line count. max-width is the reading measure, in em, so a long line
-     wraps into a tidy column while a short one stays on one line. */
-  font-size: clamp(32px, 4.6vw, 58px);
-  line-height: 1.2;
-  letter-spacing: -0.015em;
-  max-width: 20em;
-  color: var(--tex-ink);
-  text-wrap: balance;
-  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  line-height: 1.08;
+  max-width: 16em;
+  animation: tex-rise 760ms var(--tex-ease) both;
 }
-/* "Here." — presence, not an aside. One calm word at the full voice size,
-   tracked a touch tighter the way a single large word wants. Inherits the
-   display scale; only the tracking is its own. */
+/* "Here." — one calm word at full voice size, tracked a touch tighter the
+   way a single large word wants. */
 .tex-voice-line--here {
-  color: var(--tex-ink);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
-/* The day-one ignition line — the count, and that Tex is beginning. It is a
-   declaration, so it lands at the same display size as the threshold: no size
-   or tracking override, it simply inherits the voice, then clears to silence. */
 .tex-voice-line--ignite {
   color: var(--tex-ink);
 }
-/* Faltering — the words stay fully legible; the sickness is carried by
-   the field tint, not by making the warning hard to read. */
+/* Faltering — Tex confessing its evidence chain broke. It spends the one license
+   the doctrine grants (no alarm colour): the statement loses ink-conviction,
+   dropping to a dimmed neutral as the surface dims around it. Still legible at
+   display size — the words must be read — but visibly drained of authority. */
 .tex-voice-line--falter {
-  color: var(--tex-ink);
+  color: #707070;
 }
 
 /* ------------------------------------------------------------------ */
-/* The object — the one thing the screen is ever allowed to hold. Not    */
-/* an answer (meaning is spoken); a handle you grab and walk away with:  */
-/* a hash, an exact identifier. You don't comprehend it, you take it. So */
-/* it rises alone, monospace, centered, because you reached for it — and */
-/* dissolves the moment it has been taken. No label, no field, no card.  */
+/* The object — the one thing the screen may ever hold. A handle, set in  */
+/* the mono register so a sha256 stays readable and copyable.            */
 /* ------------------------------------------------------------------ */
-
 .tex-object {
   position: absolute;
   left: 50%;
@@ -494,80 +493,123 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 32em;
+  max-width: 34em;
   padding: 0 24px;
   pointer-events: none;
 }
 .tex-object-value {
   font-family: var(--tex-mono);
-  font-size: clamp(15px, 1.7vw, 19px);
-  letter-spacing: 0.02em;
-  line-height: 1.5;
-  color: var(--tex-ink);
+  font-size: clamp(13px, 1.5vw, 16px);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--tex-ink-2);
+  font-variant-numeric: tabular-nums;
   text-align: center;
   word-break: break-all;
-  /* Rises as itself, holds, then dissolves when taken. The fade is timed
-     to finish just as OBJECT_LINGER_MS (6s) clears it from the DOM. */
-  animation: tex-object-rise 720ms cubic-bezier(0.22, 0.61, 0.36, 1) both,
+  animation: tex-object-rise 720ms var(--tex-ease) both,
     tex-object-fade 600ms ease 5400ms both;
 }
 @keyframes tex-object-rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes tex-object-fade {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
-/* The reached handle when it rises INSIDE the held card (calibration's
-   proposed change, or a decision's anchor): it flows under the acts rather
-   than centering on the whole field, but keeps the same monospace object
-   treatment and rise. The fade is suppressed here — it lives only as long as
-   the surfaced object does, then unmounts with it. */
-.tex-object--in-held {
+/* The reached handle when it rises INSIDE a card — flows under the acts. */
+.tex-object--in-held,
+.tex-object--in-presence {
   position: static;
   transform: none;
-  margin: 18px auto 0;
-  max-width: 30em;
+  margin: 22px auto 0;
+  max-width: 32em;
+  pointer-events: none;
 }
-.tex-object--in-held .tex-object-value {
-  font-size: clamp(13px, 1.4vw, 16px);
-  color: var(--tex-ink-soft, var(--tex-ink));
-  animation: tex-object-rise 560ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+.tex-object--in-held .tex-object-value,
+.tex-object--in-presence .tex-object-value {
+  font-size: clamp(12px, 1.3vw, 14px);
+  color: var(--tex-ink-soft);
+  animation: tex-object-rise 560ms var(--tex-ease) both;
+}
+/* On a narrow screen a 64-char hash would break-all into a ragged 3 lines with
+   an orphaned character. Drop the size and tighten so it settles into two even
+   lines — still the full, copyable handle, never elided. */
+@media (max-width: 480px) {
+  .tex-object-value {
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+  }
+  .tex-object--in-held .tex-object-value,
+  .tex-object--in-presence .tex-object-value {
+    font-size: 11px;
+  }
 }
 
-/* Faltering tints the whole field a hair toward the sick taupe, on an
-   uneven period so it never resolves into a calm loop. */
+/* Faltering — a COLD neutral pallor, never a warm tint. The surface dims a
+   hair and back on an uneven period so it never resolves into a calm loop;
+   the sickness is in the dimming, not in any colour. */
 .tex-field--faltering {
+  background-color: var(--tex-paper);
   animation: tex-field-pallor 3100ms ease-in-out infinite;
 }
 @keyframes tex-field-pallor {
-  0%   { background: #ffffff; }
-  50%  { background: #f7f5f2; }
-  100% { background: #ffffff; }
+  0% {
+    background-color: #ffffff;
+  }
+  50% {
+    background-color: #eeeeef;
+  }
+  100% {
+    background-color: #ffffff;
+  }
 }
 
 @keyframes tex-rise {
-  from { opacity: 0; transform: translateY(7px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-/* The voice line is centered with a translate, so its rise can't also
-   use translateY without fighting the centering. Give it its own. */
+/* The voice line is centred with a translate, so its rise can't also use
+   translateY; give it an opacity-only rise. */
 .tex-voice .tex-voice-line {
-  animation: tex-voice-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-voice-rise 900ms var(--tex-ease) both;
 }
 @keyframes tex-voice-rise {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tex-field.is-listening::after { animation: none; opacity: 0.12; }
-  .tex-field--faltering { animation: none; background: #f7f5f2; }
-  /* The opener still advances (the lines are content, not decoration), but
-     without the rotate/rise — each line simply appears, and a leaving line
-     simply vanishes. */
+  .tex-field.is-listening::after,
+  .tex-field.is-listening::before {
+    animation: none;
+    opacity: 0.12;
+  }
+  .tex-field--faltering {
+    animation: none;
+    background-color: #f1f1f2;
+  }
   .tex-door-line,
   .tex-door-line--hold {
     animation: none;
@@ -580,8 +622,7 @@
   }
 }
 
-/* Off-screen status for assistive tech — used to report a lost wire,
-   the one death Tex cannot say aloud. Never on the visible paper. */
+/* Off-screen status for assistive tech. */
 .tex-visually-hidden {
   position: absolute;
   width: 1px;
@@ -596,51 +637,29 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Word-sync — Tex's words light up in step with its voice. As it       */
-/* speaks a line, the words it has not yet reached sit faint, and ink   */
-/* fills in on each as it is voiced (SpokenLine drives `is-ahead` off    */
-/* the per-word timing from /v1/speak/timed). With no active highlight   */
-/* — the fallback voice (local Kokoro, no timing), or before audio —     */
-/* every word is full, so the line reads identically to plain text.     */
+/* Word-sync — Tex's words light up in step with its voice.            */
 /* ------------------------------------------------------------------ */
 .tex-word {
-  transition: opacity 200ms ease;
+  transition: opacity 220ms var(--tex-ease);
 }
 .tex-word.is-ahead {
-  opacity: 0.26;
+  opacity: 0.24;
 }
-
-/* The interactive answer — the one transient exception to "spoken, never
-   written". It rises in on the shared voice cadence (.tex-voice-line), is lit
-   word-by-word while Tex voices it, then dissolves the instant speech ends. */
 .tex-voice-line--answer {
   color: var(--tex-ink);
 }
 .tex-voice-line--answer.is-leaving {
   animation: tex-object-fade 700ms ease both;
 }
-
-/* The wake — a quiet invitation before the day-one manifesto. Smaller and
-   fainter than a declaration: an offer to reach, not a claim Tex is making. */
-.tex-door-wake {
-  font-size: clamp(20px, 3vw, 30px);
-  letter-spacing: 0.01em;
-  opacity: 0.5;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  /* No ink-fill transition; the words are simply full or faint, never moving. */
   .tex-word {
     transition: none;
   }
 }
 
 /* ------------------------------------------------------------------ */
-/* The gate-verification pause — the deliberate beat between a question  */
-/* and its answer. NOT a spinner (silence is the failure mode): a single */
-/* ink mark breathing on a slow, even rhythm — Tex weighing the answer    */
-/* against what it can prove. It reads as deliberation, not lag (CHI       */
-/* 2026), the visual twin of the spoken presence ack.                     */
+/* The gate-verification pause — a single ink mark breathing on a slow,  */
+/* even rhythm. Not a spinner: Tex weighing the answer against proof.    */
 /* ------------------------------------------------------------------ */
 .tex-deliberation {
   position: absolute;
@@ -651,26 +670,23 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  /* Fade IN gently so a fast answer never flashes it; the pause is intentional. */
   animation: tex-voice-rise 700ms ease both;
 }
 .tex-deliberation-mark {
-  width: 11px;
-  height: 11px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--tex-ink);
-  /* A slow, even breath — never a spin, never a bouncing row of loading dots.
-     The single mark holding a thought is what reads as Tex deliberating. */
-  animation: tex-deliberate 1900ms ease-in-out infinite;
+  animation: tex-deliberate 2100ms var(--tex-ease-inout) infinite;
 }
 @keyframes tex-deliberate {
   0%,
   100% {
-    opacity: 0.2;
-    transform: scale(0.66);
+    opacity: 0.18;
+    transform: scale(0.62);
   }
   50% {
-    opacity: 0.82;
+    opacity: 0.85;
     transform: scale(1.05);
   }
 }
@@ -685,10 +701,8 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The presence answer — the spoken line, the credibility tier the gate  */
-/* sealed, the abstain reason, and any claims you can reach into for their */
-/* evidence. The one transient exception to "answers are spoken, never    */
-/* written": shown long enough to read and reach for, then voiced-and-gone.*/
+/* The presence answer — the spoken line, the credibility tier, and any  */
+/* claims you can reach into for evidence.                               */
 /* ------------------------------------------------------------------ */
 .tex-presence {
   position: absolute;
@@ -702,64 +716,51 @@
   max-width: min(92vw, 60rem);
   padding: 0 24px;
   text-align: center;
-  /* The block is non-interactive paper; only the claim chips opt back into
-     pointer events, so the surrounding surface stays hold-to-speak. */
   pointer-events: none;
 }
 .tex-presence-line {
-  margin: 0;
-  font-family: var(--tex-serif);
-  font-weight: 400;
-  font-variation-settings: "wght" 400;
-  /* The same display voice as "Here." and the count — Tex answers at the scale
-     it speaks at, never a smaller card register. */
-  font-size: clamp(32px, 4.6vw, 58px);
-  line-height: 1.2;
-  letter-spacing: -0.015em;
-  max-width: 20em;
-  color: var(--tex-ink);
-  text-wrap: balance;
-  animation: tex-voice-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  line-height: 1.08;
+  max-width: 16em;
+  animation: tex-voice-rise 760ms var(--tex-ease) both;
 }
 .tex-presence-line.is-leaving {
   animation: tex-object-fade 700ms ease both;
 }
 
-/* The credibility tier — perceived credibility derived from the gate's REAL
-   verdict. Ink ONLY: the tiers read apart by their mark's form and their ink
-   weight, never by a green/amber/red ramp (the surface keeps color for the
-   faltering breath alone). Mono chrome, the same register as the seal hash. */
+/* The credibility tier — the gate's REAL verdict, ink only. The tiers read
+   apart by their mark's form and their ink value, never by a colour ramp.
+   The instrument register: uppercase Michroma, widely tracked. */
 .tex-tier {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.55em;
-  margin: 1.5em 0 0;
-  max-width: 30em;
-  font-family: var(--tex-mono);
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-transform: lowercase;
-  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 160ms both;
+  gap: 0.7em;
+  margin: 2em 0 0;
+  max-width: 32em;
+  font-family: var(--tex-display);
+  font-size: clamp(9px, 0.92vw, 10.5px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  animation: tex-rise 900ms var(--tex-ease) 160ms both;
 }
 .tex-tier.is-leaving {
   animation: tex-object-fade 600ms ease both;
 }
 .tex-tier-mark {
-  width: 9px;
-  height: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex: none;
 }
 .tex-tier-label {
-  font-weight: 500;
+  color: var(--tex-ink);
 }
 .tex-tier-gloss {
   color: var(--tex-ink-mute);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.16em;
 }
-/* SEALED — rests on one named sealed fact. Solid ink, full weight. */
+/* SEALED — rests on one named sealed fact. Solid ink. */
 .tex-tier--sealed .tex-tier-mark {
   background: var(--tex-ink);
 }
@@ -774,9 +775,7 @@
 .tex-tier--derived .tex-tier-label {
   color: var(--tex-ink-soft);
 }
-/* ABSTAIN — Tex could not ground it. A hollow, dashed mark, muted ink: the
-   honest least-credible signal, never dressed up as more. (Class is keyed on the
-   tier VALUE, "abstain", not the label "abstained".) */
+/* ABSTAIN — Tex could not ground it. A hollow, dashed mark, muted ink. */
 .tex-tier--abstain .tex-tier-mark {
   background: transparent;
   border: 1.5px dashed var(--tex-ink-mute);
@@ -785,20 +784,17 @@
   color: var(--tex-ink-mute);
 }
 
-/* Claims → evidence. Each claim is a reach: a quiet pill that, when pressed
-   (data-act, so it never opens the mic), rises that claim's sealed anchor as the
-   one object the glass may hold. A claim with no evidence is inert (dashed,
-   muted). The row is the one part of the presence block that takes pointer
-   events. */
+/* Claims → evidence. Each claim is a reach: a quiet hairline key that rises
+   its sealed anchor when pressed. */
 .tex-evidence {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin: 1.6em 0 0;
+  gap: 12px;
+  margin: 2em 0 0;
   pointer-events: auto;
-  animation: tex-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 280ms both;
+  animation: tex-rise 900ms var(--tex-ease) 280ms both;
 }
 .tex-evidence.is-leaving {
   animation: tex-object-fade 600ms ease both;
@@ -806,23 +802,28 @@
 }
 .tex-claim {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.7em;
+  align-items: center;
+  gap: 0.9em;
   max-width: min(86vw, 30em);
-  padding: 8px 16px;
+  padding: 0.7em 1.2em;
   border-radius: 999px;
-  border: 1px solid var(--tex-ink-hair);
+  border: 1px solid var(--tex-ink-hair-2);
   background: var(--tex-paper);
-  font-family: var(--tex-serif);
-  font-size: 15px;
+  font-family: var(--tex-display);
+  font-size: clamp(11px, 1.1vw, 12.5px);
+  letter-spacing: -0.005em;
   line-height: 1.3;
   color: var(--tex-ink-soft);
   cursor: pointer;
-  transition: border-color 160ms ease, color 160ms ease;
+  transition:
+    border-color var(--tex-micro) var(--tex-ease),
+    color var(--tex-micro) var(--tex-ease),
+    transform var(--tex-micro) var(--tex-ease);
 }
 .tex-claim:hover:not(:disabled) {
   border-color: var(--tex-ink);
   color: var(--tex-ink);
+  transform: translateY(-1px);
 }
 .tex-claim:disabled {
   cursor: default;
@@ -833,8 +834,8 @@
   outline: none;
 }
 .tex-claim:focus-visible {
-  outline: 2px solid var(--tex-ink-soft);
-  outline-offset: 3px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--tex-paper), 0 0 0 4px rgba(0, 0, 0, 0.35);
 }
 .tex-claim-text {
   overflow: hidden;
@@ -844,27 +845,20 @@
 }
 .tex-claim-cue {
   flex: none;
-  font-family: var(--tex-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: lowercase;
+  font-family: var(--tex-display);
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  text-transform: uppercase;
   color: var(--tex-ink-mute);
 }
-
-/* The reached handle when it rises inside the presence block — flows under the
-   answer rather than centering on the whole field, same monospace object
-   treatment as the in-held handle. */
-.tex-object--in-presence {
-  position: static;
-  transform: none;
-  margin: 18px auto 0;
-  max-width: 30em;
-  pointer-events: none;
-}
-.tex-object--in-presence .tex-object-value {
-  font-size: clamp(13px, 1.4vw, 16px);
-  color: var(--tex-ink-soft, var(--tex-ink));
-  animation: tex-object-rise 560ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+/* The proof-only pill has no claim text — its cue IS the label, so it earns the
+   full instrument register: a touch larger, clearly loose-tracked, so the
+   tracking polarity (loose on small caps) reads unambiguously. */
+.tex-claim--proof .tex-claim-cue {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -876,20 +870,16 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The discovered ROSTER — the inventory Tex gained at Begin. The      */
-/* SOLICITED reveal: it rises with the ignition count, settles, and    */
-/* is dismissible back to silence. Ink only (the surface keeps colour   */
-/* for the faltering breath alone); each row carries a per-row seam     */
-/* for D2's plane badge (.tex-plane-badge), inert until that lands.     */
+/* The discovered ROSTER — the inventory Tex gained at Begin.           */
 /* ------------------------------------------------------------------ */
 .tex-roster {
   position: relative;
   width: 100%;
-  max-width: min(92vw, 44rem);
-  margin: 2.2em auto 0;
+  max-width: min(92vw, 42rem);
+  margin: 2.4em auto 0;
   padding: 0 24px;
   text-align: left;
-  animation: tex-rise 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 220ms both;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 220ms both;
 }
 .tex-roster-dismiss {
   position: absolute;
@@ -899,22 +889,21 @@
   border: 0;
   background: none;
   cursor: pointer;
-  font-family: var(--tex-sans);
-  font-size: 20px;
+  font-family: var(--tex-display);
+  font-size: 16px;
   line-height: 1;
   color: var(--tex-ink-mute);
   opacity: 0.55;
-  transition: opacity 200ms ease;
+  transition: opacity var(--tex-micro) ease;
 }
 .tex-roster-dismiss:hover {
   opacity: 1;
 }
 .tex-roster-empty {
   margin: 0;
-  font-family: var(--tex-serif);
-  font-size: clamp(16px, 1.7vw, 20px);
-  line-height: 1.6;
-  letter-spacing: -0.004em;
+  font-family: var(--tex-display);
+  font-size: clamp(13px, 1.3vw, 16px);
+  line-height: 1.7;
   color: var(--tex-ink-mute);
   text-align: center;
 }
@@ -922,51 +911,69 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  /* The inventory can run long — let it scroll within its own measure rather
-     than push the glass tall. It is a settled reveal, not a live feed. */
   max-height: min(48vh, 24rem);
   overflow-y: auto;
 }
+/* A grid, not a flex row: CSS grid auto-columns size to the widest cell across
+   ALL rows, so STATE and PLANE form true aligned columns (the flex version left
+   ragged interior edges). On mobile the row reflows — name on top, status +
+   plane beneath it — the same reflow the held button row does, so a long plane
+   label can never clip or open a per-row scrollbar. */
 .tex-roster-row {
-  display: flex;
+  display: grid;
+  /* Fixed STATE + PLANE columns (each row is its own grid, so auto-sizing would
+     ragged-edge per row) — fixed tracks give true aligned columns down the list,
+     name takes the rest. */
+  grid-template-columns: minmax(0, 1fr) 5em 14em;
+  grid-template-areas: "name state plane";
   align-items: baseline;
-  gap: 0.8em;
-  padding: 0.55em 0;
-  border-bottom: 1px solid var(--tex-ink-hair, rgba(0, 0, 0, 0.08));
+  column-gap: 1.4em;
+  padding: 1.05em 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 .tex-roster-row:last-child {
   border-bottom: 0;
 }
 .tex-roster-name {
-  flex: 1 1 auto;
-  font-family: var(--tex-serif);
-  font-size: clamp(15px, 1.5vw, 18px);
-  letter-spacing: -0.006em;
+  grid-area: name;
+  min-width: 0;
+  font-family: var(--tex-display);
+  font-size: clamp(15px, 1.55vw, 19px);
+  letter-spacing: -0.012em;
   color: var(--tex-ink);
 }
 .tex-roster-state {
-  flex: 0 0 auto;
-  font-family: var(--tex-sans);
-  font-size: clamp(11px, 1.1vw, 13px);
-  letter-spacing: 0.02em;
+  grid-area: state;
+  font-family: var(--tex-display);
+  font-size: clamp(8.5px, 0.85vw, 10px);
+  letter-spacing: 0.14em;
   color: var(--tex-ink-mute);
-  text-transform: capitalize;
+  text-transform: uppercase;
 }
-/* The per-row ENFORCEMENT-PLANE badge (D2) — the honest seam, now filled. Three
-   planes, ink only (the surface keeps colour for the faltering breath alone), so
-   they read apart by WEIGHT and a small lead mark, not a green/amber/red ramp.
-   DECIDE-ONLY is the floor and the most muted — a row at the floor must never
-   look like an upgrade. CREDENTIAL-ENFORCED and IN-PATH-BLOCKING earn a little
-   more ink, in that order, because they carry a stronger, observed claim. An
-   empty seam (no plane string at all) still collapses to nothing. */
+@media (max-width: 640px) {
+  .tex-roster-row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "name name"
+      "state plane";
+    row-gap: 0.6em;
+    column-gap: 1em;
+  }
+  .tex-roster-state,
+  .tex-plane-badge {
+    justify-self: start;
+  }
+}
+/* The per-row ENFORCEMENT-PLANE badge — ink only, read apart by ink value
+   and a small lead mark, never a colour ramp. */
 .tex-plane-badge {
-  flex: 0 0 auto;
+  grid-area: plane;
   display: inline-flex;
   align-items: center;
-  gap: 0.42em;
-  font-family: var(--tex-sans);
-  font-size: clamp(10px, 1vw, 12px);
-  letter-spacing: 0.04em;
+  gap: 0.5em;
+  font-family: var(--tex-display);
+  font-size: clamp(8px, 0.82vw, 9.5px);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--tex-ink-mute);
@@ -974,9 +981,6 @@
 .tex-plane-badge:empty {
   display: none;
 }
-/* The lead mark — a small ink dot whose presence/weight tracks the plane's
-   strength. The floor's dot is hollow (a watching eye, not a guard); the
-   stronger planes fill and darken it. */
 .tex-plane-badge::before {
   content: "";
   flex: 0 0 auto;
@@ -986,30 +990,18 @@
   border: 1px solid currentColor;
   background: transparent;
 }
-
-/* DECIDE-ONLY — the floor. The most muted: Tex rules but does not stop the
-   action in-path here. Hollow mark, mute ink, normal weight. */
 .tex-plane-badge--decide-only {
   color: var(--tex-ink-mute);
-  font-weight: 400;
 }
-
-/* CREDENTIAL-ENFORCED — a downstream resource demands a Tex cred. More ink, a
-   half-filled mark; honestly a STRONGER claim than the floor, but not in-path. */
 .tex-plane-badge--credential-enforced {
-  color: var(--tex-ink-soft, var(--tex-ink));
-  font-weight: 500;
+  color: var(--tex-ink-soft);
 }
 .tex-plane-badge--credential-enforced::before {
   background: currentColor;
   opacity: 0.55;
 }
-
-/* IN-PATH-BLOCKING — a live Body enforces; a FORBID kills the action. The
-   strongest: full ink, filled mark, the most weight. */
 .tex-plane-badge--in-path-blocking {
   color: var(--tex-ink);
-  font-weight: 600;
 }
 .tex-plane-badge--in-path-blocking::before {
   background: currentColor;
@@ -1022,27 +1014,13 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* TYPE TO WRITE — the transient typed line. The question forming, in   */
-/* the SAME display voice Tex answers in. A real <input> stripped to a  */
-/* bare line: no box, no border, no send button. It overrides the       */
-/* field's user-select/touch-action lock so text can be selected and    */
-/* the OS keyboard behaves natively. It rises like the spoken line and   */
-/* dissolves on submit — never persisted.                               */
+/* TYPE TO WRITE — the transient typed line, set in the statement voice. */
 /* ------------------------------------------------------------------ */
-/* The slot CENTERS (absolute + translate); the input inside it ANIMATES. They
-   are split deliberately: tex-rise animates `transform`, so a single element
-   can't both center via transform AND rise — the rise would clobber the
-   centering (and clip the line off-screen). This mirrors .tex-voice / .tex-voice-
-   line. The slot never intercepts the surface hold; the live input re-enables
-   its own pointer events. */
 .tex-line-slot {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  /* The full outer measure (NOT a 20em reading measure — a single-line input
-     never wraps, so a wide box lets a long question sit on one line instead of
-     scrolling its start off-screen). */
   width: min(92vw, 60rem);
   display: flex;
   justify-content: center;
@@ -1056,44 +1034,33 @@
   outline: none;
   background: transparent;
   text-align: center;
-  font-family: var(--tex-serif);
+  font-family: var(--tex-display);
   font-weight: 400;
-  font-variation-settings: "wght" 400;
-  /* Smaller than the spoken-voice register — a calmer, more typeable question
-     line. line-height is generous so the serif's deep descenders (g, y, p) get
-     full vertical room inside the input box and never clip at the bottom. */
-  font-size: clamp(22px, 3.2vw, 34px);
+  font-size: clamp(20px, 3vw, 36px);
   line-height: 1.5;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   color: var(--tex-ink);
   caret-color: var(--tex-ink);
   -webkit-user-select: text;
   user-select: text;
   touch-action: auto;
   pointer-events: auto;
-  animation: tex-rise 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: tex-rise 700ms var(--tex-ease) both;
 }
 .tex-line::placeholder {
   color: var(--tex-ink-mute);
   opacity: 0.45;
 }
-/* The grounded ghost is a native selection on the trailing suffix — never the
-   OS blue highlight. It reads as a faint suggestion: muted ink on a barely-there
-   tint, the same ink the surface speaks in. (All selection in this transient
-   line renders this way; a manual drag-select is rare on a one-line question.) */
+/* The grounded ghost is a native selection on the trailing suffix — never
+   the OS blue highlight. A faint neutral suggestion. */
 .tex-line::selection {
-  background: rgba(20, 18, 16, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--tex-ink-mute);
 }
 .tex-line::-moz-selection {
-  background: rgba(20, 18, 16, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--tex-ink-mute);
 }
-
-/* Latent (touch, at rest): mounted so the glyph can focus it synchronously,
-   but collapsed to nothing, inert, and off the visible surface. Font-size is
-   held at 16px so focusing it never triggers an iOS zoom; it grows to the
-   display scale the instant a character lands and it becomes .tex-line. */
 .tex-line--latent {
   width: 1px;
   padding: 0;
@@ -1103,14 +1070,11 @@
   caret-color: transparent;
   animation: none;
 }
-
-/* The one resident concession on touch: a single tiny, static, low-contrast
-   mark. A 44px tap target (a11y) around a 12px hairline (the writing baseline).
-   No animation, no pulse — it never asks for attention. */
+/* The one resident concession on touch: a single tiny, static hairline. */
 .tex-write-glyph {
   position: absolute;
   left: 50%;
-  bottom: 20px;
+  bottom: 24px;
   transform: translateX(-50%);
   width: 44px;
   height: 44px;
@@ -1126,8 +1090,8 @@
 }
 .tex-write-glyph::before {
   content: "";
-  width: 12px;
+  width: 14px;
   height: 1px;
   background: var(--tex-ink);
-  opacity: 0.16;
+  opacity: 0.18;
 }

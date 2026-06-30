@@ -1,67 +1,66 @@
 /* ============================================================
-   Tex — global tokens
+   Tex — global tokens.  "Etched Light."
    ────────────────────────────────────────────────────────────
-   The product and the marketing site share one design system.
-   Pure paper. Three type sizes. One palette. One rhythm.
+   The surface is a sheet of backlit white glass. There is one voice:
+   Michroma — wide, geometric, architectural, a single weight. Because
+   there is no bold/light axis, hierarchy is built from SIZE × TRACKING
+   × INK-VALUE × CASE, never from weight. Every glyph carries the same
+   hairline stroke, as if the whole interface were laser-etched.
+
+   The palette is strictly achromatic: pure white paper, a neutral ink
+   ladder, nothing tinted — no blue cast, no warm cast, ever. Depth comes
+   from one faint overhead light and a whisper of grain, never from colour.
+   The only hue the surface may ever show is the cold pallor of a faltering
+   breath, and even that stays neutral.
    ============================================================ */
 
-/* ── The voice face: EB Garamond (free, open-licensed, variable) ──
-   Loaded from Google Fonts in index.html. EB Garamond is a faithful revival
-   of the 1592 Egenolff-Berner specimen cut from Claude Garamont's punches —
-   the same source the costly Garamonds (Adobe's included) trace back to, so
-   "free" here is not the compromise: for a voice set huge on cream in silence,
-   it IS the real one. It is also Apple's old well: from 1984 to 2002 Apple
-   spoke in Garamond, and when a thing needs to SPEAK rather than label, it
-   speaks in a serif with four centuries behind it. Roman, upright — a
-   declaration stands straight; italic is reserved for the one pivotal
-   question. Google's cut carries wght + ital only (no opsz axis), so the
-   display craft is in weight, tracking, leading, and warm ink. If the webfont
-   is slow, the browser falls through to an old-style serif (Iowan / Palatino),
-   never Times. */
-
 :root {
-  /* Type families — the voice (serif), the chrome (sans), and mono for
-     real machine identifiers. */
-  --tex-sans: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "Inter", "Helvetica Neue", Arial, sans-serif;
-  /* The voice. EB Garamond — a four-century-old-style serif: warm, humane,
-     authoritative, the kind of face that looks like it was always there. It
-     carries the words instead of performing them, which is the posture a
-     sovereign cognition speaks from. Free and shippable, nothing to license.
-     Fallbacks are old-style serifs close to Garamond's color, never Times. */
-  --tex-serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino,
-    Georgia, "Times New Roman", serif;
-  --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", "Consolas",
-    monospace;
-  /* The first-sequence display face. Michroma — wide, thin, geometric — speaks
-     the day-one manifesto ("I am Tex." … "The weight is mine now."). Single
-     weight; it sets far wider than the serif voice, so the door scales it down
-     and lets the beats wrap. Opening sequence only; the voice keeps the serif. */
-  --tex-display: "Michroma", "Eurostile", system-ui, sans-serif;
+  /* ── Type ──────────────────────────────────────────────────────────
+     One voice everywhere. Michroma carries every human word and every
+     label. --tex-sans / --tex-serif are repointed to it as well, so any
+     rule that still names them inherits the one voice. Geist Mono is kept
+     for ONE thing only — raw machine identifiers (a sha256 handle), where
+     a wide non-monospace face would be unreadable and uncopyable. */
+  --tex-display: "Michroma", "Eurostile", "Aldrich", system-ui, sans-serif;
+  --tex-sans: "Michroma", "Eurostile", system-ui, sans-serif;
+  --tex-serif: "Michroma", "Eurostile", system-ui, sans-serif;
+  --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", monospace;
 
-  /* There is no mark. The surface at rest is silence — empty paper,
-     fully empty. The slab-mark token was retired when the T was
-     removed; nothing in the product renders a glyph now. */
+  /* ── Ink — a neutral VALUE ladder (the substitute for a weight axis) ──
+     Pure greys, R≈G≈B, so nothing on the white ever reads as a tint. The
+     statement sits at full ink; everything subordinate steps DOWN the
+     ladder rather than getting lighter in weight. */
+  /* PROVABLY NEUTRAL: every value is R=G=B, every shadow rgba(0,0,0,a).
+     A tint-sensitive eye reads even a +1 blue/warm bias instantly, so the
+     ramp carries ZERO hue — the value ladder is the only thing that moves. */
+  --tex-ink: #0b0b0b;        /* the statement — near-black, never pure #000 */
+  --tex-ink-2: #2c2c2c;      /* a strong secondary line */
+  --tex-ink-soft: #5d5d5d;   /* supporting detail / body */
+  --tex-ink-mute: #9a9a9a;   /* micro-labels, chrome */
+  --tex-ink-faint: #c7c7c7;  /* ghosts, the quietest mark */
+  --tex-ink-hair: rgba(0, 0, 0, 0.075);  /* hairline strokes */
+  --tex-ink-hair-2: rgba(0, 0, 0, 0.14);  /* a hairline that means it */
 
-  /* Ink — cool near-black on paper, two cool greys for asides and proof. Pulled
-     off the old warm browns (#14110d / #5e564c / #9b9388) to a neutral-cool cast
-     so nothing on the white reads as a yellow tint and the display face pops. */
-  --tex-ink: #0b0d12;
-  --tex-ink-soft: #565d68;
-  --tex-ink-mute: #969ca6;
-  --tex-ink-hair: #e1e4ea;
-
-  /* Paper — the room. Stark, clean #fff with cool (never cream) off-white
-     surfaces, so the page reads as a true, slightly glassy white. */
+  /* ── Paper — the room. Stark, true white with neutral off-whites. ── */
   --tex-paper: #ffffff;
-  --tex-paper-2: #fbfcfd;
-  --tex-paper-3: #eef1f5;
+  --tex-paper-2: #fbfbfb;
+  --tex-paper-3: #f2f2f2;
+  --tex-paper-edge: #f8f8f8; /* the far fall-off of the overhead light — felt, not seen */
 
-  /* There is no glass. There is no orb. The page is paper, ink, and
-     one monospace hash. If a soft glowing object ever feels necessary,
-     the page has lost its nerve — add a sentence, not a sphere. */
+  /* ── Motion — weighty and inevitable, never bouncy. ──
+     A confident expo decelerate for things that arrive; a symmetric ease
+     for things that breathe. Statements arrive slowly (they are being
+     declared); micro-interactions are quick and surgical. */
+  --tex-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --tex-ease-micro: cubic-bezier(0.32, 0.72, 0, 1);
+  --tex-ease-inout: cubic-bezier(0.76, 0, 0.24, 1);
+  /* Entrances arrive on an expo decelerate — slow enough to feel declared,
+     never the dated 1000ms+ drift. Micro-interactions stay under the 200ms
+     instantaneity ceiling so a press feels physical, not animated. */
+  --tex-rise: 760ms;
+  --tex-micro: 180ms;
 
-  /* Rhythm — 4px base, 8px standard. */
+  /* Rhythm — 4px base. */
   --tex-unit: 4px;
 }
 
@@ -83,18 +82,35 @@ body,
 body {
   font-family: var(--tex-sans);
   color: var(--tex-ink);
-  /* Clean studio white — a true white surface with only the faintest neutral
-     cool fall-off toward the far corners for depth. No colour, no visible
-     "blob"; it blends. The full-screen .tex-field carries the same. */
   background-color: var(--tex-paper);
-  background-image:
-    radial-gradient(140% 115% at 50% 36%, #ffffff 0%, #ffffff 58%, #edf0f6 100%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-optical-sizing: auto;
   font-feature-settings: "kern", "liga", "calt";
+  letter-spacing: -0.01em;
+}
+
+/* GRAIN — one global, luminance-only microtexture over the whole surface.
+   A desaturated fractal-noise tile at a hair of opacity, composited via
+   soft-light so it adds texture WITHOUT darkening or tinting (soft-light of a
+   ~50% grey is a no-op; only the noise variance shows). It kills gradient
+   banding on 8-bit panels and gives the white a paper-like tactility that
+   reads as premium. pointer-events:none so it never intercepts the hold. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    opacity: 0.4;
+  }
 }
 
 button {
@@ -116,164 +132,193 @@ a {
   text-decoration: none;
 }
 
+/* A held selection is ink, not a system blue. */
 ::selection {
   background: var(--tex-ink);
   color: var(--tex-paper);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }
 
-/* ── First sequence — the day-one opening, set in Michroma ──
-   The opening door speaks in --tex-display (Michroma): the wake prompt ("touch
-   to wake Tex"), the manifesto beats ("I am Tex." → "Nothing happens without
-   me." → "The weight is mine now."), the "Mapping…" state, and the Begin button.
-   Michroma appears ONLY here — nothing else in the UI uses it. The background +
-   .tex-field carry a cool holographic "glass" wash and Begin is a glass bubble,
-   so the words pop. Scoped to .tex-door; the in-system voice keeps EB Garamond.
-   Lives here (global) so the change stays isolated from in-flight component work.
-   The typography + glass + Begin treatment below was selected by a design pass. */
+/* ── The light + the grain ───────────────────────────────────────────
+   The full-screen vigil surface (.tex-field) is the sheet of glass. It
+   carries two stacked background layers, blended into the white:
+
+     1. GRAIN — a desaturated fractal-noise tile (saturate 0 → guaranteed
+        neutral, no colour specks), at a hair of opacity. It kills the
+        banding a flat gradient would show and gives the white a faint
+        tactile, premium texture — paper, not a void.
+     2. LIGHT — one soft overhead light: pure white at the top-centre,
+        falling off to the faintest neutral grey at the lower corners, so
+        the surface reads as lit from above rather than flat-filled.
+
+   Faltering keeps its own cold pallor (below) and so is excluded. */
+body .tex-field:not(.tex-field--faltering) {
+  min-height: 100vh;
+  background-color: var(--tex-paper);
+  /* One overhead light, biased slightly above-left (2:1 vertical:horizontal),
+     so every other depth cue — contact shadows, inner rim highlights — agrees
+     on a single physical light. End-stop held inside the "tilt the screen to
+     see it" ceiling: a ~3% neutral luminance drop, never a visible grey panel. */
+  background-image:
+    radial-gradient(130% 110% at 43% -6%, #ffffff 0%, #fdfdfd 56%, var(--tex-paper-edge) 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* ── First sequence — the day-one opening, set in Michroma ───────────
+   The opening door speaks the wake prompt, the manifesto beats, the
+   "Mapping…" state and Begin. All Michroma — and now, so is the rest of
+   the system, so the door is no longer a special font island; it is the
+   first thing the one voice says. */
 .tex-door .tex-door-sentence {
   font-family: var(--tex-display);
   font-weight: 400;
   font-variation-settings: normal;
-  font-size: clamp(22px, 3.4vw, 34px);
-  line-height: 1.25;
 }
 
+/* The manifesto beat — a monumental declaration. Tracked TIGHT so the wide
+   geometric face pulls into a single solid architectural mass instead of a
+   loose spaced-out row; balanced onto at most two lines on a tight measure
+   so it reads as carved, not as a sentence that ran long. */
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(26px, 5.2vw, 44px);
-  line-height: 1.18;
-  letter-spacing: -0.008em;
+  font-size: clamp(27px, 4.7vw, 54px);
+  line-height: 1.08;
+  letter-spacing: -0.028em;
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
   hyphens: none;
-  max-width: min(92vw, 1180px);
+  /* A short measure so a beat STACKS into a carved 2-line block instead of
+     sprawling on one wide line — the single-line tell a wide geometric face
+     punishes hardest. Balanced so the split lands evenly. */
+  max-width: 11em;
   margin: 0 auto;
   text-align: center;
   text-wrap: balance;
   color: var(--tex-ink);
-  text-shadow: 0 1px 1px rgba(22, 30, 48, 0.06);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-.tex-door .tex-door-line.tex-door-line--hold {
-  text-shadow: 0 1px 1px rgba(22, 30, 48, 0.08);
-}
-
+/* The wake invitation — the quietest possible offer to reach. A micro-label
+   in the instrument register: small, uppercase, widely tracked, faint. */
 .tex-door .tex-door-wake {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(10px, 1.5vw, 12.5px);
-  line-height: 1.5;
-  letter-spacing: 0.36em;
-  text-indent: 0.36em;
+  font-size: clamp(10px, 1.05vw, 12px);
+  line-height: 1.6;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
   text-transform: uppercase;
   white-space: normal;
   max-width: min(90vw, 640px);
   margin: 0 auto;
   text-align: center;
-  color: var(--tex-ink-soft);
-  opacity: 0.6;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
-  -webkit-font-smoothing: antialiased;
+  color: var(--tex-ink-mute);
+  /* The one breath in an otherwise still surface: the at-rest invitation drifts
+     faintly so the eye can find it on empty white, without becoming a pilot
+     light. One thing moves, slowly, expo-eased. */
+  animation: tex-wake-breath 4200ms var(--tex-ease-inout) infinite;
+}
+@keyframes tex-wake-breath {
+  0%,
+  100% {
+    opacity: 0.34;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-door .tex-door-wake {
+    animation: none;
+    opacity: 0.55;
+  }
 }
 
-/* The full-screen vigil backdrop carries the same clean studio white as the
-   body. Excludes the faltering state, which keeps its own warm "sick" tint. */
-body .tex-field:not(.tex-field--faltering) {
-  min-height: 100vh;
-  background-color: var(--tex-paper);
-  background-image:
-    radial-gradient(140% 115% at 50% 36%, #ffffff 0%, #ffffff 58%, #edf0f6 100%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-}
-
-/* The Begin button — a clean, CLEAR glass bubble in Michroma. Mostly
-   transparent (frosted via backdrop blur), defined only by a thin cool hairline,
-   a crisp top light-edge, and a tight soft lift — no glow ring, no chunky fill.
-   Scoped to the door (.tex-door-acts / [data-act="begin"]) so the in-system
-   Approve button, which shares .tex-act--approve, is untouched. */
+/* ── Begin — the single solid object on the white ────────────────────
+   No glass, no blur, no glow ring (those were retired). Begin is one
+   real, near-black key resting on the surface: a Michroma micro-label in
+   ink-on-paper, lifted by a soft contact shadow so it reads as a physical
+   object you press. The threshold act and the in-system Approve share this
+   one treatment — there is one primary act in the whole product, and this
+   is what it looks like. Scoped here to the door; the in-system .tex-act
+   --approve picks up the same look from Vigil.css. */
 .tex-door-acts .tex-act,
 .tex-door [data-act="begin"] {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(10.5px, 1.4vw, 12.5px);
-  letter-spacing: 0.26em;
-  text-indent: 0.26em;
+  font-size: clamp(10.5px, 1.1vw, 12.5px);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
   text-transform: uppercase;
-  color: #2b3344;
+  color: var(--tex-paper);
   cursor: pointer;
-  padding: 1.15em 2.8em;
+  padding: 1.2em 2.85em;
   border-radius: 999px;
-  border: 1px solid rgba(28, 42, 70, 0.14);
-  background-color: rgba(255, 255, 255, 0.22);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  backdrop-filter: blur(14px) saturate(1.3);
+  /* True-black key with a crisp hairline ring so the edge stays razor-clean
+     against white, a 1px inner top-rim catching the overhead light, and a
+     tight contact shadow over a faint ambient one — a real object, not gloss. */
+  border: none;
+  background-color: #0a0a0a;
   box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.95),
-    inset 0 -1px 1px rgba(70, 90, 130, 0.05),
-    0 1px 1px rgba(20, 30, 55, 0.04),
-    0 12px 26px -16px rgba(28, 45, 85, 0.34);
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 1px rgba(0, 0, 0, 0.16),
+    0 12px 26px -18px rgba(0, 0, 0, 0.42);
   transition:
-    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.35s ease,
-    border-color 0.35s ease,
-    background-color 0.35s ease,
-    color 0.35s ease;
+    transform var(--tex-micro) var(--tex-ease-micro),
+    box-shadow var(--tex-micro) var(--tex-ease-micro),
+    background-color var(--tex-micro) var(--tex-ease-micro);
   -webkit-font-smoothing: antialiased;
 }
 
 .tex-door-acts .tex-act:hover,
 .tex-door [data-act="begin"]:hover {
   transform: translateY(-1.5px);
-  color: #141b29;
-  border-color: rgba(28, 42, 70, 0.22);
-  background-color: rgba(255, 255, 255, 0.4);
+  background-color: #000;
   box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 1),
-    inset 0 -1px 1px rgba(70, 90, 130, 0.07),
-    0 2px 3px rgba(20, 30, 55, 0.05),
-    0 18px 34px -16px rgba(28, 45, 85, 0.4);
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 3px rgba(0, 0, 0, 0.18),
+    0 20px 38px -18px rgba(0, 0, 0, 0.5);
 }
 
 .tex-door-acts .tex-act:active,
 .tex-door [data-act="begin"]:active {
-  transform: translateY(0);
-  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(0.985) translateY(0);
+  transition-duration: 100ms;
   box-shadow:
-    inset 0 1px 2px rgba(70, 90, 130, 0.12),
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.7),
-    0 1px 2px rgba(20, 30, 55, 0.05);
+    inset 0 1px 2px rgba(0, 0, 0, 0.32),
+    0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .tex-door-acts .tex-act:focus-visible,
 .tex-door [data-act="begin"]:focus-visible {
   outline: none;
-  border-color: rgba(40, 60, 100, 0.3);
   box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 1),
-    0 12px 26px -16px rgba(28, 45, 85, 0.34),
-    0 0 0 3px rgba(150, 175, 215, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 12px 26px -18px rgba(0, 0, 0, 0.42),
+    0 0 0 2px var(--tex-paper),
+    0 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
 .tex-door-acts .tex-act:disabled,
 .tex-door [data-act="begin"]:disabled {
   cursor: default;
-  color: rgba(43, 51, 68, 0.5);
-  border-color: rgba(28, 42, 70, 0.1);
+  color: rgba(255, 255, 255, 0.55);
+  background-color: var(--tex-ink-mute);
   transform: none;
-  box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.8),
-    0 8px 18px -14px rgba(28, 45, 85, 0.22);
+  box-shadow: 0 8px 18px -16px rgba(0, 0, 0, 0.35);
 }
