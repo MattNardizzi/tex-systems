@@ -817,22 +817,27 @@
   pointer-events: none;
   animation: tex-voice-rise 700ms ease both;
 }
+/* A nascent sha256, still searching — the seal's own voice (Geist Mono, the
+   quietest ink), a hex fragment scrambling in place. Monospace holds every
+   glyph on the same advance, so the run never jitters as it searches. The
+   trailing tracking is absorbed by an equal lead so the mark reads centred. */
 .tex-deliberation-mark {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--tex-ink);
-  animation: tex-deliberate 2100ms var(--tex-ease-inout) infinite;
+  font-family: var(--tex-mono);
+  font-weight: 500;
+  font-size: clamp(14px, 2vw, 19px);
+  letter-spacing: 0.34em;
+  padding-left: 0.34em;
+  color: var(--tex-ink-faint);
+  white-space: nowrap;
+  animation: tex-deliberate 2400ms var(--tex-ease) infinite;
 }
 @keyframes tex-deliberate {
   0%,
   100% {
-    opacity: 0.18;
-    transform: scale(0.62);
+    opacity: 0.5;
   }
   50% {
-    opacity: 0.85;
-    transform: scale(1.05);
+    opacity: 0.92;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -841,7 +846,7 @@
   }
   .tex-deliberation-mark {
     animation: none;
-    opacity: 0.55;
+    opacity: 0.7;
   }
 }
 

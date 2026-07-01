@@ -82,6 +82,49 @@ import {
    glass clears to the live vigil.
    ================================================================== */
 
+/* ------------------------------------------------------------------ */
+/* The deliberation mark — what Tex shows while it weighs the answer    */
+/* against what it can prove. Not a borrowed dot: a nascent sha256,     */
+/* still searching. Six hex glyphs in the seal's own voice (Geist Mono, */
+/* the quietest ink), scrambling on a calm, throttled cadence that reads*/
+/* as weighing — never a frantic buffer — then clearing the instant the */
+/* answer takes the glass and the real seal surfaces. One object, two   */
+/* moments: this is the seal, a breath before it exists.                */
+/* ------------------------------------------------------------------ */
+const DELIBERATION_HEX = "0123456789abcdef";
+const DELIBERATION_LEN = 6;
+function randomHexRun() {
+  let s = "";
+  for (let i = 0; i < DELIBERATION_LEN; i++) {
+    s += DELIBERATION_HEX[(Math.random() * 16) | 0];
+  }
+  return s;
+}
+
+function DeliberationMark() {
+  const [glyphs, setGlyphs] = useState(randomHexRun);
+  useEffect(() => {
+    /* Respect reduced motion: hold a still fragment, no scramble. */
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return undefined;
+    }
+    /* Throttled to ~96ms — deliberate, not a buffer. The interval lives only
+       while the mark is mounted (thinking/verifying), so it starts and stops
+       with the pause itself. */
+    const id = setInterval(() => setGlyphs(randomHexRun()), 96);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="tex-deliberation-mark" aria-hidden="true">
+      {glyphs}
+    </span>
+  );
+}
+
 /* The line Tex speaks first when reached in a held state, or that the
    held card renders. Grounded in whatever the wire carries; posture-
    true fallbacks when it carries nothing yet. */
@@ -1804,7 +1847,7 @@ export default function Vigil() {
           aria-live="polite"
           aria-label="Tex is checking what it can prove"
         >
-          <span className="tex-deliberation-mark" aria-hidden="true" />
+          <DeliberationMark />
         </div>
       )}
 
