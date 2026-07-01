@@ -580,6 +580,14 @@
 }
 .tex-voice-line--ignite {
   color: var(--tex-ink);
+  /* A status narrative, not a hero declaration — so it steps down from the
+     54px statement size to a calm, readable scale with generous leading and a
+     wide measure. The long sentence then settles into a smooth ~3-line block
+     instead of the cramped, ragged 5-line stack the hero treatment produced. */
+  font-size: clamp(26px, 3.4vw, 36px);
+  line-height: 1.4;
+  letter-spacing: 0;
+  max-width: 21em;
 }
 /* Faltering — Tex confessing its evidence chain broke. It spends the one license
    the doctrine grants (no alarm colour): the statement loses ink-conviction,
