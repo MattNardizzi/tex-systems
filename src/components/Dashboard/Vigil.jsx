@@ -183,8 +183,6 @@ function falterLine(snapshot) {
    read or copy, then dissolves. */
 const OBJECT_LINGER_MS = 6_000;
 
-/* "Here." is one word — presence, not an answer. */
-const HERE_LINE_MS = 2_400;
 
 /* The interactive answer — shown + lit word-by-word as Tex speaks it, then it
    lingers a beat and dissolves. The one transient exception to "answers are
@@ -687,10 +685,9 @@ export default function Vigil() {
      Tex answers the reach with one word and returns to silence. Only when
      alive; a dead wire cannot speak, and the still breath already answered. */
   const sayHere = useCallback(() => {
-    clearLineTimer();
-    setSpoken({ kind: "here", text: "Here." });
-    texSpeak("Here.");
-    lineTimer.current = setTimeout(() => setSpoken(null), HERE_LINE_MS);
+    /* A wordless reach no longer answers with a spoken or written "Here." —
+       presence is felt through the surface (the breathing deliberation mark),
+       not a word or a voice. No-op, so the reach-release branches stay intact. */
   }, []);
 
   /* ---------------- The object — the one thing the screen may hold ---------------- */
