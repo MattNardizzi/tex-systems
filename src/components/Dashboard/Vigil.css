@@ -159,36 +159,58 @@
 /* ring below, and only while held.                                      */
 /* ------------------------------------------------------------------ */
 
-/* While the surface is held (you're addressing Tex), a single hairline ring
-   lifts outward from centre — the mic is open. No hot mic: it exists only
-   while the gesture is held. Two faint rings, staggered, read as a calm,
-   deliberate radar rather than a loading spinner. */
+/* While the surface is held (you're addressing Tex), the mic is open. A soft
+   achromatic core breathes at centre so the listening state is always legible,
+   and a single hairline ring lifts off it and dissolves outward — a calm,
+   deliberate radar, never a loading spinner. No hot mic: both exist only while
+   the gesture is held. */
 .tex-field.is-listening::after,
 .tex-field.is-listening::before {
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 240px;
-  height: 240px;
-  margin: -120px 0 0 -120px;
+  width: 150px;
+  height: 150px;
+  margin: -75px 0 0 -75px;
   border-radius: 50%;
-  border: 1px solid var(--tex-ink);
-  opacity: 0;
-  animation: tex-listen-ring 2600ms var(--tex-ease) infinite;
   pointer-events: none;
   z-index: 2;
 }
+/* The breathing core — a soft ink glow that holds the eye between pulses. */
 .tex-field.is-listening::before {
-  animation-delay: 1300ms;
+  background: radial-gradient(
+    circle,
+    rgba(11, 11, 11, 0.16) 0%,
+    rgba(11, 11, 11, 0.07) 42%,
+    rgba(11, 11, 11, 0) 70%
+  );
+  animation: tex-listen-core 2400ms var(--tex-ease) infinite;
+}
+/* The radar ring — lifts off the core and dissolves outward. */
+.tex-field.is-listening::after {
+  border: 1.5px solid var(--tex-ink);
+  opacity: 0;
+  animation: tex-listen-ring 2600ms var(--tex-ease) infinite;
+}
+@keyframes tex-listen-core {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
 }
 @keyframes tex-listen-ring {
   0% {
-    transform: scale(0.32);
-    opacity: 0.16;
+    transform: scale(0.5);
+    opacity: 0.5;
   }
   100% {
-    transform: scale(1);
+    transform: scale(1.25);
     opacity: 0;
   }
 }
@@ -721,7 +743,13 @@
   .tex-field.is-listening::after,
   .tex-field.is-listening::before {
     animation: none;
-    opacity: 0.12;
+    transform: scale(1);
+  }
+  .tex-field.is-listening::before {
+    opacity: 1;
+  }
+  .tex-field.is-listening::after {
+    opacity: 0.28;
   }
   .tex-field--faltering {
     animation: none;
