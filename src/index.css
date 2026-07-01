@@ -182,7 +182,7 @@ body .tex-field:not(.tex-field--faltering) {
    first thing the one voice says. */
 .tex-door .tex-door-sentence {
   font-family: var(--tex-display);
-  font-weight: 400;
+  font-weight: 300;
   font-variation-settings: normal;
 }
 
