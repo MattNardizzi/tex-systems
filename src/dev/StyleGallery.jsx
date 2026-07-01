@@ -16,8 +16,11 @@
 import "../components/Dashboard/Vigil.css";
 import "./gallery.css";
 import SpokenLine from "../components/Dashboard/SpokenLine";
+import SealAnchor from "../components/Dashboard/SealAnchor";
 
-const HASH = "9f2c4a7b8e1d3056c2a9f1e4b7d80c6a5f3e2b1d9c8a7065f4e3d2c1b0a9f8e7d";
+/* Mock anchor — a true 64-char sha256 shape, so the seal harness exercises
+   the same lock the live card runs on a real anchor. */
+const HASH = "9f2c4a7b8e1d3056c2a9f1e4b7d80c6a5f3e2b1d9c8a7065f4e3d2c1b0a9f8e7";
 
 /* The surface inventory — id → { label, faltering?, node }. Order is the product's
    own narrative order. Each renders inside its own full-height .tex-field so the
@@ -229,7 +232,8 @@ const SURFACES = {
     node: (
       <div className="tex-seal" role="status">
         <p className="tex-seal-line">Sealed. You approved it.</p>
-        <p className="tex-seal-hash">{HASH.slice(0, 16)}…&nbsp;·&nbsp;3:42:07 PM</p>
+        <SealAnchor hash={HASH} />
+        <p className="tex-seal-hash">3:42:07 PM</p>
         <p className="tex-seal-sig">post-quantum sealed&nbsp;·&nbsp;ML-DSA-65</p>
       </div>
     ),

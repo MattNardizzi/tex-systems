@@ -605,6 +605,36 @@
   letter-spacing: 0.04em;
   color: var(--tex-ink-mute);
 }
+/* The anchor computing itself — the seal's one earned moment. Cells run
+   scramble-grey → locked mid-ink → TRUE ink on a fixed mono grid that
+   never reflows a pixel; the deepen is the proof signal (achromatic —
+   a value jump, never a hue). Cell states driven by SealAnchor.jsx. */
+.tex-seal-anchor {
+  margin: 1.6em 0 0;
+  font-family: var(--tex-mono);
+  font-size: clamp(9px, 1.55vw, 14px);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--tex-ink);
+}
+.tex-seal-cell {
+  display: inline-block;
+  color: var(--tex-ink-faint);
+  transition: color 240ms var(--tex-ease);
+}
+.tex-seal-cell.is-locked {
+  color: var(--tex-ink-2);
+}
+.tex-seal-cell.is-deep {
+  color: var(--tex-ink);
+}
+/* When the anchor row is the hero, the timestamp beneath it steps back. */
+.tex-seal-anchor + .tex-seal-hash {
+  margin-top: 0.9em;
+  font-size: 9.5px;
+  color: var(--tex-ink-mute);
+}
 .tex-seal-sig {
   margin: 0.6em 0 0;
   font-family: var(--tex-display);

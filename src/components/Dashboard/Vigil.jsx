@@ -17,6 +17,7 @@ import {
   VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
+import SealAnchor, { SEAL_ANCHOR_RE } from "./SealAnchor";
 import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
 import {
   derivePresence,
@@ -1672,12 +1673,17 @@ export default function Vigil() {
               ? "Sealed. You refused it."
               : "Held. It waits for you."}
           </p>
-          {sealed.anchor && (
+          {sealed.anchor && SEAL_ANCHOR_RE.test(sealed.anchor) ? (
+            <>
+              <SealAnchor hash={sealed.anchor} />
+              <p className="tex-seal-hash">{sealed.at.toLocaleTimeString()}</p>
+            </>
+          ) : sealed.anchor ? (
             <p className="tex-seal-hash">
               {sealed.anchor.slice(0, 16)}…&nbsp;·&nbsp;
               {sealed.at.toLocaleTimeString()}
             </p>
-          )}
+          ) : null}
           {sealed.signature && (
             <p className="tex-seal-sig">
               {sealed.signature.post_quantum ? "post-quantum sealed" : "sealed"}
