@@ -443,8 +443,14 @@ export function stopSpeaking() {
 
 /* The fixed presence vocabulary. Content-free BY CONSTRUCTION: each entry only
    acknowledges the reach and signals Tex is working — it says NOTHING about what
-   the answer will be. NEVER add a line here that asserts a fact about the estate. */
-const PRESENCE_VOCAB = ["One moment.", "Let me look."];
+   the answer will be. NEVER add a line here that asserts a fact about the estate.
+
+   DISABLED (spoken ack off): kept EMPTY on purpose. Tex no longer says
+   "One moment." / "Let me look." The pause is carried by the VISUAL verifying
+   beat (the hash / number-grid settling) alone, not by a spoken filler. With no
+   entries, prewarm synthesizes nothing and playPresenceAck() no-ops to silence
+   by design — every caller stays untouched. */
+const PRESENCE_VOCAB = [];
 
 let _presenceBuffers = []; // decoded AudioBuffers for PRESENCE_VOCAB
 let _presenceWarmed = false; // one-shot guard so we synthesize the set only once
