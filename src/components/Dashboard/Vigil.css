@@ -268,6 +268,20 @@
   text-wrap: balance;
 }
 
+/* TWO REGISTERS. The rule above is the DECLARATION size — the threshold
+   manifesto ("I am Tex." / "Nothing happens without me." / "The weight is mine
+   now."), the "Mapping" working state, and a held decision each keep hero
+   weight. Tex's conversational VOICE steps DOWN to a calmer, smaller register
+   so a response never shouts at the declaration size: his spoken answer to a
+   question (.tex-presence-line), "Here.", and the faltering confession
+   (.tex-voice-line). This is the same scale the ignition count already uses
+   (.tex-voice-line--ignite, below) — now the whole voice sits in one register.
+   Same face, same ink; just quieter. Tune here to nudge every response. */
+.tex-voice-line,
+.tex-presence-line {
+  font-size: clamp(26px, 3.4vw, 36px);
+}
+
 /* ------------------------------------------------------------------ */
 /* The held decision — Tex froze something and surfaces it.            */
 /* ------------------------------------------------------------------ */
