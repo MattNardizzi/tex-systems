@@ -195,7 +195,7 @@ body .tex-field:not(.tex-field--faltering) {
   font-weight: 300;
   /* Sized to match the rest of Tex's voice — 50% larger than the original quiet
      register, so the opening declaration reads with presence on the white. */
-  font-size: clamp(40.5px, 3.91vw, 54px);
+  font-size: clamp(33.75px, 3.26vw, 45px);
   line-height: 1.55;
   letter-spacing: -0.005em;
   white-space: normal;

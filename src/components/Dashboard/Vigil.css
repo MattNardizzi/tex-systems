@@ -211,7 +211,7 @@
   /* Michroma in a vast field of white — now sized up 50% so the voice reads
      with presence, not restraint. The frame + negative space still carry the
      weight; the line is simply more present than the original modest register. */
-  font-size: clamp(40.5px, 3.78vw, 54px);
+  font-size: clamp(33.75px, 3.15vw, 45px);
   line-height: 1.55;
   letter-spacing: -0.005em;
   color: var(--tex-ink);
@@ -250,7 +250,7 @@
   /* Body in a wide single-weight face: small, with generous leading and a
      short measure so it stays calm and legible instead of dense. It steps
      down the ink ladder to recede beneath the headline. */
-  font-size: clamp(33.75px, 3.37vw, 40.5px);
+  font-size: clamp(28.13px, 2.81vw, 33.75px);
   line-height: 1.62;
   letter-spacing: 0.004em;
   color: var(--tex-ink-soft);
@@ -285,7 +285,7 @@
   max-width: 24em;
   font-family: var(--tex-display);
   font-weight: 300;
-  font-size: clamp(40.5px, 4.6vw, 56.7px);
+  font-size: clamp(33.75px, 3.83vw, 47.25px);
   line-height: 1.5;
   letter-spacing: -0.01em;
   color: var(--tex-ink-2);
@@ -527,7 +527,7 @@
   margin: 0;
   font-family: var(--tex-display);
   font-weight: 300;
-  font-size: clamp(54px, 7.02vw, 81px);
+  font-size: clamp(45px, 5.85vw, 67.5px);
   line-height: 1.18;
   letter-spacing: -0.022em;
   color: var(--tex-ink);
