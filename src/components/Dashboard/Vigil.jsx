@@ -564,6 +564,12 @@ export default function Vigil() {
      (a slow, breathing mark), a presence signal that reads as deliberation, not
      lag (CHI 2026). It is the visual twin of the spoken presence ack. */
   const [verifying, setVerifying] = useState(false);
+  /* The heard line — the operator's own words, live while the mic is held.
+     Interim transcripts stream in as they speak (proof of hearing BEFORE the
+     release), and the release settles the line to the final transcript. The
+     interim/final distinction is rendered as faint→ink, the same register
+     shift every serious 2026 voice UI uses (Deepgram interim-results model). */
+  const [heard, setHeard] = useState("");
   const [spoken, setSpoken] = useState(null);
 
   const lineTimer = useRef(null);
@@ -879,6 +885,7 @@ export default function Vigil() {
       stopSpeaking();
       setThinking(false);
       setVerifying(false);
+      setHeard("");
 
       /* Anchor the whole gesture to THIS pointer. The clears above tear down the
          content under the cursor, and without capture the browser fires a stray
@@ -918,13 +925,15 @@ export default function Vigil() {
         }
         const see = new SeeListener();
         seeListenerRef.current = see;
-        see.start().catch(() => {
+        /* The live partial feeds the heard line — the words form on the glass
+           AS they are spoken, so the operator never speaks blind. */
+        see.start(setHeard).catch(() => {
           seeListenerRef.current = null;
         });
       } else {
         const listener = new TexListener();
         listenerRef.current = listener;
-        listener.start().catch(() => {
+        listener.start(setHeard).catch(() => {
           listenerRef.current = null;
         });
       }
@@ -1001,10 +1010,15 @@ export default function Vigil() {
       .then((transcript) => {
         setThinking(false);
         if (!transcript) {
+          setHeard("");
           if (reachInHeld) pullEvidence(liveDecision);
           else if (reachInSilence) sayHere();
           return undefined;
         }
+        /* Settle the heard line to the FINAL transcript — the line the ask
+           actually carries. Any late recognizer revision lands here, the same
+           retro-correction settle the live-transcript pattern expects. */
+        setHeard(transcript);
         /* The instant presence beat — fire the content-free ack the moment we
            have a question, BEFORE the grounded round-trip. It plays from the
            pre-warmed cache (<150ms) and is superseded click-free by the answer
@@ -1091,6 +1105,7 @@ export default function Vigil() {
       loadAssist();
       clearAnswer();
       stopSpeaking();
+      setHeard("");
       setTyped(firstChar);
       setGhost(""); /* one char is too short to complete — abstain */
       typingRef.current = true;
@@ -1849,6 +1864,22 @@ export default function Vigil() {
           <p className="tex-held-ask" aria-hidden="true">
             press and hold anywhere to ask Tex about it
           </p>
+        </div>
+      )}
+
+      {/* The heard line — the operator's own words forming live while the mic
+          is held. Faint while interim (still forming), settling to ink the
+          moment the release finalizes them: proof Tex heard, shown BEFORE the
+          answer round-trip even begins. It rides above the listening glow and
+          the deliberation mark — the centre stays Tex's — and yields the
+          instant the answer takes the glass. The words are the operator's own,
+          so they are not announced back (aria-hidden). */}
+      {!doorOpen && !mapping && !sealed && !answer && heard && (holding || thinking || verifying) && (
+        <div
+          className={`tex-heard${holding ? "" : " is-settled"}`}
+          aria-hidden="true"
+        >
+          {heard}
         </div>
       )}
 

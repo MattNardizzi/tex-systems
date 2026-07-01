@@ -875,6 +875,41 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* The heard line — the operator's own words, forming live while the   */
+/* mic is held. The ghost register while interim (faint: still          */
+/* forming), settling to supporting ink on release (final: this is      */
+/* what will be asked). It sits ABOVE the listening glow and the        */
+/* deliberation mark — the exact centre of the glass stays Tex's.       */
+/* ------------------------------------------------------------------ */
+.tex-heard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, calc(-50% - 5em));
+  width: 100%;
+  max-width: min(88vw, 30em);
+  padding: 0 24px;
+  text-align: center;
+  font-size: clamp(17px, 2vw, 21px);
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  color: var(--tex-ink-faint);
+  pointer-events: none;
+  animation: tex-voice-rise 420ms ease both;
+  transition: color 260ms ease;
+}
+.tex-heard.is-settled {
+  color: var(--tex-ink-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-heard {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* The gate-verification pause — a single ink mark breathing on a slow,  */
 /* even rhythm. Not a spinner: Tex weighing the answer against proof.    */
 /* ------------------------------------------------------------------ */
