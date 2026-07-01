@@ -256,63 +256,7 @@ body .tex-field:not(.tex-field--faltering) {
    one treatment — there is one primary act in the whole product, and this
    is what it looks like. Scoped here to the door; the in-system .tex-act
    --approve picks up the same look from Vigil.css. */
-/* Begin — not a key, a command. A precise tracked label with a single hairline
-   that extends on hover, like an instrument's enter. No fill, no pill, no shadow:
-   the sharpest possible primary action on a clean surface. */
-.tex-door-acts .tex-act,
-.tex-door [data-act="begin"] {
-  font-family: var(--tex-display);
-  font-weight: 400;
-  font-size: clamp(10px, 1.05vw, 11.5px);
-  letter-spacing: 0.32em;
-  text-indent: 0.32em;
-  text-transform: uppercase;
-  color: var(--tex-ink);
-  cursor: pointer;
-  padding: 14px 4px;
-  min-height: 46px;
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  transition: color var(--tex-micro) var(--tex-ease-micro);
-  -webkit-font-smoothing: antialiased;
-}
-.tex-door-acts .tex-act::after,
-.tex-door [data-act="begin"]::after {
-  content: "";
-  width: 30px;
-  height: 1px;
-  background: var(--tex-ink);
-  transition: width var(--tex-micro) var(--tex-ease-micro),
-    background-color var(--tex-micro) var(--tex-ease-micro);
-}
-.tex-door-acts .tex-act:hover::after,
-.tex-door [data-act="begin"]:hover::after {
-  width: 56px;
-}
-.tex-door-acts .tex-act:active,
-.tex-door [data-act="begin"]:active {
-  color: var(--tex-ink-soft);
-}
-.tex-door-acts .tex-act:focus-visible,
-.tex-door [data-act="begin"]:focus-visible {
-  outline: none;
-  color: var(--tex-ink);
-}
-.tex-door-acts .tex-act:focus-visible::after,
-.tex-door [data-act="begin"]:focus-visible::after {
-  width: 56px;
-}
-.tex-door-acts .tex-act:disabled,
-.tex-door [data-act="begin"]:disabled {
-  cursor: default;
-  color: var(--tex-ink-mute);
-}
-.tex-door-acts .tex-act:disabled::after,
-.tex-door [data-act="begin"]:disabled::after {
-  background: var(--tex-ink-faint);
-}
+/* Begin renders as the shared primary-act pill (.tex-act.tex-act--approve)
+   straight from Vigil.css — no door-specific override — so it always matches
+   the in-system decision buttons. Only its reveal + position live in
+   Vigil.css (.tex-door-acts). */
