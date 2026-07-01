@@ -331,6 +331,15 @@ const MANIFESTO_FINAL_HOLD_MS = 1_800;
    this, we hold the field the rest of the beat, then speak the count. */
 const MAP_MIN_MS = 1_800;
 
+/* The keyed-posture watch sentinel. In production the same-origin proxy
+   injects TEX_API_KEY and the backend resolves the estate from the key, so
+   every scoped call already omits tenant_id (see scopedTenant in texApi).
+   This value therefore NEVER reaches the wire — it exists only to open the
+   client-side watch gate that the pre-key model left permanently closed in
+   prod (held / seal / faltering could never surface). Fail-closed holds: a
+   keyless or failing read returns nothing and the surface rests in silence. */
+const KEYED_ESTATE = "keyed";
+
 /* ------------------------------------------------------------------ */
 /* State derivation                                                    */
 /* ------------------------------------------------------------------ */
@@ -368,15 +377,17 @@ export default function Vigil() {
      a spinner), so a returning operator never sees a flash of the door. */
   const ignition = useIgnition();
 
-  /* The estate Tex watches is the one the operator CONNECTED — never an
-     implicit default. Nothing is watched until a real directory is connected,
-     so no simulated/default backend tenant can ever leak onto the glass;
-     silence is the resting truth until then. VITE_TEX_TENANT is a DEV-ONLY
-     convenience: it is honoured ONLY under `vite dev` (import.meta.env.DEV), so
-     a production build IGNORES it even if the deploy environment sets it. */
+  /* The estate Tex watches. In the keyed (production) posture the tenant IS
+     the key's principal — the operator's own estate, resolved server-side
+     from TEX_API_KEY — so the watch gate opens with KEYED_ESTATE (a sentinel
+     that never reaches the wire; scopedTenant omits tenant_id in prod). No
+     simulated/default estate can leak onto the glass: the key's estate is by
+     definition the connected one, and a keyless or failing read fails closed
+     back to silence. DEV stays explicit — watch only a directory the operator
+     connected, or VITE_TEX_TENANT as the local convenience (DEV-only). */
   const watchTenant =
     ignition.connectedTenant ||
-    (import.meta.env.DEV ? import.meta.env.VITE_TEX_TENANT : null) ||
+    (import.meta.env.DEV ? import.meta.env.VITE_TEX_TENANT : KEYED_ESTATE) ||
     null;
   const vigil = useVigil(watchTenant);
   const snapshot = useSystemState(watchTenant);
