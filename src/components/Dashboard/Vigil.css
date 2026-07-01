@@ -1152,8 +1152,9 @@
   background: transparent;
   text-align: center;
   font-family: var(--tex-display);
-  font-weight: 400;
-  font-size: clamp(20px, 3vw, 36px);
+  font-weight: 300;
+  font-style: italic;
+  font-size: clamp(14px, 2.1vw, 25.2px);
   line-height: 1.5;
   letter-spacing: -0.02em;
   color: var(--tex-ink);
