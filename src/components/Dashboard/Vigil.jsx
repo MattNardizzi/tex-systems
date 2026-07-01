@@ -845,6 +845,20 @@ export default function Vigil() {
       stopSpeaking();
       setThinking(false);
       setVerifying(false);
+
+      /* Anchor the whole gesture to THIS pointer. The clears above tear down the
+         content under the cursor, and without capture the browser fires a stray
+         pointercancel (pressed element removed) or pointerleave (cursor slides off
+         a child) that ends the hold — the mic closes and the listening orb dies
+         after a single throb. Capturing binds every follow-up pointer event to the
+         field, so the hold ends only on a real release (pointerup) or true cancel. */
+      if (e && e.pointerId != null && e.currentTarget?.setPointerCapture) {
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore — capture is a robustness boost, not a requirement */
+        }
+      }
       setHolding(true);
 
       /* A press is the OPERATOR's turn: Tex yields the floor and listens, it does
@@ -1587,7 +1601,6 @@ export default function Vigil() {
       tabIndex={0}
       onPointerDown={beginHold}
       onPointerUp={endHold}
-      onPointerLeave={endHold}
       onPointerCancel={endHold}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
