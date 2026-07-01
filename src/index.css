@@ -192,7 +192,7 @@ body .tex-field:not(.tex-field--faltering) {
    so it reads as carved, not as a sentence that ran long. */
 .tex-door .tex-door-line {
   font-family: var(--tex-display);
-  font-weight: 400;
+  font-weight: 300;
   /* Sized to match the rest of Tex's voice — 50% larger than the original quiet
      register, so the opening declaration reads with presence on the white. */
   font-size: clamp(33.75px, 3.26vw, 45px);

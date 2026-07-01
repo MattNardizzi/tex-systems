@@ -206,7 +206,7 @@
 .tex-presence-line {
   margin: 0;
   font-family: var(--tex-display);
-  font-weight: 400;
+  font-weight: 300;
   font-variation-settings: normal;
   /* Michroma in a vast field of white — now sized up 50% so the voice reads
      with presence, not restraint. The frame + negative space still carry the
@@ -246,7 +246,7 @@
   margin: 1.6em 0 0;
   max-width: 30em;
   font-family: var(--tex-display);
-  font-weight: 400;
+  font-weight: 300;
   /* Body in a wide single-weight face: small, with generous leading and a
      short measure so it stays calm and legible instead of dense. It steps
      down the ink ladder to recede beneath the headline. */
@@ -284,7 +284,7 @@
   padding-top: 1.5em;
   max-width: 24em;
   font-family: var(--tex-display);
-  font-weight: 400;
+  font-weight: 300;
   font-size: clamp(33.75px, 3.83vw, 47.25px);
   line-height: 1.5;
   letter-spacing: -0.01em;
@@ -526,7 +526,7 @@
 .tex-seal-line {
   margin: 0;
   font-family: var(--tex-display);
-  font-weight: 400;
+  font-weight: 300;
   font-size: clamp(45px, 5.85vw, 67.5px);
   line-height: 1.18;
   letter-spacing: -0.022em;
