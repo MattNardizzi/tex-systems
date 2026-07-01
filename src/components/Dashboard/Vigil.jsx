@@ -1648,6 +1648,10 @@ export default function Vigil() {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >
+      {/* The open-mic radar — a soft breathing core (the field's ::before) plus
+          two staggered rings on this node, so the pulse never gaps. Purely
+          decorative; shown only while .is-listening. */}
+      <span className="tex-listen" aria-hidden="true" />
       {/* A lost wire is the one death Tex cannot speak. For anyone who cannot
           see the still breath, the interface — not Tex — reports the dropped
           channel, politely, off the visible paper. */}

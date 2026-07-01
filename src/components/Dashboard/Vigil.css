@@ -161,10 +161,13 @@
 
 /* While the surface is held (you're addressing Tex), the mic is open. A soft
    achromatic core breathes at centre so the listening state is always legible,
-   and a single hairline ring lifts off it and dissolves outward — a calm,
-   deliberate radar, never a loading spinner. No hot mic: both exist only while
-   the gesture is held. */
-.tex-field.is-listening::after,
+   and two hairline rings lift off it in a continuous cadence — offset half a
+   period apart, so a fresh ring is always leaving the core as the last reaches
+   the edge and the pulse never gaps. A calm, deliberate radar, never a loading
+   spinner. All of it exists only while the gesture is held. */
+
+/* The breathing core. Its own pseudo-element so its scale never compounds with
+   the rings' scale — the rings live on a separate, un-transformed node. */
 .tex-field.is-listening::before {
   content: "";
   position: absolute;
@@ -174,25 +177,47 @@
   height: 150px;
   margin: -75px 0 0 -75px;
   border-radius: 50%;
-  pointer-events: none;
-  z-index: 2;
-}
-/* The breathing core — a soft ink glow that holds the eye between pulses. */
-.tex-field.is-listening::before {
   background: radial-gradient(
     circle,
     rgba(11, 11, 11, 0.16) 0%,
     rgba(11, 11, 11, 0.07) 42%,
     rgba(11, 11, 11, 0) 70%
   );
+  pointer-events: none;
+  z-index: 2;
   animation: tex-listen-core 2400ms var(--tex-ease) infinite;
 }
-/* The radar ring — lifts off the core and dissolves outward. */
-.tex-field.is-listening::after {
+
+/* The radar rings — a centred node whose two pseudo-elements share one ring
+   keyframe, offset by half its period for a seamless, gapless cadence. Inert
+   and invisible until the parent field is held. */
+.tex-listen {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150px;
+  height: 150px;
+  margin: -75px 0 0 -75px;
+  pointer-events: none;
+  z-index: 2;
+}
+.tex-listen::before,
+.tex-listen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   border: 1.5px solid var(--tex-ink);
   opacity: 0;
-  animation: tex-listen-ring 2600ms var(--tex-ease) infinite;
 }
+.tex-field.is-listening .tex-listen::before,
+.tex-field.is-listening .tex-listen::after {
+  animation: tex-listen-ring 2000ms var(--tex-ease) infinite;
+}
+.tex-field.is-listening .tex-listen::after {
+  animation-delay: 1000ms;
+}
+
 @keyframes tex-listen-core {
   0%,
   100% {
@@ -206,11 +231,14 @@
 }
 @keyframes tex-listen-ring {
   0% {
-    transform: scale(0.5);
+    transform: scale(0.45);
     opacity: 0.5;
   }
+  60% {
+    opacity: 0.16;
+  }
   100% {
-    transform: scale(1.25);
+    transform: scale(1.5);
     opacity: 0;
   }
 }
@@ -740,15 +768,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tex-field.is-listening::after,
-  .tex-field.is-listening::before {
+  .tex-field.is-listening::before,
+  .tex-field.is-listening .tex-listen::before,
+  .tex-field.is-listening .tex-listen::after {
     animation: none;
+  }
+  .tex-field.is-listening::before {
     transform: scale(1);
   }
-  .tex-field.is-listening::before {
-    opacity: 1;
-  }
-  .tex-field.is-listening::after {
+  .tex-field.is-listening .tex-listen::before {
     opacity: 0.28;
   }
   .tex-field--faltering {
