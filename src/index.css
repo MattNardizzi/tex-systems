@@ -195,7 +195,7 @@ body .tex-field:not(.tex-field--faltering) {
   font-weight: 300;
   /* Sized to match the rest of Tex's voice — 50% larger than the original quiet
      register, so the opening declaration reads with presence on the white. */
-  font-size: clamp(33.75px, 3.26vw, 45px);
+  font-size: clamp(40.5px, 3.91vw, 54px);
   line-height: 1.55;
   letter-spacing: -0.005em;
   white-space: normal;
@@ -217,7 +217,7 @@ body .tex-field:not(.tex-field--faltering) {
 .tex-door .tex-door-wake {
   font-family: var(--tex-display);
   font-weight: 400;
-  font-size: clamp(10px, 1.05vw, 12px);
+  font-size: clamp(15px, 1.58vw, 18px);
   line-height: 1.6;
   letter-spacing: 0.28em;
   text-indent: 0.28em;
@@ -235,16 +235,16 @@ body .tex-field:not(.tex-field--faltering) {
 @keyframes tex-wake-breath {
   0%,
   100% {
-    opacity: 0.34;
+    opacity: 0.51;
   }
   50% {
-    opacity: 0.62;
+    opacity: 0.93;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .tex-door .tex-door-wake {
     animation: none;
-    opacity: 0.55;
+    opacity: 0.83;
   }
 }
 
