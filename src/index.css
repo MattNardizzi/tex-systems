@@ -16,14 +16,15 @@
 
 :root {
   /* ── Type ──────────────────────────────────────────────────────────
-     One voice everywhere. Michroma carries every human word and every
+     One voice everywhere. Inter — a clean humanist sans, the screen-native
+     heir to Helvetica / San Francisco — carries every human word and every
      label. --tex-sans / --tex-serif are repointed to it as well, so any
      rule that still names them inherits the one voice. Geist Mono is kept
-     for ONE thing only — raw machine identifiers (a sha256 handle), where
-     a wide non-monospace face would be unreadable and uncopyable. */
-  --tex-display: "Michroma", "Eurostile", "Aldrich", system-ui, sans-serif;
-  --tex-sans: "Michroma", "Eurostile", system-ui, sans-serif;
-  --tex-serif: "Michroma", "Eurostile", system-ui, sans-serif;
+     for ONE thing only — raw machine identifiers (a sha256 handle), which
+     stay monospaced so they read and copy cleanly. */
+  --tex-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tex-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tex-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", monospace;
 
   /* ── Ink — a neutral VALUE ladder (the substitute for a weight axis) ──
