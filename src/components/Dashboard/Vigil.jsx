@@ -228,18 +228,11 @@ function falterLine(snapshot) {
 const OBJECT_LINGER_MS = 6_000;
 
 
-/* The interactive answer — shown + lit word-by-word as Tex speaks it, then it
-   lingers a beat and dissolves. The one transient exception to "answers are
-   spoken, never written": it is never persisted, only voiced-and-gone. */
-const ANSWER_LINGER_MS = 2_200;
-const ANSWER_FADE_MS = 720;
-
-/* A presence answer carries more than a sentence — a credibility tier, maybe an
-   abstain reason, maybe claims you can reach into for their evidence. It earns a
-   longer hold than a bare spoken line so the tier can be read and a claim can be
-   reached for; any reach (tapping a claim's evidence) re-arms this. Still
-   voiced-and-gone — just a longer beat. */
-const PRESENCE_LINGER_MS = 9_000;
+/* The interactive answer — spoken in Tex's voice and HELD on the glass until the
+   next reach begins (beginHold / a typed line clears it). It used to dissolve
+   after 2.2–9s, which made hard answers unreadable and a failure indistinguishable
+   from silence; an answer now stays put so it can be read back, and the next
+   question naturally takes the surface. */
 
 /* The day-one ignition line — e.g. "You have two hundred agents running.
    I'll begin." — the one fuller sentence the surface holds on open after
@@ -629,64 +622,47 @@ export default function Vigil() {
      audio still needs that first gesture. */
   const [awake, setAwake] = useState(!VOICE_ENABLED);
 
-  /* Arm (or re-arm) the answer's dissolve: hold it lit for `lingerMs`, then fade
-     and clear. Re-armable so reaching for a claim's evidence keeps the answer on
-     the glass instead of dissolving out from under the reach. */
-  const armAnswerDissolve = useCallback(
-    (lingerMs) => {
-      clearAnswerTimer();
-      answerTimer.current = setTimeout(() => {
-        setAnswerLeaving(true);
-        clearAnswerTimer();
-        answerTimer.current = setTimeout(() => clearAnswer(), ANSWER_FADE_MS);
-      }, lingerMs);
-    },
-    [clearAnswer]
-  );
-
   /* Speak a presence answer in Tex's voice AND surface it on the glass — the
      spoken line, the credibility tier the gate sealed, the abstain reason when it
-     abstains, and any claims you can reach into — then linger and dissolve. The
-     text and the tier are whatever /v1/ask sealed; this never authors or edits
-     them (derivePresence only normalizes the wire). It STREAMS via texSpeak
-     (progressive /v1/speak) for the fastest first-sound, so the line shows at full
-     ink (no per-word highlight); per-word lighting returns with the streamed-
-     timestamp path. An answer carrying a tier/claims earns a longer hold so the
-     signal can be read and a claim reached for. */
-  const surfaceAnswer = useCallback(
-    (presence, lingerOverride) => {
-      const text = presence?.spokenText;
-      if (!text) return;
-      clearLineTimer();
-      clearAnswerTimer();
-      setSpoken(null);
-      setAnswerLeaving(false);
-      setAnswerWord(-1);
-      setAnswer({
-        text,
-        tier: presence.tier || null,
-        tierReason: presence.tierReason || null,
-        claims: presence.claims || [],
-        proof: presence.proof || null,
-      });
-      const lingerMs =
-        lingerOverride ??
-        (presence.tier || presence.claims?.length || presence.proof
-          ? PRESENCE_LINGER_MS
-          : ANSWER_LINGER_MS);
-      const myAnswer = ++answerEpochRef.current;
-      /* Forward the gate's verdict token so the ANSWER is spoken in-tier (rate +
-         lead-pause + loudness). Only gate verdicts get a token — the opener /
-         "Here." / a falter stay NEUTRAL (a non-verdict line voiced as if it were
-         assured/uncertain would be dishonest). */
-      texSpeak(text, presence.prosodyToken).then(() => {
-        /* Only the CURRENT answer lingers + dissolves — a newer answer (barge-in)
-           has already taken the glass, so a stale resolution must not touch it. */
-        if (answerEpochRef.current !== myAnswer) return;
-        armAnswerDissolve(lingerMs);
-      });
+     abstains, and any claims you can reach into. The text and the tier are
+     whatever /v1/ask sealed; this never authors or edits them (derivePresence
+     only normalizes the wire). It STREAMS via texSpeak (progressive /v1/speak)
+     for the fastest first-sound, so the line shows at full ink (no per-word
+     highlight); per-word lighting returns with the streamed-timestamp path.
+     The answer STAYS on the glass until the next reach (beginHold / a typed
+     line) takes the surface — it no longer dissolves on a timer, so it can be
+     read back at the operator's pace. */
+  const surfaceAnswer = useCallback((presence) => {
+    const text = presence?.spokenText;
+    if (!text) return;
+    clearLineTimer();
+    clearAnswerTimer();
+    setSpoken(null);
+    setAnswerLeaving(false);
+    setAnswerWord(-1);
+    setAnswer({
+      text,
+      tier: presence.tier || null,
+      tierReason: presence.tierReason || null,
+      claims: presence.claims || [],
+      proof: presence.proof || null,
+    });
+    answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
+    /* Forward the gate's verdict token so the ANSWER is spoken in-tier (rate +
+       lead-pause + loudness). Only gate verdicts get a token — the opener /
+       "Here." / a falter stay NEUTRAL (a non-verdict line voiced as if it were
+       assured/uncertain would be dishonest). */
+    texSpeak(text, presence.prosodyToken);
+  }, []);
+
+  /* The never-silent rule: a failed or empty round-trip SAYS SO, in Tex's one
+     voice, as an honest abstain-tier line — a network error must never be
+     indistinguishable from "the information does not exist". */
+  const surfaceFailure = useCallback(
+    (text) => {
+      surfaceAnswer({ spokenText: text, tier: "abstain", claims: [], proof: null });
     },
-    [armAnswerDissolve]
+    [surfaceAnswer]
   );
 
   /* Warm Tex's voice backend the moment the surface loads. A spun-down free-tier
@@ -760,17 +736,16 @@ export default function Vigil() {
   }, []);
 
   /* Reaching for a claim's evidence — the claim→proof link. The claim's sealed
-     anchor rises as the one object the glass may hold, and the answer's dissolve
-     is re-armed so it stays put while you read the proof. Never fabricates an
-     anchor: a claim with no evidence is inert (the button is disabled). */
+     anchor rises as the one object the glass may hold; the answer already stays
+     put (no dissolve timer), so the proof can be read at leisure. Never
+     fabricates an anchor: a claim with no evidence is inert (button disabled). */
   const reachEvidence = useCallback(
     (evidence) => {
       if (!evidence?.value) return;
       setAnswerLeaving(false);
-      armAnswerDissolve(PRESENCE_LINGER_MS);
       surfaceObject(evidence.value, evidence.kind);
     },
-    [armAnswerDissolve, surfaceObject]
+    [surfaceObject]
   );
 
   /* ---------------- Open: presence for a returning operator ----------------
@@ -860,6 +835,10 @@ export default function Vigil() {
   }, [mapping]);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
+  /* The prior Q/A, sent with the next ask so a follow-up ("which one?", "and
+     yesterday?") can resolve its references. It steers only the backend's plan
+     compiler — every spoken value is still recomputed from sealed rows. */
+  const lastExchangeRef = useRef(null);
   const listenerRef = useRef(null);
   /* The browser's own speech recognizer — the real hold-to-speak. Separate from
      the muted voice gateway (TexListener) so a question can be heard without
@@ -1034,7 +1013,7 @@ export default function Vigil() {
            beat that reads as Tex weighing the answer against what it can prove. */
         playPresenceAck();
         setVerifying(true);
-        return askTex(transcript, watchTenant).then((res) => {
+        return askTex(transcript, watchTenant, lastExchangeRef.current).then((res) => {
           setVerifying(false);
           /* Backend decides, frontend renders: derivePresence only NORMALIZES the
              wire (the presence envelope when present, the AskResponse otherwise).
@@ -1042,24 +1021,33 @@ export default function Vigil() {
              confidence the UI invented. */
           const presence = derivePresence(res);
           if (presence?.spokenText) {
-            /* Meaning is spoken — and now surfaced with its tier and any claims,
-               then dissolved (never persisted). If the answer's target is an
-               object you must carry away (a hash, an exact name), that handle also
-               surfaces, then dissolves. */
+            /* Meaning is spoken — and surfaced with its tier and any claims,
+               staying on the glass until the next reach. If the answer's target
+               is an object you must carry away (a hash, an exact name), that
+               handle also surfaces. */
+            lastExchangeRef.current = {
+              prior_question: transcript,
+              prior_answer: presence.spokenText,
+            };
             surfaceAnswer(presence);
             if (presence.object?.value) {
               surfaceObject(presence.object.value, presence.object.kind);
             }
-          } else if (reachInSilence) {
-            sayHere();
+          } else {
+            /* A transcribed question that came back empty is NOT silence —
+               say so, honestly, as an abstain-tier line. */
+            surfaceFailure("The records returned nothing for that.");
           }
         });
       })
       .catch(() => {
         setThinking(false);
         setVerifying(false);
+        /* Never-silent: a failed round-trip (backend down, cold start, 4xx/5xx)
+           must not be indistinguishable from "no data". */
+        surfaceFailure("I can't reach the records right now.");
       });
-  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, watchTenant]);
+  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, watchTenant]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -1135,18 +1123,27 @@ export default function Vigil() {
     if (!q) return;
     playPresenceAck();
     setVerifying(true);
-    askTex(q, watchTenant)
+    askTex(q, watchTenant, lastExchangeRef.current)
       .then((res) => {
         setVerifying(false);
         const presence = derivePresence(res);
         if (presence?.spokenText) {
+          lastExchangeRef.current = {
+            prior_question: q,
+            prior_answer: presence.spokenText,
+          };
           surfaceAnswer(presence);
           if (presence.object?.value) {
             surfaceObject(presence.object.value, presence.object.kind);
           }
+        } else {
+          surfaceFailure("The records returned nothing for that.");
         }
       })
-      .catch(() => setVerifying(false));
+      .catch(() => {
+        setVerifying(false);
+        surfaceFailure("I can't reach the records right now.");
+      });
   }, [typed, ghost, cancelTyping, watchTenant, surfaceAnswer, surfaceObject, canonicalizeTail]);
 
   /* The input owns its own keys: stop them reaching the section's voice handler

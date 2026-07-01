@@ -499,12 +499,23 @@ export const mintVoiceToken = () => request("/v1/voice/token");
  * Flux / ElevenLabs Scribe for STT, ElevenLabs / Cartesia for TTS); the
  * cascade shape and the grounding boundary must not be.
  */
-export const askTex = (transcript, tenantId) =>
+export const askTex = (transcript, tenantId, context) =>
   request("/v1/ask", {
     method: "POST",
     body: JSON.stringify({
       transcript: transcript ?? "",
       tenant_id: scopedTenant(tenantId) ?? null,
+      /* The prior Q/A, so a follow-up ("which one?") can resolve its references.
+         Steers only the backend's plan compiler — every spoken value is still
+         recomputed from sealed rows, so context can never become words Tex says. */
+      ...(context && (context.prior_question || context.prior_answer)
+        ? {
+            context: {
+              prior_question: String(context.prior_question || "").slice(0, 4000),
+              prior_answer: String(context.prior_answer || "").slice(0, 4000),
+            },
+          }
+        : {}),
     }),
   });
 
