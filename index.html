@@ -5,8 +5,31 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
-    <title>Tex</title>
-    <meta name="description" content="Tex — full-lifecycle governance for autonomous AI systems." />
+    <title>Tex — Runtime governance for AI agents</title>
+    <meta
+      name="description"
+      content="Tex sits between AI agents and the real world. PERMIT / ABSTAIN / FORBID — enforced in-path, sealed with receipts that verify offline."
+    />
+
+    <!-- The link preview is the turn: the name, the line, the dare. -->
+    <meta property="og:title" content="Tex — Runtime governance for AI agents" />
+    <meta
+      property="og:description"
+      content="PERMIT / ABSTAIN / FORBID — enforced in-path. Every ruling seals into a receipt that verifies offline. Try to forge one."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://tex.systems/" />
+    <meta property="og:site_name" content="Tex" />
+    <meta property="og:image" content="https://tex.systems/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tex — Runtime governance for AI agents" />
+    <meta
+      name="twitter:description"
+      content="Every ruling seals into a receipt that verifies offline. Try to forge one."
+    />
+    <meta name="twitter:image" content="https://tex.systems/og.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,9 +43,91 @@
       href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Inter:ital,wght@0,200..600;1,200..600&display=swap"
       rel="stylesheet"
     />
+
+    <style>
+      /* Static shell — visible before the app mounts, and to crawlers/no-JS.
+         React replaces everything inside #root on mount. */
+      .tex-static {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #ffffff;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        color: #0a0a0a;
+        text-align: center;
+        padding: 0 24px;
+      }
+      .tex-static__mark {
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.42em;
+        text-indent: 0.42em;
+      }
+      .tex-static__line {
+        font-size: 15px;
+        font-weight: 300;
+        color: #6b6b6b;
+        max-width: 34em;
+        line-height: 1.6;
+      }
+      .tex-static__link {
+        font-size: 13px;
+        color: #0a0a0a;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(10, 10, 10, 0.25);
+        padding-bottom: 1px;
+      }
+      /* One permanent, faint line so the surface is never wordless to a stranger. */
+      .tex-foot {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 14px;
+        display: flex;
+        justify-content: center;
+        gap: 0.5em;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        font-size: 11.5px;
+        font-weight: 400;
+        color: rgba(10, 10, 10, 0.32);
+        z-index: 2147483000;
+        pointer-events: none;
+      }
+      .tex-foot a {
+        color: rgba(10, 10, 10, 0.45);
+        text-decoration: none;
+        pointer-events: auto;
+      }
+      .tex-foot a:hover {
+        color: rgba(10, 10, 10, 0.85);
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="tex-static">
+        <div class="tex-static__mark">TEX</div>
+        <div class="tex-static__line">
+          Runtime governance for AI agents. PERMIT / ABSTAIN / FORBID — enforced
+          in-path. Every ruling seals into a receipt that verifies offline.
+        </div>
+        <a class="tex-static__link" href="https://github.com/MattNardizzi/tex"
+          >github.com/MattNardizzi/tex</a
+        >
+      </div>
+    </div>
+    <div class="tex-foot">
+      <span>Runtime governance for AI agents</span>
+      <span>·</span>
+      <a href="https://github.com/MattNardizzi/tex">GitHub</a>
+    </div>
+    <noscript>
+      Tex — runtime governance for AI agents.
+      <a href="https://github.com/MattNardizzi/tex">github.com/MattNardizzi/tex</a>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
