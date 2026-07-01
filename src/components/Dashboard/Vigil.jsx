@@ -9,6 +9,7 @@ import {
   TexListener,
   texSpeak,
   texSpeakTimed,
+  texSpeakSynced,
   texSpeakSequence,
   stopSpeaking,
   unlockVoice,
@@ -26,6 +27,27 @@ import {
   TIER_LABEL,
   TIER_GLOSS,
 } from "../../lib/presence";
+
+/* ------------------------------------------------------------------ */
+/* The speculative ask (the precog pattern). A partial transcript that  */
+/* has held STABLE this long while the mic is still held is worth       */
+/* betting on: /v1/ask fires EARLY, so the sealed answer is often       */
+/* already back the instant the release finalizes the same question —  */
+/* the single biggest release-to-answer latency lever a grounded        */
+/* cascade has. Safe by construction: asks are read-only, so a missed   */
+/* bet costs one wasted lookup and is simply abandoned.                 */
+/* ------------------------------------------------------------------ */
+const SPECULATE_STABLE_MS = 600;
+
+/* Whether the release redeemed the bet: the backend answers the WORDS, so the
+   final transcript matches the speculation iff it normalizes identically —
+   casing/punctuation jitter between interim and final must not void it. */
+const normalizeAsk = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 /* ==================================================================
    Vigil — the entire product surface. Live.
@@ -570,6 +592,11 @@ export default function Vigil() {
      interim/final distinction is rendered as faint→ink, the same register
      shift every serious 2026 voice UI uses (Deepgram interim-results model). */
   const [heard, setHeard] = useState("");
+  /* The speculative ask in flight for THIS hold: { q, promise } where q is the
+     normalized partial it bet on. Redeemed at release iff the final transcript
+     normalizes to the same q; otherwise abandoned (its catch is silenced). */
+  const specRef = useRef(null);
+  const specTimerRef = useRef(null);
   const [spoken, setSpoken] = useState(null);
 
   const lineTimer = useRef(null);
@@ -632,12 +659,14 @@ export default function Vigil() {
      spoken line, the credibility tier the gate sealed, the abstain reason when it
      abstains, and any claims you can reach into. The text and the tier are
      whatever /v1/ask sealed; this never authors or edits them (derivePresence
-     only normalizes the wire). It STREAMS via texSpeak (progressive /v1/speak)
-     for the fastest first-sound, so the line shows at full ink (no per-word
-     highlight); per-word lighting returns with the streamed-timestamp path.
-     The answer STAYS on the glass until the next reach (beginHold / a typed
-     line) takes the surface — it no longer dissolves on a timer, so it can be
-     read back at the operator's pace. */
+     only normalizes the wire). It speaks WORD-SYNCED at streaming latency
+     (texSpeakSynced: the streamed-timestamp path, falling back to the
+     full-clip timed path, the plain stream, then honest silence) — the line
+     mounts at full ink, and the voice re-inks it word by word as it speaks,
+     the seal's char-by-char lock extended to the answer. The answer STAYS on
+     the glass until the next reach (beginHold / a typed line) takes the
+     surface — it no longer dissolves on a timer, so it can be read back at
+     the operator's pace. */
   const surfaceAnswer = useCallback((presence) => {
     const text = presence?.spokenText;
     if (!text) return;
@@ -654,11 +683,15 @@ export default function Vigil() {
       proof: presence.proof || null,
     });
     answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
-    /* Forward the gate's verdict token so the ANSWER is spoken in-tier (rate +
-       lead-pause + loudness). Only gate verdicts get a token — the opener /
-       "Here." / a falter stay NEUTRAL (a non-verdict line voiced as if it were
-       assured/uncertain would be dishonest). */
-    texSpeak(text, presence.prosodyToken);
+    /* Forward the gate's verdict token so the ANSWER is spoken in-tier. Only
+       gate verdicts get a token — the opener / "Here." / a falter stay NEUTRAL
+       (a non-verdict line voiced as if it were assured/uncertain would be
+       dishonest). onWord drives the in-step highlight off the audio clock;
+       -1 (cleared / no timing available) renders the line at full ink. */
+    texSpeakSynced(text, {
+      onWord: (i) => setAnswerWord(i),
+      prosody: presence.prosodyToken,
+    });
   }, []);
 
   /* The never-silent rule: a failed or empty round-trip SAYS SO, in Tex's one
@@ -851,6 +884,31 @@ export default function Vigil() {
      standing up the gateway. */
   const seeListenerRef = useRef(null);
 
+  /* Every live partial while the mic is held: feed the heard line (the words
+     form on the glass AS they are spoken) and arm the SPECULATIVE ask — once a
+     partial holds stable for SPECULATE_STABLE_MS, /v1/ask fires early so the
+     answer is often already sealed when the release lands. One bet in flight
+     at a time; a changed partial simply re-bets and the old promise is
+     abandoned (read-only, no harm). */
+  const onAskPartial = useCallback(
+    (t) => {
+      setHeard(t);
+      if (specTimerRef.current) clearTimeout(specTimerRef.current);
+      specTimerRef.current = setTimeout(() => {
+        const q = normalizeAsk(t);
+        /* Too little to bet on: a fragment with no second word yet. */
+        if (q.length < 8 || q.indexOf(" ") < 0) return;
+        if (specRef.current && specRef.current.q === q) return;
+        const p = askTex(t, watchTenant, lastExchangeRef.current);
+        /* Silence an ABANDONED bet's rejection; a REDEEMED bet gets the real
+           .then/.catch handlers at release. */
+        p.catch(() => {});
+        specRef.current = { q, promise: p };
+      }, SPECULATE_STABLE_MS);
+    },
+    [watchTenant]
+  );
+
   const beginHold = useCallback(
     (e) => {
       /* Prime Tex's voice on the very first user gesture — browsers block audio
@@ -886,6 +944,13 @@ export default function Vigil() {
       setThinking(false);
       setVerifying(false);
       setHeard("");
+      /* A fresh hold is a fresh turn: no bet from a previous gesture may leak
+         into this one. */
+      specRef.current = null;
+      if (specTimerRef.current) {
+        clearTimeout(specTimerRef.current);
+        specTimerRef.current = null;
+      }
 
       /* Anchor the whole gesture to THIS pointer. The clears above tear down the
          content under the cursor, and without capture the browser fires a stray
@@ -925,20 +990,20 @@ export default function Vigil() {
         }
         const see = new SeeListener();
         seeListenerRef.current = see;
-        /* The live partial feeds the heard line — the words form on the glass
-           AS they are spoken, so the operator never speaks blind. */
-        see.start(setHeard).catch(() => {
+        /* The live partial feeds the heard line (never speak blind) AND the
+           speculative ask (the answer races the release). */
+        see.start(onAskPartial).catch(() => {
           seeListenerRef.current = null;
         });
       } else {
         const listener = new TexListener();
         listenerRef.current = listener;
-        listener.start(setHeard).catch(() => {
+        listener.start(onAskPartial).catch(() => {
           listenerRef.current = null;
         });
       }
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, clearAnswer]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, clearAnswer, onAskPartial]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -1027,7 +1092,22 @@ export default function Vigil() {
            beat that reads as Tex weighing the answer against what it can prove. */
         playPresenceAck();
         setVerifying(true);
-        return askTex(transcript, watchTenant, lastExchangeRef.current).then((res) => {
+        /* Redeem the speculative bet when it matches the FINAL transcript —
+           the ask fired while the operator was still speaking, so its answer
+           is often already sealed and the verifying beat is a blink. A
+           mismatch (the recognizer revised the words) falls back to a fresh
+           ask of exactly what was finally heard — correctness over speed. */
+        const spec = specRef.current;
+        specRef.current = null;
+        if (specTimerRef.current) {
+          clearTimeout(specTimerRef.current);
+          specTimerRef.current = null;
+        }
+        const askPromise =
+          spec && spec.q === normalizeAsk(transcript)
+            ? spec.promise
+            : askTex(transcript, watchTenant, lastExchangeRef.current);
+        return askPromise.then((res) => {
           setVerifying(false);
           /* Backend decides, frontend renders: derivePresence only NORMALIZES the
              wire (the presence envelope when present, the AskResponse otherwise).

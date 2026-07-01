@@ -38,7 +38,12 @@
  * never a toast.
  */
 
-import { mintVoiceToken, speakStreamUrl, speakTimedUrl } from "./texApi";
+import {
+  mintVoiceToken,
+  speakStreamUrl,
+  speakStreamTimedUrl,
+  speakTimedUrl,
+} from "./texApi";
 
 const WORKLET_URL = "/tex-mic-worklet.js";
 
@@ -279,6 +284,8 @@ let _activeAbort = null; // AbortController for the in-flight /speak/timed fetch
 let _activeEnd = null; // resolver for the current playback await (true = natural end)
 let _waitCancel = null; // canceller for an inter-line pacing wait
 let _prefetch = null; // { text, controller, promise } — line N+1 warmed during N
+let _activeStream = null; // { stop() } — the chunked streamed-timestamp playback
+let _streamTimedDead = false; // 404/503 once → the endpoint isn't deployed/keyed; skip for the session
 
 function _ctx() {
   if (_voiceCtx) return _voiceCtx;
@@ -370,6 +377,13 @@ function _supersede() {
   if (_activeRaf) {
     cancelAnimationFrame(_activeRaf);
     _activeRaf = null;
+  }
+  if (_activeStream) {
+    /* Stop a chunked streamed-timestamp playback: fade + stop every scheduled
+       chunk source and abort the in-flight NDJSON reader. */
+    const s = _activeStream;
+    _activeStream = null;
+    try { s.stop(); } catch {}
   }
   if (_activeAudio) {
     try {
@@ -708,6 +722,282 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody } =
     if (myEpoch !== _epoch) return false;
     return _speakStreamOne(text, myEpoch, prosody); // decode/playback failure → plain voice
   }
+}
+
+/* ================================================================== */
+/* The streamed-timestamp path — word-sync at streaming latency.        */
+/*                                                                     */
+/* /v1/speak/stream_timed relays ElevenLabs' HTTP stream/with-          */
+/* timestamps: NDJSON lines pairing raw PCM chunks with the chars they  */
+/* speak and their start times. Audio is scheduled GAPLESSLY on the     */
+/* shared AudioContext clock the moment each chunk lands — first sound  */
+/* in ~hundreds of ms instead of after full synthesis — and the word    */
+/* highlight is driven off the SAME clock, live, as timing accumulates. */
+/* (Research-verified 2026-07: for a fully-known sealed line the HTTP   */
+/* stream beats the input-buffering WebSocket — ElevenLabs' own docs.)  */
+/*                                                                     */
+/* Returns true on a natural end at the current epoch, false when       */
+/* superseded / played partially, and the string "fallback" when NO     */
+/* audio was ever scheduled (endpoint missing/unconfigured/unreachable) */
+/* so the caller can drop to the full-clip timed path with nothing lost.*/
+/* ================================================================== */
+async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
+  if (!VOICE_ENABLED) return false;
+  const ctx = _ctx();
+  if (!ctx) return "fallback";
+  await _ensureRunning(ctx);
+  if (myEpoch !== _epoch) return false;
+
+  /* Deadline covers connect + first byte only — once chunks flow, the stream
+     itself is the pace. */
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    try { controller.abort(); } catch {}
+  }, FETCH_TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch(speakStreamTimedUrl(text, prosody), {
+      headers: { Accept: "application/x-ndjson" },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (myEpoch !== _epoch) return false;
+    /* Timeout (cold/wedged backend): give up this line's audio — the timed
+       path hits the SAME backend and would hang too. A plain network error
+       (endpoint not deployed, proxy miss) falls back instead. */
+    if (err && err.name === "AbortError") return false;
+    return "fallback";
+  }
+  if (!res.ok || !res.body) {
+    clearTimeout(timer);
+    if (res.status === 404 || res.status === 503) _streamTimedDead = true;
+    return "fallback";
+  }
+  if (myEpoch !== _epoch) {
+    clearTimeout(timer);
+    try { controller.abort(); } catch {}
+    return false;
+  }
+  _activeAbort = controller;
+
+  /* One gain node for the whole stream so a barge-in cuts every scheduled
+     chunk click-free at once. */
+  const gain = ctx.createGain();
+  gain.connect(ctx.destination);
+  const sources = [];
+  let stopped = false;
+  const streamHandle = {
+    stop() {
+      stopped = true;
+      try { controller.abort(); } catch {}
+      try {
+        const now = ctx.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+        gain.gain.linearRampToValueAtTime(0.0001, now + BARGE_FADE_S);
+      } catch {}
+      for (const s of sources) {
+        try { s.onended = null; } catch {}
+        try { s.stop(ctx.currentTime + BARGE_FADE_S + 0.003); } catch {}
+      }
+    },
+  };
+  _activeStream = streamHandle;
+
+  let sampleRate = 24000; // header line corrects this before any audio schedules
+  let startAt = 0; // audio-clock anchor of stream-time zero (set at first chunk)
+  let nextAt = 0; // audio-clock time where the next chunk begins (gapless seam)
+  let scheduledDur = 0; // total stream audio scheduled so far (stream-time s)
+  const wordStarts = []; // stream-time start of each word (grows while streaming)
+  let inWord = false; // persists ACROSS chunks — a word can split over a seam
+  let lastCharTime = 0;
+  let timeBase = 0; // rebase offset if the vendor frames times chunk-relative
+  let sawTimes = false;
+
+  const outLat = typeof ctx.outputLatency === "number" ? ctx.outputLatency : 0;
+  let lastIdx = -2;
+  const tick = () => {
+    if (_activeStream !== streamHandle || myEpoch !== _epoch) return;
+    const t = ctx.currentTime - startAt - outLat + HIGHLIGHT_LEAD_S;
+    let idx = -1;
+    for (let i = 0; i < wordStarts.length; i++) {
+      if (t >= wordStarts[i]) idx = i;
+      else break; // starts are ordered; the last begun word is the active one
+    }
+    if (idx !== lastIdx) {
+      lastIdx = idx;
+      if (onWord) onWord(idx, null);
+    }
+    _activeRaf = requestAnimationFrame(tick);
+  };
+
+  const scheduleChunk = (f32) => {
+    if (!f32.length) return;
+    const buf = ctx.createBuffer(1, f32.length, sampleRate);
+    buf.copyToChannel(f32, 0);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    if (!sources.length) {
+      startAt = ctx.currentTime + START_PAD_S;
+      nextAt = startAt;
+      _activeRaf = requestAnimationFrame(tick);
+    }
+    src.start(Math.max(nextAt, ctx.currentTime));
+    nextAt += buf.duration;
+    scheduledDur += buf.duration;
+    sources.push(src);
+  };
+
+  const takeChunk = (msg) => {
+    const chars = Array.isArray(msg.chars) ? msg.chars : [];
+    const starts = Array.isArray(msg.starts) ? msg.starts : [];
+    if (chars.length) {
+      /* Rebase if this chunk's clock reset (chunk-relative framing): the
+         chunk's audio begins exactly where the already-scheduled audio ends. */
+      const first = starts.find((s) => typeof s === "number");
+      if (typeof first === "number") {
+        if (sawTimes && first + 0.05 < lastCharTime) timeBase = scheduledDur;
+        sawTimes = true;
+      }
+      for (let i = 0; i < chars.length; i++) {
+        const ch = String(chars[i] ?? "");
+        const isSpace = /^\s*$/.test(ch);
+        const st = typeof starts[i] === "number" ? starts[i] + timeBase : null;
+        if (!isSpace && !inWord) {
+          inWord = true;
+          /* SpokenLine counts words on whitespace splits of the SAME sealed
+             text these chars mirror (normalization off), so indices line up. */
+          wordStarts.push(st != null ? st : lastCharTime);
+        } else if (isSpace) {
+          inWord = false;
+        }
+        if (st != null && st > lastCharTime) lastCharTime = st;
+      }
+    }
+    let f32;
+    try {
+      f32 = _b64PcmToFloat32(msg.audio_b64 || "");
+    } catch {
+      f32 = new Float32Array(0);
+    }
+    scheduleChunk(f32);
+  };
+
+  let anyAudio = false;
+  try {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (myEpoch !== _epoch || stopped) {
+        clearTimeout(timer);
+        return false;
+      }
+      if (done) break;
+      clearTimeout(timer); // bytes are flowing — the connect deadline is served
+      buffered += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffered.indexOf("\n")) >= 0) {
+        const line = buffered.slice(0, nl).trim();
+        buffered = buffered.slice(nl + 1);
+        if (!line) continue;
+        let msg;
+        try {
+          msg = JSON.parse(line.startsWith("data:") ? line.slice(5).trim() : line);
+        } catch {
+          continue; // torn frame — never crash the voice on a parse miss
+        }
+        if (typeof msg.sample_rate === "number" && !anyAudio) {
+          sampleRate = msg.sample_rate;
+        }
+        if (msg.audio_b64 || (msg.chars && msg.chars.length)) {
+          takeChunk(msg);
+          if (msg.audio_b64) anyAudio = true;
+        }
+      }
+    }
+  } catch {
+    clearTimeout(timer);
+    if (myEpoch !== _epoch || stopped) return false;
+    if (!anyAudio) {
+      /* Nothing was ever scheduled — release the handle so the timed path
+         runs on a clean slate. */
+      if (_activeStream === streamHandle) _activeStream = null;
+      try { gain.disconnect(); } catch {}
+      return "fallback";
+    }
+    /* Mid-stream failure with audio already playing: truncate honestly — the
+       words spoken were real; never re-speak the line. */
+  }
+  clearTimeout(timer);
+  if (myEpoch !== _epoch || stopped) return false;
+  if (!anyAudio) {
+    if (_activeStream === streamHandle) _activeStream = null;
+    try { gain.disconnect(); } catch {}
+    return "fallback";
+  }
+
+  /* Wait out the scheduled tail: the last source's natural end, with a
+     watchdog for a suspended clock (which never fires `ended`). */
+  const remainMs =
+    Math.max(0, (nextAt - ctx.currentTime) * 1000) + PLAYBACK_GRACE_MS;
+  const natural = await new Promise((resolve) => {
+    _activeEnd = resolve;
+    const last = sources[sources.length - 1];
+    const watchdog = setTimeout(() => {
+      if (_activeEnd === resolve) {
+        _activeEnd = null;
+        resolve(true);
+      }
+    }, remainMs);
+    if (last) {
+      last.onended = () => {
+        if (_activeEnd === resolve) {
+          _activeEnd = null;
+          clearTimeout(watchdog);
+          resolve(true);
+        }
+      };
+    }
+  });
+
+  if (myEpoch === _epoch && _activeStream === streamHandle) {
+    if (_activeRaf) {
+      cancelAnimationFrame(_activeRaf);
+      _activeRaf = null;
+    }
+    if (onWord) onWord(-1, null);
+    _activeStream = null;
+    _activeAbort = null;
+    try { gain.disconnect(); } catch {}
+    if (DEV) console.debug(`[texvoice] ▶■ streamed "${text}" (${natural === true ? "ended" : "cut"})`);
+  }
+  return natural === true;
+}
+
+/* Speak a sealed line word-synced at the LOWEST available latency: the
+   streamed-timestamp path first (audio + timing chunk-by-chunk), then the
+   full-clip timed path, then the plain stream (voice, no highlight), then
+   honest silence — one call, the whole degradation chain. onWord(index)
+   drives the glass (-1 clears); onEnd fires only on a natural end. */
+export async function texSpeakSynced(text, { onWord, onEnd, prosody } = {}) {
+  if (!text) return;
+  const myEpoch = _supersede();
+  let owned = false;
+  if (!_streamTimedDead) {
+    const r = await _speakStreamTimedOne(text, myEpoch, { onWord, prosody });
+    owned = r !== "fallback";
+  }
+  if (!owned) {
+    if (myEpoch !== _epoch) return;
+    await _speakTimedOne(text, myEpoch, { onWord, prosody });
+  }
+  if (myEpoch !== _epoch) return;
+  if (onEnd) onEnd();
 }
 
 /* Play one line through the universal <audio> stream (real voice, no highlight).

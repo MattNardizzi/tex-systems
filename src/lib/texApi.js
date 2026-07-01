@@ -535,6 +535,17 @@ export const speakStreamUrl = (text, prosody) =>
   (prosody ? `&prosody=${encodeURIComponent(prosody)}` : "");
 
 /**
+ * GET /v1/speak/stream_timed?text=... — the SAME sealed line, but audio AND
+ * character timing stream back together as NDJSON chunks: first sound in
+ * ~hundreds of ms with the word-sync intact from the first chunk. 503s when
+ * ElevenLabs isn't configured; the voice engine falls back to /v1/speak/timed
+ * (full clip + timing), then /v1/speak (voice, no highlight), then silence.
+ */
+export const speakStreamTimedUrl = (text, prosody) =>
+  `${BASE}/v1/speak/stream_timed?text=${encodeURIComponent(text || "")}` +
+  (prosody ? `&prosody=${encodeURIComponent(prosody)}` : "");
+
+/**
  * GET /v1/speak/timed?text=... — the SAME sealed line in Tex's ONE voice, but
  * returned as JSON WITH per-word timing so the on-screen text can light up in
  * step with the voice:
