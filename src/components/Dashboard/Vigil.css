@@ -471,17 +471,22 @@
   perspective: 1400px;
   animation: tex-rise var(--tex-rise) var(--tex-ease) both;
 }
-/* The "Mapping…" working state. The dots reserve a fixed width so the word
-   never shifts as the ellipsis grows. Set in the statement register but a
-   step down the ink ladder — Tex is working, not declaring. */
+/* The "Mapping" working state. The word sits in the statement register but a
+   step down the ink ladder — Tex is working, not declaring. Beneath it, the
+   nascent anchor (MappingMark): the seal's own cell grid, a size below the
+   real anchor and tracked a touch airier — still forming. Its read head lifts
+   cells to WORKING ink only (is-read, ink-2); true ink stays earned by a real
+   anchor's lock (is-deep), never by theatre. */
 .tex-mapping {
   color: var(--tex-ink-2);
 }
-.tex-mapping-dots {
-  display: inline-block;
-  width: 1.1em;
-  text-align: left;
-  color: var(--tex-ink-mute);
+.tex-mapping-anchor {
+  margin: 1.4em 0 0;
+  font-size: clamp(9.5px, 1.2vw, 12.5px);
+  letter-spacing: 0.12em;
+}
+.tex-seal-cell.is-read {
+  color: var(--tex-ink-2);
 }
 /* The opener beats are VOICE-DRIVEN (texSpeakSequence): a line RISES in on
    mount, HOLDS for as long as Tex speaks it, then DISSOLVES when JS adds
@@ -558,9 +563,30 @@
   /* The door's Begin stands alone under the manifesto — the one act on the
      screen — so it carries more weight than a held-card key. Bigger type,
      wider pill, taller floor; the held-card/held-row acts stay compact. */
-  font-size: clamp(11px, 1.15vw, 13px);
-  padding: 1.05em 2.8em;
-  min-height: 50px;
+  font-size: clamp(10.5px, 1.08vw, 12.5px);
+  padding: 1em 2.6em;
+  min-height: 47px;
+}
+/* The key breathes IN LOCK with the deciding field. The ground and the door
+   reveal on the same frame (both gated by manifestoDone), so sharing the
+   field-pallor period (3100ms, same ease) phase-locks them with no JS: as the
+   field dims white→grey, the key fills white→black; text inverts in the same
+   keyframe so the label stays legible at both ends of the breath. */
+.tex-field.is-deciding .tex-door-acts.is-revealed .tex-act--approve {
+  animation: tex-door-key-breathe 3100ms var(--tex-ease-inout) infinite;
+}
+@keyframes tex-door-key-breathe {
+  0%,
+  100% {
+    background-color: var(--tex-paper);
+    color: var(--tex-ink);
+    border-color: var(--tex-ink-hair-2);
+  }
+  50% {
+    background-color: #000000;
+    color: var(--tex-paper);
+    border-color: #000000;
+  }
 }
 .tex-door-acts .tex-act--approve:hover {
   color: var(--tex-ink);
@@ -598,16 +624,36 @@
   transform: translateY(-3vh);
   animation: tex-rise 900ms var(--tex-ease) both;
 }
-.tex-seal-line {
+/* The verdict — in the INSTRUMENT register, not Tex's voice. A small tracked
+   uppercase tag with its mark, one family with the credibility tier: the word is
+   quiet, the sealed number below it is the moment. */
+.tex-seal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
   margin: 0;
   font-family: var(--tex-display);
-  font-weight: 300;
-  font-size: clamp(45px, 5.85vw, 67.5px);
-  line-height: 1.18;
-  letter-spacing: -0.022em;
+  font-size: clamp(10px, 1vw, 12px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.tex-seal-tag-mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--tex-ink);
+}
+.tex-seal-tag-label {
   color: var(--tex-ink);
-  max-width: 9em;
-  text-wrap: balance;
+}
+/* Keeping-holding is not a seal — a hollow, dashed mark, muted ink, like ABSTAIN. */
+.tex-seal-tag--held .tex-seal-tag-mark {
+  background: transparent;
+  border: 1.5px dashed var(--tex-ink-mute);
+}
+.tex-seal-tag--held .tex-seal-tag-label {
+  color: var(--tex-ink-mute);
 }
 .tex-seal-hash {
   margin: 1.6em 0 0;
@@ -838,6 +884,9 @@
   .tex-field.is-deciding {
     animation: none;
     background-color: #f1f1f2;
+  }
+  .tex-field.is-deciding .tex-door-acts.is-revealed .tex-act--approve {
+    animation: none;
   }
   .tex-door-line,
   .tex-door-line--hold {
