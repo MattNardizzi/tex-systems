@@ -555,6 +555,12 @@
   color: var(--tex-ink);
   background: var(--tex-paper);
   border-color: var(--tex-ink-hair-2);
+  /* The door's Begin stands alone under the manifesto — the one act on the
+     screen — so it carries more weight than a held-card key. Bigger type,
+     wider pill, taller floor; the held-card/held-row acts stay compact. */
+  font-size: clamp(11px, 1.15vw, 13px);
+  padding: 1.05em 2.8em;
+  min-height: 50px;
 }
 .tex-door-acts .tex-act--approve:hover {
   color: var(--tex-ink);
