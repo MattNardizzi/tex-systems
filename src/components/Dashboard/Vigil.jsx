@@ -19,6 +19,7 @@ import {
   VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
+import MappingMark from "./MappingMark";
 import SealAnchor, { SEAL_ANCHOR_RE } from "./SealAnchor";
 import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
 import { completeAsk } from "../../lib/askTemplates";
@@ -504,10 +505,10 @@ export default function Vigil() {
   const [manifestoStep, setManifestoStep] = useState(0);
 
   /* The "Mapping" working state. Clicking Yes shows it and runs real
-     discovery on the backend; it holds the field with a growing ellipsis
-     while the wire works, then dissolves to Tex speaking the count. */
+     discovery on the backend; it holds the field with the nascent anchor
+     (MappingMark) while the wire works, then dissolves to Tex speaking
+     the count. */
   const [mapping, setMapping] = useState(false);
-  const [mapDots, setMapDots] = useState(1);
   const mappingTimer = useRef(null);
   const clearMappingTimer = () => {
     if (mappingTimer.current) clearTimeout(mappingTimer.current);
@@ -1030,15 +1031,6 @@ export default function Vigil() {
     openHandledRef.current = true; /* rest in silence; Tex does not nag */
     ignition.dismiss();
   }, [ignition]);
-
-  /* The "Mapping" ellipsis. While the state runs, the dots grow 1→2→3→1 on a
-     steady tick to read as work in progress. Completion is driven by the real
-     ignite call in beginMapping, not a timer. */
-  useEffect(() => {
-    if (!mapping) return;
-    const tick = setInterval(() => setMapDots((d) => (d % 3) + 1), 450);
-    return () => clearInterval(tick);
-  }, [mapping]);
 
   /* ---------------- The ask gesture: press and hold anywhere ---------------- */
   /* The prior Q/A, sent with the next ask so a follow-up ("which one?", "and
@@ -2277,8 +2269,9 @@ export default function Vigil() {
       )}
 
       {/* The mapping working state. Tex is already awake, so "mapping" is it
-          showing its work: the field holds with a growing ellipsis while real
-          discovery runs, then settles into the count. */}
+          showing its work: the word holds in the statement register while the
+          nascent anchor — the seal a breath before it exists — sweeps beneath
+          it as real discovery runs, then settles into the count. */}
       {mapping && (
         <div
           className="tex-door"
@@ -2286,12 +2279,8 @@ export default function Vigil() {
           aria-live="polite"
           aria-label="Mapping the estate"
         >
-          <p className="tex-door-sentence tex-mapping">
-            Mapping
-            <span className="tex-mapping-dots" aria-hidden="true">
-              {".".repeat(mapDots)}
-            </span>
-          </p>
+          <p className="tex-door-sentence tex-mapping">Mapping</p>
+          <MappingMark />
         </div>
       )}
 

@@ -17,6 +17,7 @@ import "../components/Dashboard/Vigil.css";
 import "./gallery.css";
 import SpokenLine from "../components/Dashboard/SpokenLine";
 import SealAnchor from "../components/Dashboard/SealAnchor";
+import MappingMark from "../components/Dashboard/MappingMark";
 
 /* Mock anchor — a true 64-char sha256 shape, so the seal harness exercises
    the same lock the live card runs on a real anchor. */
@@ -73,12 +74,8 @@ const SURFACES = {
     label: "02 · mapping",
     node: (
       <div className="tex-door">
-        <p className="tex-door-sentence tex-mapping">
-          Mapping
-          <span className="tex-mapping-dots" aria-hidden="true">
-            ..
-          </span>
-        </p>
+        <p className="tex-door-sentence tex-mapping">Mapping</p>
+        <MappingMark />
       </div>
     ),
   },
