@@ -343,9 +343,10 @@ const MANIFESTO_LEAVE_MS = 560;
 const MANIFESTO_FINAL_HOLD_MS = 1_800;
 
 /* The shortest the "Mapping" state stays up, so a fast backend never makes it
-   flash. Real discovery usually takes longer; when it returns sooner than
-   this, we hold the field the rest of the beat, then speak the count. */
-const MAP_MIN_MS = 1_800;
+   flash. One beat in the threshold's own rhythm (MANIFESTO_BEATS[0]) — long
+   enough to read, never so long the timer is the thing the operator waits on:
+   the law's ceiling is the wire, not a stopwatch. */
+const MAP_MIN_MS = 1_200;
 
 /* The keyed-posture watch sentinel. In production the same-origin proxy
    injects TEX_API_KEY and the backend resolves the estate from the key, so
@@ -657,6 +658,15 @@ export default function Vigil() {
     setAnswerLeaving(false);
   }, []);
 
+  /* Generation token for the ASK round-trip — the request-level twin of
+     answerEpochRef (the same idiom texVoiceClient's speech engine uses).
+     Bumped whenever a new reach takes the surface (a press, a typed line, a
+     seal act, an Escape); every in-flight /v1/ask captures the value it was
+     born under and, on resolve, surfaces NOTHING if the epoch has moved. A
+     superseded answer must never take the glass out from under the turn that
+     replaced it. */
+  const askEpochRef = useRef(0);
+
   /* Day-one wake — the wake gesture exists ONLY to satisfy browser autoplay: the
      first reach unlocks audio so Tex can speak the manifesto. With the voice muted
      (VOICE_ENABLED false) there is nothing to unlock, so the opener begins on its
@@ -894,6 +904,13 @@ export default function Vigil() {
      standing up the gateway. */
   const seeListenerRef = useRef(null);
 
+  /* The live gesture's anchor: which pointer opened the hold (null for the
+     keyboard reach) and whether a hold is live RIGHT NOW — refs, not state,
+     so the pointer handlers never read a stale closure. Only the pointer
+     that opened the mic may close (or cancel) it. */
+  const holdPointerRef = useRef(null);
+  const holdActiveRef = useRef(false);
+
   /* Every live partial while the mic is held: feed the heard line (the words
      form on the glass AS they are spoken) and arm the SPECULATIVE ask — once a
      partial holds stable for SPECULATE_STABLE_MS, /v1/ask fires early so the
@@ -921,6 +938,15 @@ export default function Vigil() {
 
   const beginHold = useCallback(
     (e) => {
+      /* One gesture at a time, and only the PRIMARY pointer's main button may
+         open the mic: a right-click belongs to the browser, a second finger
+         belongs to the finger already holding. (No event = the keyboard
+         reach — always allowed.) */
+      if (holdActiveRef.current) return;
+      if (e && e.pointerType != null) {
+        if (e.isPrimary === false) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+      }
       /* Prime Tex's voice on the very first user gesture — browsers block audio
          until then. Safe to call on every press; it no-ops once unlocked, and
          covers the Begin press too (the section's pointerdown fires first). */
@@ -947,6 +973,11 @@ export default function Vigil() {
       if (!ignitionReady || ignitionDoorOpen || mapping) return;
 
       clearLineTimer();
+      /* A new reach takes the surface: a lingering seal yields NOW. Without
+         this, clearing lineTimer above orphans the seal's dissolve — the only
+         path that ever cleared `sealed` — and the card wedges on the glass,
+         blinding every later answer (they all render behind `!sealed`). */
+      setSealed(null);
       clearObjectTimer();
       setSurfaced(null);
       clearAnswer();
@@ -954,6 +985,8 @@ export default function Vigil() {
       setThinking(false);
       setVerifying(false);
       setHeard("");
+      /* Supersede any ask still in flight: this press owns the surface now. */
+      askEpochRef.current += 1;
       /* A fresh hold is a fresh turn: no bet from a previous gesture may leak
          into this one. */
       specRef.current = null;
@@ -975,6 +1008,10 @@ export default function Vigil() {
           /* ignore — capture is a robustness boost, not a requirement */
         }
       }
+      /* Anchor the gesture: only this pointer (or the keyboard, null) may
+         end or cancel it. */
+      holdPointerRef.current = e && e.pointerId != null ? e.pointerId : null;
+      holdActiveRef.current = true;
       setHolding(true);
 
       /* A press is the OPERATOR's turn: Tex yields the floor and listens, it does
@@ -1049,8 +1086,20 @@ export default function Vigil() {
     [surfaceObject, watchTenant]
   );
 
-  const endHold = useCallback(() => {
+  const endHold = useCallback((e) => {
     if (!holding) return;
+    /* Only the pointer that opened the mic may close it — a second finger's
+       lift must not end the first finger's turn. (No event = the keyboard.) */
+    if (
+      e &&
+      e.pointerId != null &&
+      holdPointerRef.current != null &&
+      e.pointerId !== holdPointerRef.current
+    ) {
+      return;
+    }
+    holdPointerRef.current = null;
+    holdActiveRef.current = false;
     setHolding(false);
 
     /* The spoken question comes from the browser's own recognizer (the voice
@@ -1071,6 +1120,11 @@ export default function Vigil() {
     /* A reach made while a decision is held is a request for the proof. */
     const reachInHeld = state === "held" && alive && Boolean(liveDecision);
 
+    /* The epoch this release was born under — if a newer reach takes the
+       surface while this one's wire is in flight, everything below goes
+       quiet instead of surfacing a superseded answer over the new turn. */
+    const myEpoch = askEpochRef.current;
+
     /* No recognizer opened (unsupported / denied). The gesture still happened,
        so a silent reach is answered and a held reach pulls the proof. */
     if (!capture) {
@@ -1083,6 +1137,9 @@ export default function Vigil() {
     capture
       .stop()
       .then((transcript) => {
+        /* Superseded while finalizing (a quick re-press during the grace
+           window): this turn is over; the new gesture owns every flag. */
+        if (myEpoch !== askEpochRef.current) return undefined;
         setThinking(false);
         if (!transcript) {
           setHeard("");
@@ -1118,6 +1175,7 @@ export default function Vigil() {
             ? spec.promise
             : askTex(transcript, watchTenant, lastExchangeRef.current);
         return askPromise.then((res) => {
+          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
           setVerifying(false);
           /* Backend decides, frontend renders: derivePresence only NORMALIZES the
              wire (the presence envelope when present, the AskResponse otherwise).
@@ -1145,6 +1203,7 @@ export default function Vigil() {
         });
       })
       .catch(() => {
+        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
         setThinking(false);
         setVerifying(false);
         /* Never-silent: a failed round-trip (backend down, cold start, 4xx/5xx)
@@ -1152,6 +1211,93 @@ export default function Vigil() {
         surfaceFailure("I can't reach the records right now.");
       });
   }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, watchTenant]);
+
+  /* A CANCELLED gesture is not a release. The OS stole the pointer (an
+     incoming call, an edge-swipe, palm rejection) or the hold lost its window
+     or tab mid-press — nothing was asked. Stop the recognizer, DISCARD what
+     it heard, return to silence. Release means intent; cancel means nothing
+     happened. */
+  const cancelHold = useCallback((e) => {
+    if (!holdActiveRef.current) return;
+    if (
+      e &&
+      e.pointerId != null &&
+      holdPointerRef.current != null &&
+      e.pointerId !== holdPointerRef.current
+    ) {
+      return;
+    }
+    holdPointerRef.current = null;
+    holdActiveRef.current = false;
+    /* No bet survives a cancelled turn. */
+    askEpochRef.current += 1;
+    specRef.current = null;
+    if (specTimerRef.current) {
+      clearTimeout(specTimerRef.current);
+      specTimerRef.current = null;
+    }
+    const see = seeListenerRef.current;
+    seeListenerRef.current = null;
+    const listener = listenerRef.current;
+    listenerRef.current = null;
+    if (see) see.stop().catch(() => {}); /* transcript deliberately dropped */
+    if (listener) {
+      try { listener.stop(); } catch { /* ignore */ }
+    }
+    setHolding(false);
+    setHeard("");
+    setThinking(false);
+  }, []);
+
+  /* A hold that loses its window or its tab cancels to silence — Cmd-Tab, an
+     OS dialog, a focus steal mid-press must never leave a hot mic pulsing in
+     the background. The pointer path is anchored by capture; this is the same
+     guarantee for the keyboard hold and for true app-level loss. */
+  useEffect(() => {
+    if (!holding) return undefined;
+    const lost = () => cancelHold();
+    const onVis = () => {
+      if (document.hidden) lost();
+    };
+    window.addEventListener("blur", lost);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("blur", lost);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [holding, cancelHold]);
+
+  /* Escape — the one key that means only "stop": silence the voice, clear the
+     glass (answer, object, a lingering seal), discard a live hold, and let
+     any in-flight ask die stale. It touches NOTHING that waits for a human
+     seal — a held decision stays exactly where it is. */
+  const quiet = useCallback(() => {
+    askEpochRef.current += 1;
+    if (holdActiveRef.current) cancelHold();
+    clearLineTimer();
+    clearObjectTimer();
+    setSurfaced(null);
+    setSealed(null);
+    clearAnswer();
+    stopSpeaking();
+    setThinking(false);
+    setVerifying(false);
+    setHeard("");
+  }, [clearAnswer, cancelHold]);
+
+  /* Registered at the document so Escape works whether focus sits on the
+     field, the body, or nowhere at all. The typed line's own Escape handler
+     stops propagation before this ever hears it; the day-one arc keeps its
+     own rhythm (no skipping the door). */
+  useEffect(() => {
+    const onEsc = (e) => {
+      if (e.key !== "Escape") return;
+      if (!ignitionReady || ignitionDoorOpen || mapping) return;
+      quiet();
+    };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [ignitionReady, ignitionDoorOpen, mapping, quiet]);
 
   const onKeyDown = (e) => {
     if (e.repeat) return;
@@ -1193,6 +1339,14 @@ export default function Vigil() {
     (firstChar) => {
       loadRoster();
       loadAssist();
+      /* A typed reach takes the surface exactly like a press: the object, a
+         lingering seal, and any ask still in flight all yield to the new
+         question (the same wedge-guard beginHold carries). */
+      askEpochRef.current += 1;
+      clearLineTimer();
+      setSealed(null);
+      clearObjectTimer();
+      setSurfaced(null);
       clearAnswer();
       stopSpeaking();
       setHeard("");
@@ -1228,8 +1382,12 @@ export default function Vigil() {
     if (!q) return;
     playPresenceAck();
     setVerifying(true);
+    /* Latest-wins: if another reach takes the surface while this question is
+       on the wire, its answer dies stale instead of surfacing (see endHold). */
+    const myEpoch = askEpochRef.current;
     askTex(q, watchTenant, lastExchangeRef.current)
       .then((res) => {
+        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
         setVerifying(false);
         const presence = derivePresence(res);
         if (presence?.spokenText) {
@@ -1246,6 +1404,7 @@ export default function Vigil() {
         }
       })
       .catch(() => {
+        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
         setVerifying(false);
         surfaceFailure("I can't reach the records right now.");
       });
@@ -1332,6 +1491,22 @@ export default function Vigil() {
   const onTypedBlur = useCallback(() => {
     if (!typed || !typed.trim()) cancelTyping();
   }, [typed, cancelTyping]);
+
+  /* A caret that leaves the ghost DISSOLVES it. The suggested suffix lives in
+     the input's real value (differentiated only by the faint selection), so a
+     click or an arrow into the middle of the line would otherwise silently
+     COMMIT unaccepted text into the question sent to Tex. The restore effect
+     re-selects the exact ghost range before paint, so type-through never
+     trips this; only a real caret move does. */
+  const onTypedSelect = useCallback(() => {
+    if (!ghost || typed === null || composingRef.current) return;
+    const el = inputRef.current;
+    if (!el) return;
+    const start = (typed ?? "").length;
+    if (el.selectionStart !== start || el.selectionEnd !== start + ghost.length) {
+      setGhost("");
+    }
+  }, [ghost, typed]);
 
   /* Every keystroke into the line. Stores the user's text, recomputes the ghost
      (grounded → general), and — when a word boundary was just typed — gently
@@ -1470,6 +1645,9 @@ export default function Vigil() {
       const decision = liveDecision;
       stopSpeaking();
       setSpoken(null);
+      /* The seal owns the glass now — an ask still in flight from before the
+         act must not surface over it. */
+      askEpochRef.current += 1;
 
       /* The calibration hold resolves through the learning layer, not /seal:
          approving/rejecting a proposal IS its sealed act. */
@@ -1567,6 +1745,10 @@ export default function Vigil() {
       if (seeListenerRef.current) {
         try { seeListenerRef.current.stop(); } catch { /* ignore */ }
         seeListenerRef.current = null;
+      }
+      if (listenerRef.current) {
+        try { listenerRef.current.stop(); } catch { /* ignore */ }
+        listenerRef.current = null;
       }
     };
   }, []);
@@ -1758,7 +1940,22 @@ export default function Vigil() {
       tabIndex={0}
       onPointerDown={beginHold}
       onPointerUp={endHold}
-      onPointerCancel={endHold}
+      onPointerCancel={cancelHold}
+      onContextMenu={(e) => {
+        /* No browser menu may open over a live mic; idle right-click (copy a
+           hash) stays native. */
+        if (holdActiveRef.current) e.preventDefault();
+      }}
+      onBlur={(e) => {
+        /* Focus escaping the field mid-hold cancels to silence — unless it
+           merely moved into a child (the held card's own acts). */
+        if (
+          holdActiveRef.current &&
+          !(e.relatedTarget && e.currentTarget.contains(e.relatedTarget))
+        ) {
+          cancelHold();
+        }
+      }}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >
@@ -2137,6 +2334,7 @@ export default function Vigil() {
             onKeyDown={onTypedKeyDown}
             onKeyUp={(e) => e.stopPropagation()}
             onBlur={onTypedBlur}
+            onSelect={onTypedSelect}
             onCompositionStart={() => {
               composingRef.current = true;
             }}
@@ -2148,7 +2346,7 @@ export default function Vigil() {
             autoCapitalize="sentences"
             autoCorrect="on"
             autoComplete="off"
-            spellCheck
+            spellCheck={false}
             aria-label="Type your question to Tex"
             aria-hidden={typed === null ? true : undefined}
             tabIndex={typed === null ? -1 : 0}
