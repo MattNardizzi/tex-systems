@@ -1320,10 +1320,11 @@
   touch-action: auto;
   pointer-events: auto;
 }
-/* The quiet keyboard mark — a hairline, never a glow. */
+/* No box, no glow — the caret and the operator's own words are the only
+   focus signal. The line stays bare, as the surface intends. */
+.tex-line:focus,
 .tex-line:focus-visible {
-  outline: 1px solid var(--tex-ink-hair-2);
-  outline-offset: 3px;
+  outline: none;
 }
 /* The measuring twin: out of flow, invisible, whitespace preserved exactly
    (a trailing space must measure, or the caret would sit on top of it). */
