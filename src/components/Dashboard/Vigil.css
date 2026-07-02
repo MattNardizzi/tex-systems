@@ -567,27 +567,6 @@
   padding: 1em 2.6em;
   min-height: 47px;
 }
-/* The key breathes IN LOCK with the deciding field. The ground and the door
-   reveal on the same frame (both gated by manifestoDone), so sharing the
-   field-pallor period (3100ms, same ease) phase-locks them with no JS: as the
-   field dims white→grey, the key fills white→black; text inverts in the same
-   keyframe so the label stays legible at both ends of the breath. */
-.tex-field.is-deciding .tex-door-acts.is-revealed .tex-act--approve {
-  animation: tex-door-key-breathe 3100ms var(--tex-ease-inout) infinite;
-}
-@keyframes tex-door-key-breathe {
-  0%,
-  100% {
-    background-color: var(--tex-paper);
-    color: var(--tex-ink);
-    border-color: var(--tex-ink-hair-2);
-  }
-  50% {
-    background-color: #000000;
-    color: var(--tex-paper);
-    border-color: #000000;
-  }
-}
 .tex-door-acts .tex-act--approve:hover {
   color: var(--tex-ink);
   background: var(--tex-paper);
@@ -884,9 +863,6 @@
   .tex-field.is-deciding {
     animation: none;
     background-color: #f1f1f2;
-  }
-  .tex-field.is-deciding .tex-door-acts.is-revealed .tex-act--approve {
-    animation: none;
   }
   .tex-door-line,
   .tex-door-line--hold {
