@@ -2,10 +2,10 @@
    Tex — global tokens.  "Etched Light."
    ────────────────────────────────────────────────────────────
    The surface is a sheet of backlit white glass. There is one voice:
-   Michroma — wide, geometric, architectural, a single weight. Because
-   there is no bold/light axis, hierarchy is built from SIZE × TRACKING
-   × INK-VALUE × CASE, never from weight. Every glyph carries the same
-   hairline stroke, as if the whole interface were laser-etched.
+   Inter — clean, humanist, screen-native — worn in a narrow 300–500
+   band. Hierarchy is built from SIZE × TRACKING × INK-VALUE × CASE
+   first, weight last. Every glyph carries the same hairline stroke,
+   as if the whole interface were laser-etched. (Michroma is retired.)
 
    The palette is strictly achromatic: pure white paper, a neutral ink
    ladder, nothing tinted — no blue cast, no warm cast, ever. Depth comes
@@ -22,9 +22,9 @@
      rule that still names them inherits the one voice. Geist Mono is kept
      for ONE thing only — raw machine identifiers (a sha256 handle), which
      stay monospaced so they read and copy cleanly. */
-  --tex-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --tex-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --tex-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tex-display: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tex-sans: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tex-serif: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --tex-mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Menlo", monospace;
 
   /* ── Ink — a neutral VALUE ladder (the substitute for a weight axis) ──
@@ -175,11 +175,11 @@ body .tex-field:not(.tex-field--faltering) {
   background-attachment: fixed;
 }
 
-/* ── First sequence — the day-one opening, set in Michroma ───────────
+/* ── First sequence — the day-one opening, in the one voice ──────────
    The opening door speaks the wake prompt, the manifesto beats, the
-   "Mapping…" state and Begin. All Michroma — and now, so is the rest of
-   the system, so the door is no longer a special font island; it is the
-   first thing the one voice says. */
+   "Mapping…" state and Begin. All Inter, like the rest of the system,
+   so the door is no longer a special font island; it is the first
+   thing the one voice says. */
 .tex-door .tex-door-sentence {
   font-family: var(--tex-display);
   font-weight: 300;
