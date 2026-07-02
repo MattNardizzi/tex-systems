@@ -973,7 +973,6 @@ export default function Vigil() {
     /* The door yields to Mapping as ONE substance — never a swap. */
     morphSurface(() => {
       setSpoken(null);
-      setMapDots(1);
       setMapping(true);
     });
 
