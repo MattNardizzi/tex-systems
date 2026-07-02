@@ -73,6 +73,21 @@ const WORKLET_URL = "/tex-mic-worklet.js";
    of committing a flipped const. */
 export const VOICE_ENABLED = import.meta.env.VITE_VOICE_ENABLED === "true";
 
+/* Prime the worklet module's HTTP cache once, off the gesture path, so the
+   press never pays its fetch. (audioWorklet.addModule is per-AudioContext, so
+   this warms the CACHE, not a context — the cheap, safe half of the warm-up.)
+   Gated on VOICE_ENABLED: an unprovisioned deploy must stay perfectly inert. */
+let _workletPrimed = false;
+function primeWorklet() {
+  if (_workletPrimed || !VOICE_ENABLED) return;
+  _workletPrimed = true;
+  try {
+    fetch(WORKLET_URL, { cache: "force-cache" }).catch(() => {});
+  } catch {
+    /* ignore — a cold cache just means the press pays the fetch, as before */
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Listening — open on press, finalize on release.                     */
 /* ------------------------------------------------------------------ */
@@ -88,6 +103,7 @@ export class TexListener {
     this._partialCb = null;
     this._ready = false;
     this._closed = false;
+    this._finalResolve = null; /* stop() waiting on the gateway's final frame */
   }
 
   /* Begin capturing and streaming. Resolves once the mic and socket are
@@ -112,18 +128,27 @@ export class TexListener {
       throw new Error("voice-unsupported");
     }
 
-    /* Mint a short-lived token + the gateway URL, server-side. */
-    const grant = await mintVoiceToken(); // { ws_url, token }
-    if (!grant || !grant.ws_url) throw new Error("voice-no-grant");
-
-    this._stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    /* Mint the short-lived token and open the mic TOGETHER — neither depends
+       on the other, and the press is waiting on both. A half-failed start
+       must release whatever the other half opened: a live mic with no
+       gateway is exactly the hot-mic contradiction _teardown exists to kill. */
+    const [grantRes, streamRes] = await Promise.allSettled([
+      mintVoiceToken(), // { ws_url, token }
+      navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      }),
+    ]);
+    if (streamRes.status === "fulfilled") this._stream = streamRes.value;
+    const grant = grantRes.status === "fulfilled" ? grantRes.value : null;
+    if (!grant || !grant.ws_url || !this._stream) {
+      this._teardown();
+      throw new Error(!grant || !grant.ws_url ? "voice-no-grant" : "voice-no-mic");
+    }
 
     this._ctx = new AudioContext();
     await this._ctx.audioWorklet.addModule(WORKLET_URL);
@@ -142,6 +167,9 @@ export class TexListener {
           this._partialCb(msg.text || "");
         } else if (msg.type === "final") {
           this._finalText = msg.text || this._finalText;
+          /* stop() may be waiting on exactly this frame — release it now
+             rather than making every release ride out the full watchdog. */
+          if (this._finalResolve) this._finalResolve();
         }
       } catch {
         /* Non-JSON frame — ignore. */
@@ -176,8 +204,15 @@ export class TexListener {
     try {
       if (this._ws && this._ws.readyState === WebSocket.OPEN) {
         this._ws.send(JSON.stringify({ type: "end" }));
-        /* Give the recognizer a beat to emit the final, then close. */
-        await new Promise((r) => setTimeout(r, 350));
+        /* Resolve the moment the gateway's "final" frame lands (onmessage) —
+           the 350ms is only the WATCHDOG for a gateway that never answers,
+           not a toll every release pays. Event-driven, like SeeListener;
+           never a fixed sleep. */
+        await new Promise((resolve) => {
+          this._finalResolve = resolve;
+          setTimeout(resolve, 350);
+        });
+        this._finalResolve = null;
       }
     } catch {
       /* ignore */
@@ -317,6 +352,7 @@ function _ctx() {
    later answer/decline/line plays programmatically with no further gesture.
    Returns whether the context is running (honest: read state, don't assume). */
 export async function unlockVoice() {
+  primeWorklet(); /* off the gesture path: warm the mic worklet's HTTP cache */
   const ctx = _ctx();
   if (!ctx) return false;
   try {
