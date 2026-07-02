@@ -2068,14 +2068,35 @@ export default function Vigil() {
 
   /* ---------------- Render ---------------- */
 
+  const decision = liveDecision;
+
+  /* The day-one door owns the surface until it is crossed — the session-scoped
+     threshold, deferring to a faltering chain (you don't greet over a broken
+     witness) and yielding to the mapping state the instant Begin is pressed. */
+  const doorOpen =
+    ignition.ready &&
+    ignition.doorOpen &&
+    state !== "faltering" &&
+    !mapping;
+
+  /* A choice rests with the human. Whenever a pressable decision is on the
+     glass — Begin at the door, the held card's acts, an unresolved held row —
+     the field breathes the same cold pallor as faltering until the choice is
+     taken: the weight sits in the surface itself, never a badge or a spinner. */
+  const deciding =
+    (doorOpen && awake && manifestoDone) ||
+    (!doorOpen && !mapping && state === "held" && Boolean(decision) && !sealed) ||
+    Boolean(heldRows?.some((row) => row.decision_id && !row.sealedVerdict));
+
   const fieldClass = useMemo(() => {
     const base = "tex-field";
     const s = `tex-field--${state}`;
     const listening = holding ? " is-listening" : "";
     const think = thinking ? " is-thinking" : "";
     const lost = !alive ? " is-lost" : "";
-    return `${base} ${s}${listening}${think}${lost}`;
-  }, [state, holding, thinking, alive]);
+    const decide = deciding ? " is-deciding" : "";
+    return `${base} ${s}${listening}${think}${lost}${decide}`;
+  }, [state, holding, thinking, alive, deciding]);
 
   const ariaState = !alive
     ? "Tex is no longer responding. The connection to the witness was lost."
@@ -2092,17 +2113,6 @@ export default function Vigil() {
          dead-mic / can't-speak lifeline, so a screen-reader user must learn it. */
       "Tex, watching. Hold to speak. Type to write."
     : "Tex, watching. Press and hold anywhere to speak.";
-
-  const decision = liveDecision;
-
-  /* The day-one door owns the surface until it is crossed — the session-scoped
-     threshold, deferring to a faltering chain (you don't greet over a broken
-     witness) and yielding to the mapping state the instant Begin is pressed. */
-  const doorOpen =
-    ignition.ready &&
-    ignition.doorOpen &&
-    state !== "faltering" &&
-    !mapping;
 
   /* The open, in Tex's voice — VOICE-DRIVEN, played strictly one line at a time.
      Once awake, the whole arc runs through a single speech sequence: each line

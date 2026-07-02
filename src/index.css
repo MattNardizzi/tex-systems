@@ -161,8 +161,9 @@ a {
         falling off to the faintest neutral grey at the lower corners, so
         the surface reads as lit from above rather than flat-filled.
 
-   Faltering keeps its own cold pallor (below) and so is excluded. */
-body .tex-field:not(.tex-field--faltering) {
+   Faltering and a pending decision (is-deciding) keep their own cold
+   pallor and so are excluded. */
+body .tex-field:not(.tex-field--faltering):not(.is-deciding) {
   min-height: 100vh;
   background-color: var(--tex-paper);
   /* One overhead light, biased slightly above-left (2:1 vertical:horizontal),

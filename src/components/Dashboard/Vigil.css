@@ -401,16 +401,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* A real touch target, floored above the 44px (HIG) minimum — this is a
-     decision button on a high-stakes screen, never a hairline to miss. */
-  min-height: 46px;
+  /* ONE act size everywhere — door Begin, held card, held rows — so every
+     decision reads as the same key. Compact under a mouse; the 44px+ (HIG)
+     touch floor is restored on coarse pointers below. */
+  min-height: 40px;
   font-family: var(--tex-display);
-  font-size: clamp(10.5px, 1.05vw, 12px);
+  font-size: clamp(9.5px, 0.95vw, 11px);
   font-weight: 400;
   letter-spacing: 0.2em;
   text-indent: 0.2em;
   text-transform: uppercase;
-  padding: 1.05em 2.4em;
+  padding: 0.8em 1.7em;
   border-radius: 999px;
   border: 1px solid var(--tex-ink-hair-2);
   color: var(--tex-ink-2);
@@ -423,7 +424,7 @@
 }
 @media (pointer: coarse) {
   .tex-act {
-    min-height: 50px;
+    min-height: 46px;
   }
 }
 .tex-act:hover {
@@ -770,10 +771,14 @@
   }
 }
 
-/* Faltering — a COLD neutral pallor, never a warm tint. The surface dims a
-   hair and back on an uneven period so it never resolves into a calm loop;
-   the sickness is in the dimming, not in any colour. */
-.tex-field--faltering {
+/* The pallor — a COLD neutral dimming, never a warm tint. Two states earn
+   it: FALTERING (Tex's own integrity failed) and DECIDING (a choice rests
+   with the human — Begin at the door, Approve on the held card, an
+   unresolved held row). The surface dims a hair and back on an uneven
+   period so it never resolves into a calm loop; the weight is in the
+   dimming, not in any colour. */
+.tex-field--faltering,
+.tex-field.is-deciding {
   background-color: var(--tex-paper);
   animation: tex-field-pallor 3100ms var(--tex-ease-inout) infinite;
 }
@@ -825,7 +830,8 @@
   .tex-field.is-listening .tex-listen::before {
     opacity: 0.28;
   }
-  .tex-field--faltering {
+  .tex-field--faltering,
+  .tex-field.is-deciding {
     animation: none;
     background-color: #f1f1f2;
   }
@@ -1546,20 +1552,10 @@
   font-size: 13px;
   color: var(--tex-ink-soft);
 }
-/* The acts, a size down from the held card's — these are rows, not the
-   hero card; the list already rose, so the acts don't re-animate. */
+/* The acts in a row carry the one act size; only the rhythm tightens — the
+   list already rose, so the acts don't re-animate. */
 .tex-held-row-acts {
   margin-top: 0.9em;
   gap: 10px;
   animation: none;
-}
-.tex-held-row-acts .tex-act {
-  min-height: 40px;
-  padding: 0.8em 1.7em;
-  font-size: clamp(9.5px, 0.95vw, 11px);
-}
-@media (pointer: coarse) {
-  .tex-held-row-acts .tex-act {
-    min-height: 46px;
-  }
 }
