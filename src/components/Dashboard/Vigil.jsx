@@ -136,6 +136,75 @@ const heldRowMeta = (row) => {
   return parts.join("  ·  ") || null;
 };
 
+/* The held queue, each row resolvable in place. A row with a stored decision
+   carries the SAME three acts as the held card (Approve / Keep holding /
+   Refuse → POST /seal); a presence-origin row (no decision_id) is fact
+   without acts. The seal shows optimistically; the backend's real anchor
+   replaces it the moment /seal returns. One list, one truth — it rises under
+   a held-ask answer and under the aggregate held card alike. */
+function HeldRowsList({ rows, onResolve }) {
+  if (!rows?.length) return null;
+  return (
+    <div className="tex-held-list" role="group" aria-label="Held decisions">
+      {rows.slice(0, 6).map((row, i) => (
+        <div
+          className="tex-held-row"
+          key={row.decision_id || `${row.agent_id || "hold"}-${i}`}
+        >
+          <p className="tex-held-row-line">{heldRowLine(row)}</p>
+          {heldRowMeta(row) && (
+            <p className="tex-held-row-meta">{heldRowMeta(row)}</p>
+          )}
+          {row.sealedVerdict ? (
+            <p className="tex-held-row-sealed" role="status">
+              {row.sealedVerdict === "approved"
+                ? "Sealed. You approved it."
+                : row.sealedVerdict === "refused"
+                ? "Sealed. You refused it."
+                : "Held. It waits for you."}
+              {row.sealedAnchor
+                ? ` · ${String(row.sealedAnchor).slice(0, 12)}…`
+                : ""}
+            </p>
+          ) : row.decision_id ? (
+            <div className="tex-acts tex-held-row-acts">
+              <button
+                type="button"
+                data-act="approve"
+                className="tex-act tex-act--approve"
+                onClick={() => onResolve(row, "approved")}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                data-act="hold"
+                className="tex-act tex-act--hold"
+                onClick={() => onResolve(row, "held")}
+              >
+                Keep holding
+              </button>
+              <button
+                type="button"
+                data-act="refuse"
+                className="tex-act tex-act--refuse"
+                onClick={() => onResolve(row, "refused")}
+              >
+                Refuse
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ))}
+      {rows.length > 6 && (
+        <p className="tex-held-more" aria-hidden="true">
+          and {rows.length - 6} more, still held.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ==================================================================
    Vigil — the entire product surface. Live.
 
@@ -1109,6 +1178,35 @@ export default function Vigil() {
       });
   }, []);
 
+  /* The aggregate hold — the wire's fallback card when the vigil counts holds
+     but carries no single resolvable decision ("N actions are waiting on your
+     decision.", id: null). A sentence you cannot act on is not a card, so the
+     moment it lands the REAL rows are fetched and rise beneath it, each
+     sealing its own decision — never one blind act over the whole queue.
+     Epoch-guarded like the ask path: a turn taken while the fetch is in
+     flight discards it. */
+  const aggregateHold = Boolean(
+    state === "held" &&
+      liveDecision &&
+      !liveDecision.id &&
+      !isCalibration(liveDecision)
+  );
+  useEffect(() => {
+    if (!aggregateHold) return;
+    const myEpoch = askEpochRef.current;
+    listHeldDecisions(watchTenant)
+      .then((res) => {
+        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+        const rows = (res?.held || []).filter(
+          (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
+        );
+        if (rows.length) morphSurface(() => setHeldRows(rows));
+      })
+      .catch(() => {
+        /* Silent. The sentence still tells the truth; the rows are depth. */
+      });
+  }, [aggregateHold, watchTenant]);
+
   /* The clean slate — the ONE ask the surface answers itself, never the
      backend: "refresh" (or "clear", "new topic", …) wipes the trail, the
      standing answer, and the follow-up context, and lets any ask still in
@@ -2080,7 +2178,13 @@ export default function Vigil() {
      taken: the weight sits in the surface itself, never a badge or a spinner. */
   const deciding =
     (doorOpen && awake && manifestoDone) ||
-    (!doorOpen && !mapping && state === "held" && Boolean(decision) && !sealed) ||
+    /* The held card breathes only when it carries a pressable act — the
+       aggregate fallback (no id, no proposal) defers to its rows below. */
+    (!doorOpen &&
+      !mapping &&
+      state === "held" &&
+      Boolean(decision?.id || isCalibration(decision)) &&
+      !sealed) ||
     Boolean(heldRows?.some((row) => row.decision_id && !row.sealedVerdict));
 
   const fieldClass = useMemo(() => {
@@ -2346,32 +2450,45 @@ export default function Vigil() {
               )}
             </div>
           )}
-          <div className="tex-acts">
-            <button
-              type="button"
-              data-act="approve"
-              className="tex-act tex-act--approve"
-              onClick={() => resolve("approved")}
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              data-act="hold"
-              className="tex-act tex-act--hold"
-              onClick={() => resolve("held")}
-            >
-              Keep holding
-            </button>
-            <button
-              type="button"
-              data-act="refuse"
-              className="tex-act tex-act--refuse"
-              onClick={() => resolve("refused")}
-            >
-              Refuse
-            </button>
-          </div>
+          {/* The acts belong to a decision the seal can actually resolve — a
+              stored decision id or a calibration proposal. The aggregate
+              fallback ("N actions are waiting…", id: null) gets NO acts: one
+              blind act over a whole queue would seal nothing and lie about
+              it. Its real rows rise below instead, each with its own seal. */}
+          {(decision?.id || isCalibration(decision)) && (
+            <div className="tex-acts">
+              <button
+                type="button"
+                data-act="approve"
+                className="tex-act tex-act--approve"
+                onClick={() => resolve("approved")}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                data-act="hold"
+                className="tex-act tex-act--hold"
+                onClick={() => resolve("held")}
+              >
+                Keep holding
+              </button>
+              <button
+                type="button"
+                data-act="refuse"
+                className="tex-act tex-act--refuse"
+                onClick={() => resolve("refused")}
+              >
+                Refuse
+              </button>
+            </div>
+          )}
+          {/* The aggregate hold's queue — the rows the sentence counted. Hidden
+              while an answer overlays the glass: the answer block renders the
+              same list, never both at once. */}
+          {!decision?.id && !isCalibration(decision) && !answer && (
+            <HeldRowsList rows={heldRows} onResolve={resolveHeldRow} />
+          )}
           {/* The reached handle — the one thing the card may hold. On a
               calibration hold it's the proposed change; on a decision it's the
               sealed anchor. It rises only because you reached (press and hold)
@@ -2576,70 +2693,9 @@ export default function Vigil() {
           )}
 
           {/* The held rows — the queue the sentence counted, each resolvable in
-              place. A row with a stored decision carries the SAME three acts as
-              the held card (Approve / Keep holding / Refuse → POST /seal); a
-              presence-origin row (no decision_id) is fact without acts. The
-              seal shows optimistically; the backend's real anchor replaces it
-              the moment /seal returns. */}
-          {heldRows?.length > 0 && (
-            <div className="tex-held-list" role="group" aria-label="Held decisions">
-              {heldRows.slice(0, 6).map((row, i) => (
-                <div
-                  className="tex-held-row"
-                  key={row.decision_id || `${row.agent_id || "hold"}-${i}`}
-                >
-                  <p className="tex-held-row-line">{heldRowLine(row)}</p>
-                  {heldRowMeta(row) && (
-                    <p className="tex-held-row-meta">{heldRowMeta(row)}</p>
-                  )}
-                  {row.sealedVerdict ? (
-                    <p className="tex-held-row-sealed" role="status">
-                      {row.sealedVerdict === "approved"
-                        ? "Sealed. You approved it."
-                        : row.sealedVerdict === "refused"
-                        ? "Sealed. You refused it."
-                        : "Held. It waits for you."}
-                      {row.sealedAnchor
-                        ? ` · ${String(row.sealedAnchor).slice(0, 12)}…`
-                        : ""}
-                    </p>
-                  ) : row.decision_id ? (
-                    <div className="tex-acts tex-held-row-acts">
-                      <button
-                        type="button"
-                        data-act="approve"
-                        className="tex-act tex-act--approve"
-                        onClick={() => resolveHeldRow(row, "approved")}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        data-act="hold"
-                        className="tex-act tex-act--hold"
-                        onClick={() => resolveHeldRow(row, "held")}
-                      >
-                        Keep holding
-                      </button>
-                      <button
-                        type="button"
-                        data-act="refuse"
-                        className="tex-act tex-act--refuse"
-                        onClick={() => resolveHeldRow(row, "refused")}
-                      >
-                        Refuse
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-              {heldRows.length > 6 && (
-                <p className="tex-held-more" aria-hidden="true">
-                  and {heldRows.length - 6} more, still held.
-                </p>
-              )}
-            </div>
-          )}
+              place (see HeldRowsList; the aggregate held card renders the same
+              list, so the two surfaces can never drift apart). */}
+          <HeldRowsList rows={heldRows} onResolve={resolveHeldRow} />
 
           {/* The reached handle — the anchor a claim links to, risen as the one
               object the glass may hold, here flowing under the answer rather than
