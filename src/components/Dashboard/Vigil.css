@@ -551,13 +551,21 @@
   }
 }
 /* The Begin slot is RESERVED for the whole opener so revealing it never
-   reflows the line above. */
+   reflows the line above.
+   The key sits on a paper plinth — the one white figure on the door. Pinned
+   to paper in the proof pill's register (hairline, capsule, white), it
+   refuses the deciding pallor: the field breathes down around it and the
+   key reads lit, never a screen gone dull. */
 .tex-door-acts {
   margin-top: 2.2em;
   animation: none;
   opacity: 0;
   pointer-events: none;
   transition: opacity 760ms var(--tex-ease);
+  padding: 9px;
+  border-radius: 999px;
+  border: 1px solid var(--tex-ink-hair-2);
+  background: var(--tex-paper);
 }
 .tex-door-acts.is-revealed {
   opacity: 1;
