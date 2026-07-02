@@ -2385,7 +2385,10 @@ export default function Vigil() {
         !sealed &&
         trail.length > 0 &&
         !(state === "held" && decision && !answer && !verifying && typed === null) && (
-          <div className="tex-trail" aria-hidden="true">
+          <div
+            className={"tex-trail" + (answer ? "" : " tex-trail--tight")}
+            aria-hidden="true"
+          >
             {trail.map((t) => (
               <div className="tex-trail-item" key={t.id}>
                 {t.q && <p className="tex-trail-q">{t.q}</p>}

@@ -1460,6 +1460,14 @@
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
 }
+/* When no live answer holds the glass, the trail is no longer coupled to the
+   answer anchor (34vh). Left at its high default it strands the receded turn
+   far above the steady typing line, opening an empty band. Drop it down to sit
+   just above the composing line — history close under the active line — while
+   the live-answer layout above stays exactly as it was. */
+.tex-trail--tight {
+  bottom: calc(56vh + 1.6em);
+}
 .tex-trail-item {
   display: flex;
   flex-direction: column;
