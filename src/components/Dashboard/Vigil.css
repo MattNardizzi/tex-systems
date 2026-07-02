@@ -261,28 +261,15 @@
   font-family: var(--tex-display);
   font-weight: 300;
   font-variation-settings: normal;
-  /* Michroma in a vast field of white — now sized up 50% so the voice reads
-     with presence, not restraint. The frame + negative space still carry the
-     weight; the line is simply more present than the original modest register. */
-  font-size: clamp(33.75px, 3.15vw, 45px);
-  line-height: 1.55;
+  /* ONE voice register. Everything Tex says — held sentence, manifesto/door,
+     ignition, "Here.", faltering, and spoken answers — sits at the same size and
+     the same leading, so a response never shouts louder than a declaration. The
+     frame + negative space carry the weight; the words stay calm and even. */
+  font-size: clamp(24px, 3.2vw, 32px);
+  line-height: 1.4;
   letter-spacing: -0.005em;
   color: var(--tex-ink);
   text-wrap: balance;
-}
-
-/* TWO REGISTERS. The rule above is the DECLARATION size — the threshold
-   manifesto ("I am Tex." / "Nothing happens without me." / "The weight is mine
-   now."), the "Mapping" working state, and a held decision each keep hero
-   weight. Tex's conversational VOICE steps DOWN to a calmer, smaller register
-   so a response never shouts at the declaration size: his spoken answer to a
-   question (.tex-presence-line), "Here.", and the faltering confession
-   (.tex-voice-line). This is the same scale the ignition count already uses
-   (.tex-voice-line--ignite, below) — now the whole voice sits in one register.
-   Same face, same ink; just quieter. Tune here to nudge every response. */
-.tex-voice-line,
-.tex-presence-line {
-  font-size: clamp(26px, 3.4vw, 36px);
 }
 
 /* ------------------------------------------------------------------ */
@@ -681,7 +668,6 @@
 }
 .tex-voice-line {
   text-align: center;
-  line-height: 1.08;
   max-width: 16em;
   animation: tex-rise 760ms var(--tex-ease) both;
 }
@@ -692,12 +678,9 @@
 }
 .tex-voice-line--ignite {
   color: var(--tex-ink);
-  /* A status narrative, not a hero declaration — so it steps down from the
-     54px statement size to a calm, readable scale with generous leading and a
-     wide measure. The long sentence then settles into a smooth ~3-line block
-     instead of the cramped, ragged 5-line stack the hero treatment produced. */
-  font-size: clamp(26px, 3.4vw, 36px);
-  line-height: 1.4;
+  /* Inherits the one voice register (size + leading). It only widens the
+     measure so the long status sentence settles into a smooth ~3-line block
+     instead of the cramped, ragged stack a narrow measure produced. */
   letter-spacing: 0;
   max-width: 21em;
 }
