@@ -551,21 +551,28 @@
   }
 }
 /* The Begin slot is RESERVED for the whole opener so revealing it never
-   reflows the line above.
-   The key sits on a paper plinth — the one white figure on the door. Pinned
-   to paper in the proof pill's register (hairline, capsule, white), it
-   refuses the deciding pallor: the field breathes down around it and the
-   key reads lit, never a screen gone dull. */
+   reflows the line above. */
 .tex-door-acts {
   margin-top: 2.2em;
   animation: none;
   opacity: 0;
   pointer-events: none;
   transition: opacity 760ms var(--tex-ease);
-  padding: 9px;
-  border-radius: 999px;
-  border: 1px solid var(--tex-ink-hair-2);
+}
+/* The door's one act inverts — a WHITE key with black text, not the black
+   fill the held card uses. The white key is itself the paper-pinned figure:
+   as the deciding pallor breathes the field down to grey, the key refuses
+   to dim and reads lit — no plinth, no double ring, just the one bright
+   key against the breathing ground. */
+.tex-door-acts .tex-act--approve {
+  color: var(--tex-ink);
   background: var(--tex-paper);
+  border-color: var(--tex-ink-hair-2);
+}
+.tex-door-acts .tex-act--approve:hover {
+  color: var(--tex-ink);
+  background: var(--tex-paper);
+  border-color: var(--tex-ink);
 }
 .tex-door-acts.is-revealed {
   opacity: 1;
