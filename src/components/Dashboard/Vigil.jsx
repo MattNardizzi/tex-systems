@@ -964,17 +964,26 @@ export default function Vigil() {
      (alive). A dismissed hold is already filtered out of liveDecision, so it
      cannot be re-announced. The card itself carries the same sentence, and the
      reach-for-proof path (pullEvidence) is unchanged; voice may be MUTED, in
-     which case texSpeak is a no-op and the card alone carries the hold. */
+     which case texSpeak is a no-op and the card alone carries the hold.
+
+     The day-one door owns the surface END-TO-END — the threshold, mapping,
+     and the spoken count — so a hold arriving behind it stays quiet and
+     PENDING: it neither speaks over the manifesto arc (a speak would supersede
+     the sequence's epoch and Begin could never settle) nor consumes its one
+     announce. The moment the episode ends (door crossed or deferred, count
+     spoken and cleared) this re-fires and the hold voices then, over its own
+     card, which is already on the glass. */
   useEffect(() => {
     if (state !== "held" || !liveDecision || !alive) return;
     if (!dismissKey) return;
+    if (ignitionDoorOpen || mapping || spoken?.kind === "ignite") return;
     if (holding || thinking || verifying) return;
     if (dismissedRef.current.has(dismissKey)) return;
     if (lastSpokenHeldIdRef.current === dismissKey) return;
     lastSpokenHeldIdRef.current = dismissKey;
     texSpeak(heldSentence(liveDecision));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, dismissKey, alive, holding, thinking, verifying]);
+  }, [state, dismissKey, alive, holding, thinking, verifying, ignitionDoorOpen, mapping, spoken]);
 
   /* ---------------- The wordless reach: "Here." ---------------- */
   /* You held the surface and said nothing. Not an error — a check-in.

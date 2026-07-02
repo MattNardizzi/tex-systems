@@ -1022,6 +1022,13 @@ async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
    drives the glass (-1 clears); onEnd fires only on a natural end. */
 export async function texSpeakSynced(text, { onWord, onEnd, prosody } = {}) {
   if (!text) return;
+  /* Muted → no claim on the voice (see texSpeak); onEnd still fires at once,
+     exactly as the muted degradation chain always resolved, and nothing
+     already running is superseded. */
+  if (!VOICE_ENABLED) {
+    if (onEnd) onEnd();
+    return;
+  }
   const myEpoch = _supersede();
   let owned = false;
   if (!_streamTimedDead) {
@@ -1105,6 +1112,10 @@ function _wait(ms, myEpoch) {
    is unreachable). */
 export async function texSpeak(text, prosody) {
   if (!text) return;
+  /* Muted (voice not provisioned) → a TRUE no-op. Superseding first would let
+     an inaudible speak kill a running sequence's epoch — the day-one manifesto
+     froze exactly that way. A speak that cannot sound claims nothing. */
+  if (!VOICE_ENABLED) return;
   const myEpoch = _supersede();
   await _speakStreamOne(text, myEpoch, prosody);
 }
@@ -1117,6 +1128,13 @@ export async function texSpeak(text, prosody) {
    passed here is a line Tex already sealed; this never authors or alters it. */
 export async function texSpeakTimed(text, { onWord, onEnd, prosody } = {}) {
   if (!text) return;
+  /* Muted → no claim on the voice (see texSpeak), but the contract holds:
+     onEnd still fires AT ONCE — callers pace their read-linger off it — and
+     nothing already running is superseded. */
+  if (!VOICE_ENABLED) {
+    if (onEnd) onEnd();
+    return;
+  }
   const myEpoch = _supersede();
   await _speakTimedOne(text, myEpoch, { onWord, prosody });
   if (myEpoch !== _epoch) return; // superseded → no onEnd
