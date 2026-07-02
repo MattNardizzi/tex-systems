@@ -13,7 +13,7 @@ Build against this.
 ## NORTH STAR
 
 > Tex is a precision instrument that is almost entirely still. A near-white field,
-> wide white Michroma in short bursts, vast deliberate negative space — and nothing
+> quiet Inter in short bursts, vast deliberate negative space — and nothing
 > moving until something true must be witnessed. Then, and only then, the sha-256
 > seal computes itself character-by-character and locks. Everything else is so fast
 > it is **felt, not seen**.
@@ -46,14 +46,15 @@ comes from **subtraction + precision + restraint**, never from adding more.
 
 ## DOCTRINE (hard rules — do not violate)
 
-- **Type:** Michroma for every human word and label. Geist Mono for machine truth
-  only (a sha-256 handle, an exact id) — where a wide face would be unreadable and
-  uncopyable.
+- **Type:** Inter for every human word and label — **Michroma is RETIRED
+  (2026-07-01, thread 7)**; the whole UI speaks one screen-native voice, worn in
+  a narrow 300–500 band, self-hosted (latin subset, `font-display: optional`,
+  zero swap). Geist Mono for machine truth only (a sha-256 handle, an exact id).
 - **Color:** provably **achromatic**. A neutral ink VALUE ladder, every value R=G=B,
   every shadow `rgba(0,0,0,a)`. **Zero hue.** The *only* hue the surface may ever
   show is the **cold pallor of the faltering breath** (and even that stays nearly
-  neutral). Hierarchy is built from SIZE × TRACKING × INK-VALUE × CASE — never from
-  a weight axis Michroma does not have.
+  neutral). Hierarchy is built from SIZE × TRACKING × INK-VALUE × CASE first —
+  Inter's weight axis is used sparingly, 300–500 only, never as the lead cue.
 - **One hero:** the **seal**. It is the only element that gets a >420ms timeline and
   sequenced motion. Everything else stays quiet and fast so it lands.
 - **Restraint is the mechanism.** One meaningful moment per screen. Every element
@@ -105,9 +106,10 @@ competes with the seal.
 --cold:#565c61; /* faltering ONLY */
 
 /* TYPE */
-/* Michroma: weights 400 only; uppercase micro-labels tracked +0.28em; statements
-   tracked tight (-0.018em) and MODEST in size (reject oversized headlines);
-   line-height 1.18 display / 1.55 body. Hash row: Geist Mono, tabular, fixed grid. */
+/* Inter: weights 300/400/500 only (Michroma retired); uppercase micro-labels
+   tracked +0.28em; statements tracked tight (-0.018em) and MODEST in size
+   (reject oversized headlines); line-height 1.18 display / 1.55 body.
+   Hash row: Geist Mono, tabular, fixed grid. */
 
 /* SURFACE */
 /* one soft overhead light (radial, ~2% neutral fall-off) + one luminance-only grain
