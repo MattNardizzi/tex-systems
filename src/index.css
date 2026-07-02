@@ -268,11 +268,15 @@ body .tex-field:not(.tex-field--faltering) {
    beat, the old one leaves a rung faster. JS gates the API itself
    (morphSurface in Vigil.jsx: no reduced-motion, no hidden tab) —
    these rules only shape what it does. */
-::view-transition-old(root) {
-  animation-duration: 180ms;
-  animation-timing-function: var(--tex-ease-micro);
-}
+/* Old and new run EQUAL durations here, deliberately overriding the
+   "exits one rung faster" rule: a view-transition crossfade composites
+   plus-lighter, which is lossless only while the two alphas sum to 1 —
+   unequal clocks dip the sum mid-morph and the whole white field blinks
+   faintly darker on every macro change. "If you notice an effect, it has
+   failed" outranks the exit rule; 320ms is the ladder's own View-Transition
+   rung (t4). */
+::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 240ms;
+  animation-duration: 320ms;
   animation-timing-function: var(--tex-ease-micro);
 }

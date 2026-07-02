@@ -1444,7 +1444,7 @@
   align-items: center;
   gap: 0.3em;
   font-size: clamp(15px, 1.7vw, 19px);
-  animation: tex-trail-rise 560ms var(--tex-ease) both;
+  animation: tex-trail-rise 420ms var(--tex-ease) both;
 }
 /* Depth: the further above the living turn, the smaller and quieter. */
 .tex-trail-item:nth-last-child(1) {
@@ -1486,7 +1486,10 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tex-trail-item {
+  .tex-trail-item,
+  .tex-presence-question,
+  .tex-line-row,
+  .tex-held-list {
     animation: none;
   }
 }

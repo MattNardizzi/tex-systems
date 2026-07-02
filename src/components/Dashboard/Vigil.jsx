@@ -814,11 +814,19 @@ export default function Vigil() {
       claims: presence.claims || [],
       proof: presence.proof || null,
     };
-    answerRef.current = next;
     /* The answer TAKES the glass as one morph — the deliberation mark and
-       the heard line dissolve into the spoken line, never a hard swap. */
+       the heard line dissolve into the spoken line, never a hard swap. The
+       thinking/verifying flags clear INSIDE the morph (clearing them any
+       earlier unmounts the mark before the old snapshot is captured — a
+       pop), and a stale epoch applies nothing: the VT callback runs a frame
+       late, and a reach landing in that gap owns the surface. */
+    const myEpoch = askEpochRef.current;
     morphSurface(() => {
+      if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+      answerRef.current = next;
       setSpoken(null);
+      setThinking(false);
+      setVerifying(false);
       setAnswerLeaving(false);
       setAnswerWord(-1);
       setAnswer(next);
@@ -1061,7 +1069,9 @@ export default function Vigil() {
           const rows = (res?.held || []).filter(
             (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
           );
-          if (rows.length) setHeldRows(rows);
+          /* The rows joining the standing answer re-anchor the whole block —
+             a TEX-driven layout change, so it morphs like every other one. */
+          if (rows.length) morphSurface(() => setHeldRows(rows));
         })
         .catch(() => {
           /* Silent. The sentence already told the truth; the rows are depth. */
@@ -1149,8 +1159,10 @@ export default function Vigil() {
       if (specTimerRef.current) clearTimeout(specTimerRef.current);
       specTimerRef.current = setTimeout(() => {
         const q = normalizeAsk(t);
-        /* Too little to bet on: a fragment with no second word yet. */
+        /* Too little to bet on: a fragment with no second word yet. And a
+           clean-slate verb is the surface's own turn — never a backend bet. */
         if (q.length < 8 || q.indexOf(" ") < 0) return;
+        if (isRefreshCommand(t)) return;
         if (specRef.current && specRef.current.q === q) return;
         const p = askTex(t, watchTenant, lastExchangeRef.current);
         /* Silence an ABANDONED bet's rejection; a REDEEMED bet gets the real
@@ -1397,6 +1409,12 @@ export default function Vigil() {
         /* The clean-slate verb is the surface's own turn, never a backend
            question: "refresh" wipes the trail and the topic, silently. */
         if (isRefreshCommand(transcript)) {
+          /* No bet outlives a clean slate. */
+          specRef.current = null;
+          if (specTimerRef.current) {
+            clearTimeout(specTimerRef.current);
+            specTimerRef.current = null;
+          }
           refreshSurface();
           return undefined;
         }
@@ -1425,7 +1443,8 @@ export default function Vigil() {
             : askTex(transcript, watchTenant, lastExchangeRef.current);
         return askPromise.then((res) => {
           if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-          setVerifying(false);
+          /* verifying clears INSIDE surfaceAnswer's morph — clearing it here
+             would pop the deliberation mark out a frame before the snapshot. */
           /* Backend decides, frontend renders: derivePresence only NORMALIZES the
              wire (the presence envelope when present, the AskResponse otherwise).
              The credibility tier it carries is the gate's real verdict, never a
@@ -1455,10 +1474,9 @@ export default function Vigil() {
       })
       .catch(() => {
         if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-        setThinking(false);
-        setVerifying(false);
         /* Never-silent: a failed round-trip (backend down, cold start, 4xx/5xx)
-           must not be indistinguishable from "no data". */
+           must not be indistinguishable from "no data". The failure line IS a
+           surfaceAnswer, so thinking/verifying clear inside its morph. */
         surfaceFailure("I can't reach the records right now.");
       });
   }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, maybeSurfaceHeldRows, refreshSurface, watchTenant]);
@@ -1637,7 +1655,7 @@ export default function Vigil() {
     askTex(q, watchTenant, lastExchangeRef.current)
       .then((res) => {
         if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-        setVerifying(false);
+        /* verifying clears inside surfaceAnswer's morph (see endHold). */
         const presence = derivePresence(res);
         if (presence?.spokenText) {
           lastExchangeRef.current = {
@@ -1656,7 +1674,6 @@ export default function Vigil() {
       })
       .catch(() => {
         if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-        setVerifying(false);
         surfaceFailure("I can't reach the records right now.", q);
       });
   }, [typed, ghost, cancelTyping, refreshSurface, watchTenant, surfaceAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows, canonicalizeTail]);
@@ -1805,9 +1822,10 @@ export default function Vigil() {
     (verdict) => {
       const decision = liveDecision;
       stopSpeaking();
-      setSpoken(null);
       /* The seal owns the glass now — an ask still in flight from before the
-         act must not surface over it. */
+         act must not surface over it. (setSpoken and the dismissal live
+         INSIDE the morphs below: any state flush before the snapshot removes
+         the card from the "old" frame and the morph crossfades a blank.) */
       askEpochRef.current += 1;
 
       /* The calibration hold resolves through the learning layer, not /seal:
@@ -1816,13 +1834,18 @@ export default function Vigil() {
         const proposalId = decision.hold?.proposal_id;
         const fromWire = Boolean(humanDecisionLive);
 
-        if (proposalId) {
-          dismissedRef.current.add(proposalId);
-          bumpDismissed((n) => n + 1);
-        }
         /* The held card yields to the seal as one substance, and the seal
-           later melts back to silence — morphs, never swaps. */
+           later melts back to silence — morphs, never swaps. Card-out and
+           seal-in are ONE flushed update between the two snapshots: the
+           dismissal (bumpDismissed flushes a render) must not land first,
+           or the old frame has already lost the card and the morph
+           crossfades a blank surface into the seal. */
         morphSurface(() => {
+          setSpoken(null);
+          if (proposalId) {
+            dismissedRef.current.add(proposalId);
+            bumpDismissed((n) => n + 1);
+          }
           setSealed({
             verdict,
             at: new Date(),
@@ -1862,12 +1885,15 @@ export default function Vigil() {
       /* A held DECISION is sealed by a named human act (POST /seal). Suppress
          the wire frame for it this session so the card never re-raises once
          resolved, while the next frame reconciles authoritatively. */
-      if (decision?.id) {
-        dismissedRef.current.add(decision.id);
-        bumpDismissed((n) => n + 1);
-      }
-      /* Held → seal as one substance; seal → silence the same way. */
+      /* Held → seal as one substance; seal → silence the same way. The
+         dismissal rides INSIDE the morph so the old snapshot still holds
+         the card (see the calibration branch above). */
       morphSurface(() => {
+        setSpoken(null);
+        if (decision?.id) {
+          dismissedRef.current.add(decision.id);
+          bumpDismissed((n) => n + 1);
+        }
         setSealed({
           verdict,
           at: new Date(),
@@ -1949,13 +1975,15 @@ export default function Vigil() {
       setSpoken(null);
       setVerifying(true);
       setTimeout(() => {
-        setVerifying(false);
         const presence = derivePresence(raw);
         if (presence?.spokenText) {
+          /* verifying clears inside surfaceAnswer's morph, as live. */
           surfaceAnswer(presence, question || null);
           if (presence.object?.value) {
             surfaceObject(presence.object.value, presence.object.kind);
           }
+        } else {
+          setVerifying(false); /* nothing to surface — release the beat */
         }
       }, verifyMs);
     };
