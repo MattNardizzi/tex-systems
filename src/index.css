@@ -260,3 +260,19 @@ body .tex-field:not(.tex-field--faltering) {
    straight from Vigil.css — no door-specific override — so it always matches
    the in-system decision buttons. Only its reveal + position live in
    Vigil.css (.tex-door-acts). */
+
+/* ── One material — the View-Transition morph (Five Futures #2) ──────
+   The default crossfade between the surface's macro states (door →
+   mapping → count → vigil, held → seal → silence, mark → answer),
+   timed to the law's own ladder: the new state arrives on the standard
+   beat, the old one leaves a rung faster. JS gates the API itself
+   (morphSurface in Vigil.jsx: no reduced-motion, no hidden tab) —
+   these rules only shape what it does. */
+::view-transition-old(root) {
+  animation-duration: 180ms;
+  animation-timing-function: var(--tex-ease-micro);
+}
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: var(--tex-ease-micro);
+}

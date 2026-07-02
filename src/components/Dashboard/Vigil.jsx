@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import "./Vigil.css";
 import { useVigil } from "../../hooks/useVigil";
 import { useSystemState } from "../../hooks/useSystemState";
 import { useHeartbeat } from "../../hooks/useHeartbeat";
 import { useIgnition } from "../../hooks/useIgnition";
-import { askTex, sealDecision, explainLine, approveProposal, rejectProposal, wakeBackend, getAgentRoster } from "../../lib/texApi";
+import { askTex, sealDecision, explainLine, approveProposal, rejectProposal, wakeBackend, getAgentRoster, listHeldDecisions } from "../../lib/texApi";
 import {
   TexListener,
   texSpeak,
@@ -49,6 +50,86 @@ const normalizeAsk = (s) =>
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+/* ------------------------------------------------------------------ */
+/* One material (Five Futures #2): the surface MORPHS between its      */
+/* macro states via the View Transitions API instead of swapping them. */
+/* Reserved for TEX-driven changes — the door yielding to Mapping, the */
+/* count arriving, the seal taking and leaving the glass, the answer   */
+/* replacing the deliberation mark. The operator's own press is NEVER  */
+/* wrapped: gesture feedback must land within a frame, not wait on a   */
+/* snapshot. Falls back to an instant apply when the API is missing,   */
+/* motion is reduced, or the tab is hidden (an animation nobody sees   */
+/* would only delay the truth). Timing lives in index.css on the law's */
+/* own ladder: new state in at 240ms, old state out one rung faster.   */
+/* ------------------------------------------------------------------ */
+function morphSurface(apply) {
+  if (
+    typeof document === "undefined" ||
+    !document.startViewTransition ||
+    document.hidden ||
+    (typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+  ) {
+    apply();
+    return;
+  }
+  document.startViewTransition(() => {
+    flushSync(apply);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* The conversation trail. A turn does not vanish when the next one     */
+/* takes the surface — it RECEDES: smaller, fainter, above the living   */
+/* answer, so a follow-up can be asked about words still on the glass.  */
+/* "Refresh" (spoken or typed) is the clean slate: trail, answer, and    */
+/* follow-up context all clear, and the next question starts a topic.   */
+/* ------------------------------------------------------------------ */
+const TRAIL_MAX = 4; /* prior turns kept on the glass; older ones let go */
+
+/* The clean-slate verbs — the ONE ask the surface answers itself, never
+   the backend. Matched on the normalized whole line, so "Refresh." and
+   "refresh" both land and "refresh the roster" still reaches Tex. */
+const REFRESH_COMMANDS = new Set([
+  "refresh",
+  "clear",
+  "reset",
+  "start over",
+  "start fresh",
+  "new topic",
+  "clear the screen",
+  "wipe the screen",
+]);
+const isRefreshCommand = (s) => REFRESH_COMMANDS.has(normalizeAsk(s));
+
+/* A turn that is ABOUT held decisions: the rows behind the sentence should
+   rise with their acts. Tested against the QUESTION (either ask path) and,
+   as a net, the answer's own canonical phrasing ("N held decisions ..."). */
+const HELD_ASK_RE = /\bheld\b|\bholds?\b|\bholding\b/i;
+const HELD_ANSWER_RE = /\bheld\b/i;
+
+/* One quiet line per held row (GET /v1/surface/discovery/held shape):
+   what was held, in the row's own words when it has any. */
+const heldRowLine = (row) => {
+  const note = typeof row?.note === "string" && row.note.trim() ? row.note.trim() : null;
+  if (note) return note;
+  const kind = typeof row?.kind === "string" && row.kind.trim() ? row.kind.trim() : null;
+  return kind ? `Held: ${kind.replace(/[_-]+/g, " ")}` : "A decision is held.";
+};
+
+/* The row's provenance, in the id register: who raised it, when. */
+const heldRowMeta = (row) => {
+  const parts = [];
+  const agent = row?.detail?.agent_name || row?.agent_id || null;
+  if (agent) parts.push(String(agent).length > 24 ? `${String(agent).slice(0, 24)}…` : String(agent));
+  if (row?.raised_at) {
+    const t = new Date(row.raised_at);
+    if (!Number.isNaN(t.getTime())) parts.push(t.toLocaleTimeString());
+  }
+  return parts.join("  ·  ") || null;
+};
 
 /* ==================================================================
    Vigil — the entire product surface. Live.
@@ -499,12 +580,15 @@ export default function Vigil() {
   const [ghost, setGhost] = useState("");
   const rosterNamesRef = useRef([]); /* real agent names; the GROUNDED completion vocabulary */
   const rosterLoadedRef = useRef(false);
-  /* The general keyboard aid (SymSpell autocorrect + frequency-trie completion),
-     lazy-loaded as its own chunk the first time someone types. Grounded agents
-     always win; this only fills the gap and corrects ordinary typos. */
+  /* The general keyboard aid (frequency-trie completion only), lazy-loaded as
+     its own chunk the first time someone types. Grounded agents always win;
+     this only fills the completion gap. NOTHING rewrites what was typed:
+     the SymSpell autocorrect-on-space is retired — a surface that silently
+     edits the operator's own words is the aid being confidently wrong. */
   const assistRef = useRef(null); /* the loaded module, or "loading" / null */
-  const lastFixRef = useRef(null); /* { from, to, end } — for Backspace-to-revert */
-  const noFixRef = useRef(null); /* a just-reverted word, locked from re-correction */
+  /* The hidden mirror that measures the typed text, so the input can be sized
+     to its content and the ghost can live OUTSIDE the input's value. */
+  const mirrorRef = useRef(null);
   useEffect(() => {
     typingRef.current = typed !== null;
   }, [typed]);
@@ -637,6 +721,17 @@ export default function Vigil() {
   const [answer, setAnswer] = useState(null);
   const [answerWord, setAnswerWord] = useState(-1);
   const [answerLeaving, setAnswerLeaving] = useState(false);
+  /* Live mirror of `answer` for the retire path — a ref, not state, so
+     retiring the standing turn into the trail never reads a stale closure. */
+  const answerRef = useRef(null);
+  /* The conversation trail: prior turns as { id, q, a }, oldest first. Display
+     only — the backend's follow-up context stays the single lastExchangeRef. */
+  const [trail, setTrail] = useState([]);
+  const trailIdRef = useRef(0);
+  /* The held rows risen under a held-ask answer — each resolvable in place
+     with the same three acts the held card carries. Belongs to the CURRENT
+     answer; cleared with it. */
+  const [heldRows, setHeldRows] = useState(null);
   const answerTimer = useRef(null);
   /* Generation token for the spoken answer — bumped each time a new answer is
      spoken, so a superseded answer's (streamed) playback resolution can't fire
@@ -653,10 +748,26 @@ export default function Vigil() {
        timer on whatever answer replaces it. */
     answerEpochRef.current += 1;
     clearAnswerTimer();
+    answerRef.current = null;
     setAnswer(null);
     setAnswerWord(-1);
     setAnswerLeaving(false);
+    setHeldRows(null);
   }, []);
+
+  /* A new reach takes the surface — but the standing turn does not vanish:
+     it recedes into the trail (smaller, fainter, above the answer that
+     replaces it), so a follow-up is asked over words still on the glass.
+     Only "refresh" (refreshSurface) and Escape wipe the trail itself. */
+  const retireAnswer = useCallback(() => {
+    const a = answerRef.current;
+    if (a?.text) {
+      trailIdRef.current += 1;
+      const entry = { id: trailIdRef.current, q: a.question || "", a: a.text };
+      setTrail((t) => [...t, entry].slice(-TRAIL_MAX));
+    }
+    clearAnswer();
+  }, [clearAnswer]);
 
   /* Generation token for the ASK round-trip — the request-level twin of
      answerEpochRef (the same idiom texVoiceClient's speech engine uses).
@@ -687,20 +798,30 @@ export default function Vigil() {
      the glass until the next reach (beginHold / a typed line) takes the
      surface — it no longer dissolves on a timer, so it can be read back at
      the operator's pace. */
-  const surfaceAnswer = useCallback((presence) => {
+  const surfaceAnswer = useCallback((presence, question) => {
     const text = presence?.spokenText;
     if (!text) return;
     clearLineTimer();
     clearAnswerTimer();
-    setSpoken(null);
-    setAnswerLeaving(false);
-    setAnswerWord(-1);
-    setAnswer({
+    const next = {
       text,
+      /* The operator's own words, kept with the answer they produced: shown
+         faint above the line, and carried into the trail when a new reach
+         retires this turn. */
+      question: question || null,
       tier: presence.tier || null,
       tierReason: presence.tierReason || null,
       claims: presence.claims || [],
       proof: presence.proof || null,
+    };
+    answerRef.current = next;
+    /* The answer TAKES the glass as one morph — the deliberation mark and
+       the heard line dissolve into the spoken line, never a hard swap. */
+    morphSurface(() => {
+      setSpoken(null);
+      setAnswerLeaving(false);
+      setAnswerWord(-1);
+      setAnswer(next);
     });
     answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
     /* Forward the gate's verdict token so the ANSWER is spoken in-tier. Only
@@ -718,8 +839,11 @@ export default function Vigil() {
      voice, as an honest abstain-tier line — a network error must never be
      indistinguishable from "the information does not exist". */
   const surfaceFailure = useCallback(
-    (text) => {
-      surfaceAnswer({ spokenText: text, tier: "abstain", claims: [], proof: null });
+    (text, question) => {
+      surfaceAnswer(
+        { spokenText: text, tier: "abstain", claims: [], proof: null },
+        question
+      );
     },
     [surfaceAnswer]
   );
@@ -833,9 +957,12 @@ export default function Vigil() {
     openHandledRef.current = true; /* claim the open: no "Here.", no replay */
     stopSpeaking();
     clearLineTimer();
-    setSpoken(null);
-    setMapDots(1);
-    setMapping(true);
+    /* The door yields to Mapping as ONE substance — never a swap. */
+    morphSurface(() => {
+      setSpoken(null);
+      setMapDots(1);
+      setMapping(true);
+    });
 
     const started = Date.now();
     /* useIgnition.begin() fires POST /v1/surface/discovery/ignite and returns the
@@ -848,11 +975,16 @@ export default function Vigil() {
 
     clearMappingTimer();
     mappingTimer.current = setTimeout(() => {
-      setMapping(false);
+      /* Mapping settles into the spoken count as ONE continuous change. */
+      morphSurface(() => {
+        setMapping(false);
+        if (line) {
+          setIgniteWord(-1);
+          setSpoken({ kind: "ignite", text: line });
+        }
+      });
       if (line) {
         clearLineTimer();
-        setIgniteWord(-1);
-        setSpoken({ kind: "ignite", text: line });
         const shownAt = Date.now();
         /* The count is one of the lines the glass HOLDS, so it lights word-by-word
            as Tex voices it (falling back to plain voice if timing is unavailable).
@@ -861,8 +993,12 @@ export default function Vigil() {
            replaces it with a short read-linger past the final word — so the line
            can never vanish mid-sentence. When the voice is muted/unreachable onEnd
            fires at once, so the read-linger floors at IGNITE_LINE_MS and the line
-           still holds a readable beat rather than flashing. */
-        lineTimer.current = setTimeout(() => setSpoken(null), IGNITE_LINE_CAP_MS);
+           still holds a readable beat rather than flashing. Its dissolve is a
+           morph too: the count melts into the empty vigil, never blinks out. */
+        lineTimer.current = setTimeout(
+          () => morphSurface(() => setSpoken(null)),
+          IGNITE_LINE_CAP_MS
+        );
         texSpeakTimed(line, {
           onWord: (i) => setIgniteWord(i),
           onEnd: () => {
@@ -871,7 +1007,10 @@ export default function Vigil() {
               IGNITE_LINE_MS - (Date.now() - shownAt)
             );
             clearLineTimer();
-            lineTimer.current = setTimeout(() => setSpoken(null), remain);
+            lineTimer.current = setTimeout(
+              () => morphSurface(() => setSpoken(null)),
+              remain
+            );
           },
         });
       }
@@ -898,6 +1037,93 @@ export default function Vigil() {
      yesterday?") can resolve its references. It steers only the backend's plan
      compiler — every spoken value is still recomputed from sealed rows. */
   const lastExchangeRef = useRef(null);
+
+  /* ---------------- Held decisions, shown WITH their acts ----------------
+     "Show me the held decisions" must never end at a sentence: when a turn is
+     about holds, the real rows rise under the answer, each carrying the same
+     three acts as the held card — a hold you can see is a hold you can
+     resolve. Read from GET /v1/surface/discovery/held; a row without a stored
+     decision_id (a presence-origin hold) has nothing /seal can resolve yet,
+     so it renders as fact, without acts. Epoch-guarded like every other wire:
+     a superseded turn's rows never land on the turn that replaced it. */
+  const maybeSurfaceHeldRows = useCallback(
+    (question, answerText) => {
+      if (
+        !HELD_ASK_RE.test(question || "") &&
+        !HELD_ANSWER_RE.test(answerText || "")
+      ) {
+        return;
+      }
+      const myEpoch = askEpochRef.current;
+      listHeldDecisions(watchTenant)
+        .then((res) => {
+          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+          const rows = (res?.held || []).filter(
+            (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
+          );
+          if (rows.length) setHeldRows(rows);
+        })
+        .catch(() => {
+          /* Silent. The sentence already told the truth; the rows are depth. */
+        });
+    },
+    [watchTenant]
+  );
+
+  /* Resolve one held row by a named human act — the same optimistic seal the
+     held card performs: the verdict shows instantly, the backend's real anchor
+     replaces it when POST /decisions/{id}/seal returns, and the row's wire
+     card is suppressed for the session so it never re-raises once resolved. */
+  const resolveHeldRow = useCallback((row, verdict) => {
+    const id = row?.decision_id;
+    if (!id) return;
+    dismissedRef.current.add(id);
+    bumpDismissed((n) => n + 1);
+    setHeldRows((rows) =>
+      rows
+        ? rows.map((r) =>
+            r.decision_id === id ? { ...r, sealedVerdict: verdict } : r
+          )
+        : rows
+    );
+    sealDecision(id, { verdict, resolvedBy: "operator" })
+      .then((res) => {
+        if (!res) return;
+        setHeldRows((rows) =>
+          rows
+            ? rows.map((r) =>
+                r.decision_id === id
+                  ? { ...r, sealedAnchor: res.anchor_sha256 || r.anchor_sha256 || null }
+                  : r
+              )
+            : rows
+        );
+      })
+      .catch(() => {
+        /* Silent. The optimistic seal stands; the wire reconciles. */
+      });
+  }, []);
+
+  /* The clean slate — the ONE ask the surface answers itself, never the
+     backend: "refresh" (or "clear", "new topic", …) wipes the trail, the
+     standing answer, and the follow-up context, and lets any ask still in
+     flight die stale. The next question starts a fresh topic. It touches
+     NOTHING that waits for a human seal — a held decision stays held. */
+  const refreshSurface = useCallback(() => {
+    askEpochRef.current += 1;
+    clearLineTimer();
+    clearObjectTimer();
+    setSurfaced(null);
+    setSealed(null);
+    clearAnswer();
+    setTrail([]);
+    lastExchangeRef.current = null;
+    stopSpeaking();
+    setThinking(false);
+    setVerifying(false);
+    setHeard("");
+  }, [clearAnswer]);
+
   const listenerRef = useRef(null);
   /* The browser's own speech recognizer — the real hold-to-speak. Separate from
      the muted voice gateway (TexListener) so a question can be heard without
@@ -980,7 +1206,7 @@ export default function Vigil() {
       setSealed(null);
       clearObjectTimer();
       setSurfaced(null);
-      clearAnswer();
+      retireAnswer();
       stopSpeaking();
       setThinking(false);
       setVerifying(false);
@@ -1050,7 +1276,7 @@ export default function Vigil() {
         });
       }
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, clearAnswer, onAskPartial]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, retireAnswer, onAskPartial]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -1133,6 +1359,23 @@ export default function Vigil() {
       return;
     }
 
+    /* Release-instant second bet: when no stable partial got a bet in (a
+       short question, or a last-moment revision), fire the ask NOW with the
+       fullest transcript already in memory, in parallel with the
+       recognizer's finalization — the finalize window then costs nothing
+       whenever the words don't change. Redeemed below iff the FINAL
+       transcript normalizes identically; a mismatch falls back to the
+       fresh ask, exactly like the stable-partial bet. */
+    if (see && !specRef.current && typeof see._result === "function") {
+      const early = see._result();
+      const q = normalizeAsk(early);
+      if (q.length >= 8 && q.indexOf(" ") > 0 && !isRefreshCommand(early)) {
+        const p = askTex(early, watchTenant, lastExchangeRef.current);
+        p.catch(() => {});
+        specRef.current = { q, promise: p };
+      }
+    }
+
     setThinking(true);
     capture
       .stop()
@@ -1151,6 +1394,12 @@ export default function Vigil() {
            actually carries. Any late recognizer revision lands here, the same
            retro-correction settle the live-transcript pattern expects. */
         setHeard(transcript);
+        /* The clean-slate verb is the surface's own turn, never a backend
+           question: "refresh" wipes the trail and the topic, silently. */
+        if (isRefreshCommand(transcript)) {
+          refreshSurface();
+          return undefined;
+        }
         /* The instant presence beat — fire the content-free ack the moment we
            have a question, BEFORE the grounded round-trip. It plays from the
            pre-warmed cache (<150ms) and is superseded click-free by the answer
@@ -1191,14 +1440,16 @@ export default function Vigil() {
               prior_question: transcript,
               prior_answer: presence.spokenText,
             };
-            surfaceAnswer(presence);
+            surfaceAnswer(presence, transcript);
+            /* A turn about holds surfaces the queue itself, resolvable. */
+            maybeSurfaceHeldRows(transcript, presence.spokenText);
             if (presence.object?.value) {
               surfaceObject(presence.object.value, presence.object.kind);
             }
           } else {
             /* A transcribed question that came back empty is NOT silence —
                say so, honestly, as an abstain-tier line. */
-            surfaceFailure("The records returned nothing for that.");
+            surfaceFailure("The records returned nothing for that.", transcript);
           }
         });
       })
@@ -1210,7 +1461,7 @@ export default function Vigil() {
            must not be indistinguishable from "no data". */
         surfaceFailure("I can't reach the records right now.");
       });
-  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, watchTenant]);
+  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, maybeSurfaceHeldRows, refreshSurface, watchTenant]);
 
   /* A CANCELLED gesture is not a release. The OS stole the pointer (an
      incoming call, an edge-swipe, palm rejection) or the hold lost its window
@@ -1268,22 +1519,14 @@ export default function Vigil() {
   }, [holding, cancelHold]);
 
   /* Escape — the one key that means only "stop": silence the voice, clear the
-     glass (answer, object, a lingering seal), discard a live hold, and let
-     any in-flight ask die stale. It touches NOTHING that waits for a human
-     seal — a held decision stays exactly where it is. */
+     glass (answer, trail, object, a lingering seal), discard a live hold, and
+     let any in-flight ask die stale. The keyboard twin of the spoken
+     "refresh". It touches NOTHING that waits for a human seal — a held
+     decision stays exactly where it is. */
   const quiet = useCallback(() => {
-    askEpochRef.current += 1;
     if (holdActiveRef.current) cancelHold();
-    clearLineTimer();
-    clearObjectTimer();
-    setSurfaced(null);
-    setSealed(null);
-    clearAnswer();
-    stopSpeaking();
-    setThinking(false);
-    setVerifying(false);
-    setHeard("");
-  }, [clearAnswer, cancelHold]);
+    refreshSurface();
+  }, [refreshSurface, cancelHold]);
 
   /* Registered at the document so Escape works whether focus sits on the
      field, the body, or nowhere at all. The typed line's own Escape handler
@@ -1347,7 +1590,7 @@ export default function Vigil() {
       setSealed(null);
       clearObjectTimer();
       setSurfaced(null);
-      clearAnswer();
+      retireAnswer();
       stopSpeaking();
       setHeard("");
       setTyped(firstChar);
@@ -1365,7 +1608,7 @@ export default function Vigil() {
         }
       });
     },
-    [clearAnswer, loadRoster, loadAssist]
+    [retireAnswer, loadRoster, loadAssist]
   );
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
@@ -1380,6 +1623,12 @@ export default function Vigil() {
     const q = canonicalizeTail((typed ?? "") + ghost).trim();
     cancelTyping();
     if (!q) return;
+    /* The clean-slate verb is the surface's own turn, never a backend
+       question: a typed "refresh" wipes the trail and the topic, silently. */
+    if (isRefreshCommand(q)) {
+      refreshSurface();
+      return;
+    }
     playPresenceAck();
     setVerifying(true);
     /* Latest-wins: if another reach takes the surface while this question is
@@ -1395,20 +1644,22 @@ export default function Vigil() {
             prior_question: q,
             prior_answer: presence.spokenText,
           };
-          surfaceAnswer(presence);
+          surfaceAnswer(presence, q);
+          /* A turn about holds surfaces the queue itself, resolvable. */
+          maybeSurfaceHeldRows(q, presence.spokenText);
           if (presence.object?.value) {
             surfaceObject(presence.object.value, presence.object.kind);
           }
         } else {
-          surfaceFailure("The records returned nothing for that.");
+          surfaceFailure("The records returned nothing for that.", q);
         }
       })
       .catch(() => {
         if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
         setVerifying(false);
-        surfaceFailure("I can't reach the records right now.");
+        surfaceFailure("I can't reach the records right now.", q);
       });
-  }, [typed, ghost, cancelTyping, watchTenant, surfaceAnswer, surfaceObject, canonicalizeTail]);
+  }, [typed, ghost, cancelTyping, refreshSurface, watchTenant, surfaceAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows, canonicalizeTail]);
 
   /* The input owns its own keys: stop them reaching the section's voice handler
      (a typed space/Enter must never open the mic). Enter asks; Escape dissolves;
@@ -1417,31 +1668,28 @@ export default function Vigil() {
     (e) => {
       e.stopPropagation();
       if (composingRef.current || e.isComposing || e.keyCode === 229) return;
-      /* Backspace immediately after an autocorrect UNDOES it (the iOS pattern):
-         restore the original word, keep the boundary, and lock that word from
-         being re-corrected. Only in the exact window (caret just past the fix). */
-      if (e.key === "Backspace" && lastFixRef.current) {
-        const lc = lastFixRef.current;
+      /* Accept the ghost with one gesture: commit it into the line and drop
+         the caret at the end. The ghost lives OUTSIDE the input's value, so
+         accepting is the ONLY way suggestion text ever becomes typed text.
+         Reject is just to keep typing, or Escape. ArrowRight accepts only
+         from the end of the line — mid-line it stays a caret move. */
+      if (ghost && (e.key === "ArrowRight" || e.key === "Tab" || e.key === "End")) {
         const el = inputRef.current;
-        if (
-          el &&
-          el.selectionStart === el.selectionEnd &&
-          el.selectionStart === lc.end + 1
-        ) {
+        const atEnd =
+          !el ||
+          (el.selectionStart === el.selectionEnd &&
+            el.selectionStart === (typed ?? "").length);
+        if (e.key !== "ArrowRight" || atEnd) {
           e.preventDefault();
-          const v = el.value;
-          const start = lc.end - lc.to.length;
-          const reverted = v.slice(0, start) + lc.from + v.slice(lc.end);
-          const caret = start + lc.from.length;
-          noFixRef.current = lc.from;
-          lastFixRef.current = null;
-          setTyped(reverted);
+          const full = canonicalizeTail((typed ?? "") + ghost);
+          setTyped(full);
           setGhost("");
           requestAnimationFrame(() => {
             const node = inputRef.current;
             if (node) {
               try {
-                node.setSelectionRange(caret, caret);
+                const n = node.value.length;
+                node.setSelectionRange(n, n);
               } catch {
                 /* ignore */
               }
@@ -1449,30 +1697,6 @@ export default function Vigil() {
           });
           return;
         }
-        lastFixRef.current = null;
-      } else if (lastFixRef.current) {
-        lastFixRef.current = null; /* the revert window is only the immediate next key */
-      }
-      /* Accept the grounded ghost with one gesture: commit it into the line and
-         drop the caret at the end. Reject is just to keep typing (it replaces the
-         selected ghost) or Escape. */
-      if (ghost && (e.key === "ArrowRight" || e.key === "Tab" || e.key === "End")) {
-        e.preventDefault();
-        const full = canonicalizeTail((typed ?? "") + ghost);
-        setTyped(full);
-        setGhost("");
-        requestAnimationFrame(() => {
-          const el = inputRef.current;
-          if (el) {
-            try {
-              const n = el.value.length;
-              el.setSelectionRange(n, n);
-            } catch {
-              /* ignore */
-            }
-          }
-        });
-        return;
       }
       if (e.key === "Enter") {
         e.preventDefault();
@@ -1492,84 +1716,18 @@ export default function Vigil() {
     if (!typed || !typed.trim()) cancelTyping();
   }, [typed, cancelTyping]);
 
-  /* A caret that leaves the ghost DISSOLVES it. The suggested suffix lives in
-     the input's real value (differentiated only by the faint selection), so a
-     click or an arrow into the middle of the line would otherwise silently
-     COMMIT unaccepted text into the question sent to Tex. The restore effect
-     re-selects the exact ghost range before paint, so type-through never
-     trips this; only a real caret move does. */
-  const onTypedSelect = useCallback(() => {
-    if (!ghost || typed === null || composingRef.current) return;
-    const el = inputRef.current;
-    if (!el) return;
-    const start = (typed ?? "").length;
-    if (el.selectionStart !== start || el.selectionEnd !== start + ghost.length) {
-      setGhost("");
-    }
-  }, [ghost, typed]);
-
-  /* Every keystroke into the line. Stores the user's text, recomputes the ghost
-     (grounded → general), and — when a word boundary was just typed — gently
-     autocorrects the word before it. The correction is conservative (the engine
-     protects caps/acronyms/real words) and NEVER touches a word that prefixes a
-     real agent (a grounded entity must not be "fixed" into English). It is
-     reversible: the very next Backspace undoes it (see onTypedKeyDown). */
+  /* Every keystroke into the line. Stores the user's text EXACTLY as typed and
+     recomputes the ghost (grounded → general). Nothing else. The input's value
+     is the operator's words alone — the ghost renders in its own element after
+     the caret, and no code path rewrites, splices, or "corrects" what was
+     typed. Seamless means the keyboard is theirs. */
   const onTypedChange = useCallback(
     (e) => {
-      let value = e.target.value;
+      const value = e.target.value;
       const it = (e.nativeEvent && e.nativeEvent.inputType) || "";
-      const data = (e.nativeEvent && e.nativeEvent.data) || "";
       const del = it.startsWith("delete");
-      let caretFix = null;
-
-      if (
-        !del &&
-        !composingRef.current &&
-        it === "insertText" &&
-        data &&
-        /[\s.,!?;:]/.test(data)
-      ) {
-        const caret = e.target.selectionStart; /* just after the boundary char */
-        const before = value.slice(0, caret - 1);
-        const wm = before.match(/([A-Za-z]+)$/);
-        const a = assistRef.current;
-        if (wm && a && a.correct) {
-          const word = wm[1];
-          const start = caret - 1 - word.length;
-          const isGrounded = rosterNamesRef.current.some((n) =>
-            n.toLowerCase().startsWith(word.toLowerCase())
-          );
-          if (noFixRef.current === word) {
-            noFixRef.current = null; /* respected once, then released */
-          } else if (!isGrounded) {
-            const fixed = a.correct(word);
-            if (fixed && fixed !== word) {
-              value = value.slice(0, start) + fixed + value.slice(caret - 1);
-              caretFix = caret + (fixed.length - word.length);
-              lastFixRef.current = { from: word, to: fixed, end: start + fixed.length };
-            }
-          }
-        }
-      } else if (!del) {
-        lastFixRef.current = null; /* a non-boundary edit closes the revert window */
-      }
-
       setTyped(value);
       setGhost(composingRef.current ? "" : computeGhost(value, del));
-
-      if (caretFix != null) {
-        const c = caretFix;
-        requestAnimationFrame(() => {
-          const el = inputRef.current;
-          if (el) {
-            try {
-              el.setSelectionRange(c, c);
-            } catch {
-              /* ignore */
-            }
-          }
-        });
-      }
     },
     [computeGhost]
   );
@@ -1618,21 +1776,24 @@ export default function Vigil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holding]);
 
-  /* Render the ghost AS a native selection on the trailing suffix — styled faint
-     via .tex-line::selection (no blue highlight). Selecting it natively means
-     typing the next char replaces it (type-through) and accept/submit just work,
-     with no overlay/mirror to keep aligned on a centered line. */
-  useEffect(() => {
-    if (!ghost || typed === null) return;
+  /* Size the input to EXACTLY the typed text (a hidden mirror in the same
+     type measures it, pre-paint), so the ghost span sits flush after the
+     caret and the line reads as one continuous sentence. The old design put
+     the ghost INSIDE the input's value behind a native selection — every
+     selection race then committed suggestion text as if typed (words joined)
+     or let a keystroke land on the wrong range (letters vanished). Out here
+     the input's value is the operator's words alone, by construction. */
+  useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
-    const start = (typed ?? "").length;
-    try {
-      el.setSelectionRange(start, start + ghost.length);
-    } catch {
-      /* ignore */
+    if (typed === null) {
+      el.style.width = ""; /* latent: the CSS class owns the 1px width */
+      return;
     }
-  }, [ghost, typed]);
+    const mirror = mirrorRef.current;
+    if (!mirror) return;
+    el.style.width = `${Math.ceil(mirror.getBoundingClientRect().width) + 2}px`;
+  }, [typed]);
 
   /* ---------------- Resolving a held decision ----------------
      A held decision is not approved by a spoken "maybe" — it is sealed by a
@@ -1659,16 +1820,23 @@ export default function Vigil() {
           dismissedRef.current.add(proposalId);
           bumpDismissed((n) => n + 1);
         }
-        setSealed({
-          verdict,
-          at: new Date(),
-          anchor: null,
-          signature: null,
-          calibration: true,
-          pending: fromWire && verdict !== "held",
+        /* The held card yields to the seal as one substance, and the seal
+           later melts back to silence — morphs, never swaps. */
+        morphSurface(() => {
+          setSealed({
+            verdict,
+            at: new Date(),
+            anchor: null,
+            signature: null,
+            calibration: true,
+            pending: fromWire && verdict !== "held",
+          });
         });
         clearLineTimer();
-        lineTimer.current = setTimeout(() => setSealed(null), 4_200);
+        lineTimer.current = setTimeout(
+          () => morphSurface(() => setSealed(null)),
+          4_200
+        );
 
         if (fromWire && proposalId && verdict !== "held") {
           startTransition(() => {
@@ -1698,15 +1866,21 @@ export default function Vigil() {
         dismissedRef.current.add(decision.id);
         bumpDismissed((n) => n + 1);
       }
-      setSealed({
-        verdict,
-        at: new Date(),
-        anchor: decision?.anchor_sha256 || null,
-        signature: null,
-        pending: Boolean(decision?.id),
+      /* Held → seal as one substance; seal → silence the same way. */
+      morphSurface(() => {
+        setSealed({
+          verdict,
+          at: new Date(),
+          anchor: decision?.anchor_sha256 || null,
+          signature: null,
+          pending: Boolean(decision?.id),
+        });
       });
       clearLineTimer();
-      lineTimer.current = setTimeout(() => setSealed(null), 4_200);
+      lineTimer.current = setTimeout(
+        () => morphSurface(() => setSealed(null)),
+        4_200
+      );
 
       if (decision?.id) {
         sealDecision(decision.id, { verdict, resolvedBy: "operator" })
@@ -1724,7 +1898,10 @@ export default function Vigil() {
                 : prev
             );
             clearLineTimer();
-            lineTimer.current = setTimeout(() => setSealed(null), 6_000);
+            lineTimer.current = setTimeout(
+              () => morphSurface(() => setSealed(null)),
+              6_000
+            );
           })
           .catch(() => {
             /* Silent. The optimistic seal stays; the backend was unreachable. */
@@ -1763,10 +1940,10 @@ export default function Vigil() {
      never fabricates an answer the operator sees in the real flow. */
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === "undefined") return;
-    window.__texPresence = (raw, { verifyMs = 1100, lingerMs } = {}) => {
+    window.__texPresence = (raw, { verifyMs = 1100, question } = {}) => {
       ignition.dismiss(); /* cross the day-one door into the live surface */
       stopSpeaking();
-      clearAnswer();
+      retireAnswer(); /* the standing turn recedes into the trail, as live */
       clearObjectTimer();
       setSurfaced(null);
       setSpoken(null);
@@ -1775,7 +1952,7 @@ export default function Vigil() {
         setVerifying(false);
         const presence = derivePresence(raw);
         if (presence?.spokenText) {
-          surfaceAnswer(presence, lingerMs);
+          surfaceAnswer(presence, question || null);
           if (presence.object?.value) {
             surfaceObject(presence.object.value, presence.object.kind);
           }
@@ -1784,13 +1961,19 @@ export default function Vigil() {
     };
     /* Hold just the deliberation pause open, for screenshotting that beat. */
     window.__texVerifying = (on = true) => setVerifying(Boolean(on));
+    /* Rise a held-rows list under the standing answer (the /held wire shape),
+       and the clean-slate verb — browser-verification twins of the real paths. */
+    window.__texHeldRows = (rows) => setHeldRows(rows && rows.length ? rows : null);
+    window.__texRefresh = () => refreshSurface();
     return () => {
       try {
         delete window.__texPresence;
         delete window.__texVerifying;
+        delete window.__texHeldRows;
+        delete window.__texRefresh;
       } catch { /* ignore */ }
     };
-  }, [ignition, surfaceAnswer, surfaceObject, clearAnswer]);
+  }, [ignition, surfaceAnswer, surfaceObject, retireAnswer, refreshSurface]);
 
   /* DEV-ONLY TYPING BENCHMARK — measures the grounded completion against the
      field's metric (KSPC, Soukoreff & MacKenzie) over Tex's REAL signed roster,
@@ -2154,6 +2337,26 @@ export default function Vigil() {
         </div>
       )}
 
+      {/* The conversation trail — the turns before this one, receded: smaller,
+          fainter, stacked above the living answer, oldest dissolving first.
+          Kept until "refresh" (spoken or typed) or Escape clears the topic.
+          Display-only history: no gestures land on it, and it yields to the
+          held card when the card holds the glass alone. */}
+      {!doorOpen &&
+        !mapping &&
+        !sealed &&
+        trail.length > 0 &&
+        !(state === "held" && decision && !answer && !verifying && typed === null) && (
+          <div className="tex-trail" aria-hidden="true">
+            {trail.map((t) => (
+              <div className="tex-trail-item" key={t.id}>
+                {t.q && <p className="tex-trail-q">{t.q}</p>}
+                <p className="tex-trail-a">{t.a}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
       {/* The heard line — the operator's own words forming live while the mic
           is held. Faint while interim (still forming), settling to ink the
           moment the release finalizes them: proof Tex heard, shown BEFORE the
@@ -2218,7 +2421,19 @@ export default function Vigil() {
           evidence. It rises, holds long enough to be read and reached for, then
           dissolves — voiced-and-gone, never persisted. */}
       {!doorOpen && !mapping && !sealed && answer && (
-        <div className="tex-presence" aria-live="polite">
+        <div
+          className={`tex-presence${
+            trail.length > 0 || heldRows?.length ? " tex-presence--anchored" : ""
+          }`}
+          aria-live="polite"
+        >
+          {/* The question that produced this answer — the operator's own words,
+              receded above the line: smaller, fainter, still theirs. */}
+          {answer.question && (
+            <p className="tex-presence-question" aria-hidden="true">
+              {answer.question}
+            </p>
+          )}
           <p
             className={`tex-presence-line${answerLeaving ? " is-leaving" : ""}`}
           >
@@ -2296,6 +2511,72 @@ export default function Vigil() {
             </div>
           )}
 
+          {/* The held rows — the queue the sentence counted, each resolvable in
+              place. A row with a stored decision carries the SAME three acts as
+              the held card (Approve / Keep holding / Refuse → POST /seal); a
+              presence-origin row (no decision_id) is fact without acts. The
+              seal shows optimistically; the backend's real anchor replaces it
+              the moment /seal returns. */}
+          {heldRows?.length > 0 && (
+            <div className="tex-held-list" role="group" aria-label="Held decisions">
+              {heldRows.slice(0, 6).map((row, i) => (
+                <div
+                  className="tex-held-row"
+                  key={row.decision_id || `${row.agent_id || "hold"}-${i}`}
+                >
+                  <p className="tex-held-row-line">{heldRowLine(row)}</p>
+                  {heldRowMeta(row) && (
+                    <p className="tex-held-row-meta">{heldRowMeta(row)}</p>
+                  )}
+                  {row.sealedVerdict ? (
+                    <p className="tex-held-row-sealed" role="status">
+                      {row.sealedVerdict === "approved"
+                        ? "Sealed. You approved it."
+                        : row.sealedVerdict === "refused"
+                        ? "Sealed. You refused it."
+                        : "Held. It waits for you."}
+                      {row.sealedAnchor
+                        ? ` · ${String(row.sealedAnchor).slice(0, 12)}…`
+                        : ""}
+                    </p>
+                  ) : row.decision_id ? (
+                    <div className="tex-acts tex-held-row-acts">
+                      <button
+                        type="button"
+                        data-act="approve"
+                        className="tex-act tex-act--approve"
+                        onClick={() => resolveHeldRow(row, "approved")}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        data-act="hold"
+                        className="tex-act tex-act--hold"
+                        onClick={() => resolveHeldRow(row, "held")}
+                      >
+                        Keep holding
+                      </button>
+                      <button
+                        type="button"
+                        data-act="refuse"
+                        className="tex-act tex-act--refuse"
+                        onClick={() => resolveHeldRow(row, "refused")}
+                      >
+                        Refuse
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              {heldRows.length > 6 && (
+                <p className="tex-held-more" aria-hidden="true">
+                  and {heldRows.length - 6} more, still held.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* The reached handle — the anchor a claim links to, risen as the one
               object the glass may hold, here flowing under the answer rather than
               centering on the whole field. Dissolves once taken. */}
@@ -2325,32 +2606,51 @@ export default function Vigil() {
           from opening the mic. */}
       {TYPING_ENABLED && !doorOpen && !mapping && (typed !== null || isCoarsePointer) && (
         <div className="tex-line-slot">
-          <input
-            ref={inputRef}
-            data-act="write"
-            className={"tex-line" + (typed === null ? " tex-line--latent" : "")}
-            value={(typed ?? "") + ghost}
-            onChange={onTypedChange}
-            onKeyDown={onTypedKeyDown}
-            onKeyUp={(e) => e.stopPropagation()}
-            onBlur={onTypedBlur}
-            onSelect={onTypedSelect}
-            onCompositionStart={() => {
-              composingRef.current = true;
-            }}
-            onCompositionEnd={() => {
-              composingRef.current = false;
-            }}
-            inputMode="text"
-            enterKeyHint="send"
-            autoCapitalize="sentences"
-            autoCorrect="on"
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Type your question to Tex"
-            aria-hidden={typed === null ? true : undefined}
-            tabIndex={typed === null ? -1 : 0}
-          />
+          {/* One visual line, three parts: a hidden mirror that measures the
+              typed text, the real input sized to exactly that text, and the
+              ghost — the suggestion — in its OWN element after the caret.
+              The input's value is only ever what the operator typed; nothing
+              can commit ghost text except the explicit accept gesture. Native
+              autocorrect is OFF: the surface never rewrites their words. */}
+          <div
+            className={
+              "tex-line-row" + (typed === null ? " tex-line-row--latent" : "")
+            }
+          >
+            <span ref={mirrorRef} className="tex-line-mirror" aria-hidden="true">
+              {typed ?? ""}
+            </span>
+            <input
+              ref={inputRef}
+              data-act="write"
+              className={"tex-line" + (typed === null ? " tex-line--latent" : "")}
+              value={typed ?? ""}
+              onChange={onTypedChange}
+              onKeyDown={onTypedKeyDown}
+              onKeyUp={(e) => e.stopPropagation()}
+              onBlur={onTypedBlur}
+              onCompositionStart={() => {
+                composingRef.current = true;
+              }}
+              onCompositionEnd={() => {
+                composingRef.current = false;
+              }}
+              inputMode="text"
+              enterKeyHint="send"
+              autoCapitalize="sentences"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Type your question to Tex"
+              aria-hidden={typed === null ? true : undefined}
+              tabIndex={typed === null ? -1 : 0}
+            />
+            {typed !== null && ghost && (
+              <span className="tex-ghost" aria-hidden="true">
+                {ghost}
+              </span>
+            )}
+          </div>
         </div>
       )}
 

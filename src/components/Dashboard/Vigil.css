@@ -32,7 +32,10 @@
   touch-action: none;
 }
 .tex-field:focus-visible {
-  outline: none;
+  /* The quiet keyboard mark — a hairline, keyboard-only. Inset, because the
+     field runs full-bleed and an outset ring would clip off-viewport. */
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: -3px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -296,7 +299,7 @@
   text-align: center;
   transform: translateY(-2vh);
   animation: tex-rise var(--tex-rise) var(--tex-ease) both;
-  transition: opacity 520ms ease;
+  transition: opacity 420ms var(--tex-ease);
 }
 .tex-held.is-receded {
   animation: none;
@@ -416,8 +419,7 @@
     border-color var(--tex-micro) var(--tex-ease-micro),
     color var(--tex-micro) var(--tex-ease-micro),
     background var(--tex-micro) var(--tex-ease-micro),
-    transform var(--tex-micro) var(--tex-ease-micro),
-    box-shadow var(--tex-micro) var(--tex-ease-micro);
+    transform var(--tex-micro) var(--tex-ease-micro);
 }
 @media (pointer: coarse) {
   .tex-act {
@@ -433,8 +435,8 @@
   outline: none;
 }
 .tex-act:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--tex-paper), 0 0 0 4px rgba(0, 0, 0, 0.5);
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
 }
 /* The one primary act — a flat, sharp ink fill. No drop shadow, no gloss: on a
    clean instrument surface, flatness reads sharper than a lifted key. */
@@ -451,7 +453,7 @@
 }
 .tex-act--approve:active {
   transform: scale(0.985);
-  transition-duration: 100ms;
+  transition-duration: 120ms;
 }
 
 .tex-held-ask {
@@ -499,15 +501,15 @@
    line can never fade out mid-word. */
 .tex-door-line {
   transform-origin: 50% 0;
-  animation: tex-door-enter 700ms var(--tex-ease) both;
+  animation: tex-door-enter var(--tex-rise) var(--tex-ease) both;
 }
 /* The dissolve — duration kept in sync with MANIFESTO_LEAVE_MS in Vigil.jsx. */
 .tex-door-line.is-leaving {
-  animation: tex-door-leave 560ms cubic-bezier(0.4, 0, 0.7, 0.2) both;
+  animation: tex-door-leave 560ms var(--tex-ease-inout) both;
 }
 /* The final line — the handover — only arrives; it does not leave. */
 .tex-door-line--hold {
-  animation: tex-door-arrive 900ms var(--tex-ease) both;
+  animation: tex-door-arrive var(--tex-rise) var(--tex-ease) both;
 }
 /* The signature entrance — a precise clip-reveal: the statement wipes up into
    existence from its own baseline, riding a small rise, expo-eased, zero bounce.
@@ -717,8 +719,8 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
   word-break: break-all;
-  animation: tex-object-rise 720ms var(--tex-ease) both,
-    tex-object-fade 600ms ease 5400ms both;
+  animation: tex-object-rise var(--tex-rise) var(--tex-ease) both,
+    tex-object-fade 420ms var(--tex-ease) 5400ms both;
 }
 @keyframes tex-object-rise {
   from {
@@ -752,7 +754,7 @@
 .tex-object--in-presence .tex-object-value {
   font-size: clamp(12px, 1.3vw, 14px);
   color: var(--tex-ink-soft);
-  animation: tex-object-rise 560ms var(--tex-ease) both;
+  animation: tex-object-rise 420ms var(--tex-ease) both;
 }
 /* On a narrow screen a 64-char hash would break-all into a ragged 3 lines with
    an orphaned character. Drop the size and tighten so it settles into two even
@@ -773,7 +775,7 @@
    the sickness is in the dimming, not in any colour. */
 .tex-field--faltering {
   background-color: var(--tex-paper);
-  animation: tex-field-pallor 3100ms ease-in-out infinite;
+  animation: tex-field-pallor 3100ms var(--tex-ease-inout) infinite;
 }
 @keyframes tex-field-pallor {
   0% {
@@ -800,7 +802,7 @@
 /* The voice line is centred with a translate, so its rise can't also use
    translateY; give it an opacity-only rise. */
 .tex-voice .tex-voice-line {
-  animation: tex-voice-rise 900ms var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-rise) var(--tex-ease) both;
 }
 @keyframes tex-voice-rise {
   from {
@@ -857,7 +859,7 @@
 /* Word-sync — Tex's words light up in step with its voice.            */
 /* ------------------------------------------------------------------ */
 .tex-word {
-  transition: opacity 220ms var(--tex-ease);
+  transition: opacity 240ms var(--tex-ease);
 }
 .tex-word.is-ahead {
   opacity: 0.24;
@@ -866,7 +868,7 @@
   color: var(--tex-ink);
 }
 .tex-voice-line--answer.is-leaving {
-  animation: tex-object-fade 700ms ease both;
+  animation: tex-object-fade 420ms var(--tex-ease) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .tex-word {
@@ -896,8 +898,8 @@
   letter-spacing: 0;
   color: var(--tex-ink-faint);
   pointer-events: none;
-  animation: tex-voice-rise 420ms ease both;
-  transition: color 260ms ease;
+  animation: tex-voice-rise 420ms var(--tex-ease) both;
+  transition: color 240ms var(--tex-ease);
 }
 .tex-heard.is-settled {
   color: var(--tex-ink-soft);
@@ -922,7 +924,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  animation: tex-voice-rise 700ms ease both;
+  animation: tex-voice-rise var(--tex-rise) var(--tex-ease) both;
 }
 /* A nascent sha256, still searching — the seal's own voice (Geist Mono, the
    quietest ink), a hex fragment scrambling in place. Monospace holds every
@@ -981,7 +983,7 @@
   animation: tex-voice-rise 760ms var(--tex-ease) both;
 }
 .tex-presence-line.is-leaving {
-  animation: tex-object-fade 700ms ease both;
+  animation: tex-object-fade 420ms var(--tex-ease) both;
 }
 
 /* The credibility tier — the gate's REAL verdict, ink only. The tiers read
@@ -999,10 +1001,10 @@
   font-size: clamp(9px, 0.92vw, 10.5px);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  animation: tex-rise 900ms var(--tex-ease) 160ms both;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 160ms both;
 }
 .tex-tier.is-leaving {
-  animation: tex-object-fade 600ms ease both;
+  animation: tex-object-fade 420ms var(--tex-ease) both;
 }
 .tex-tier-mark {
   width: 7px;
@@ -1051,10 +1053,10 @@
   gap: 12px;
   margin: 2em 0 0;
   pointer-events: auto;
-  animation: tex-rise 900ms var(--tex-ease) 280ms both;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 280ms both;
 }
 .tex-evidence.is-leaving {
-  animation: tex-object-fade 600ms ease both;
+  animation: tex-object-fade 420ms var(--tex-ease) both;
   pointer-events: none;
 }
 .tex-claim {
@@ -1091,8 +1093,8 @@
   outline: none;
 }
 .tex-claim:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--tex-paper), 0 0 0 4px rgba(0, 0, 0, 0.35);
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
 }
 .tex-claim-text {
   overflow: hidden;
@@ -1137,32 +1139,6 @@
   padding: 0 24px;
   text-align: left;
   animation: tex-rise var(--tex-rise) var(--tex-ease) 220ms both;
-}
-.tex-roster-dismiss {
-  position: absolute;
-  top: -0.2em;
-  right: 0.4em;
-  appearance: none;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font-family: var(--tex-display);
-  font-size: 16px;
-  line-height: 1;
-  color: var(--tex-ink-mute);
-  opacity: 0.55;
-  transition: opacity var(--tex-micro) ease;
-}
-.tex-roster-dismiss:hover {
-  opacity: 1;
-}
-.tex-roster-empty {
-  margin: 0;
-  font-family: var(--tex-display);
-  font-size: clamp(13px, 1.3vw, 16px);
-  line-height: 1.7;
-  color: var(--tex-ink-mute);
-  text-align: center;
 }
 .tex-roster-list {
   margin: 0;
@@ -1283,34 +1259,81 @@
   justify-content: center;
   pointer-events: none;
 }
-.tex-line {
-  width: 100%;
+/* One visual line, three parts: the hidden mirror that measures the typed
+   text, the input sized to EXACTLY that text (pre-paint, via the mirror),
+   and the ghost — the suggestion — in its own element flush after the caret.
+   The row centers the pair so the sentence reads centered, while the input's
+   value stays ONLY the operator's words: suggestion text can never be
+   committed by a selection race, because it is never inside the value. */
+.tex-line-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  max-width: 100%;
   padding: 0 24px;
-  margin: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  text-align: center;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
+}
+.tex-line-row--latent {
+  padding: 0;
+  animation: none;
+}
+/* The three parts share one set of metrics — the mirror measures truly and
+   the ghost continues the line without a seam. */
+.tex-line,
+.tex-line-mirror,
+.tex-ghost {
   font-family: var(--tex-display);
   font-weight: 300;
   font-style: italic;
   font-size: clamp(14px, 2.1vw, 25.2px);
   line-height: 1.5;
   letter-spacing: -0.02em;
+}
+.tex-line {
+  width: 2px; /* sized to the typed text by the mirror, before paint */
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  text-align: left;
   color: var(--tex-ink);
   caret-color: var(--tex-ink);
   -webkit-user-select: text;
   user-select: text;
   touch-action: auto;
   pointer-events: auto;
-  animation: tex-rise 700ms var(--tex-ease) both;
+}
+/* The quiet keyboard mark — a hairline, never a glow. */
+.tex-line:focus-visible {
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
+}
+/* The measuring twin: out of flow, invisible, whitespace preserved exactly
+   (a trailing space must measure, or the caret would sit on top of it). */
+.tex-line-mirror {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+/* The ghost — visibly an OFFER, never ink: faint, after the caret, committed
+   only by the accept gesture (Tab / ArrowRight at the end / End) or Enter. */
+.tex-ghost {
+  color: var(--tex-ink-mute);
+  opacity: 0.6;
+  white-space: pre;
+  pointer-events: none;
 }
 .tex-line::placeholder {
   color: var(--tex-ink-mute);
   opacity: 0.45;
 }
-/* The grounded ghost is a native selection on the trailing suffix — never
-   the OS blue highlight. A faint neutral suggestion. */
+/* A real selection the operator drags stays quiet — never the OS blue. */
 .tex-line::selection {
   background: rgba(0, 0, 0, 0.05);
   color: var(--tex-ink-mute);
@@ -1346,10 +1369,194 @@
   cursor: text;
   -webkit-tap-highlight-color: transparent;
 }
+.tex-write-glyph:focus-visible {
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
+}
 .tex-write-glyph::before {
   content: "";
   width: 14px;
   height: 1px;
   background: var(--tex-ink);
   opacity: 0.18;
+}
+
+/* ------------------------------------------------------------------ */
+/* The operator's own question, receded above the answer it produced — */
+/* smaller, fainter, still theirs. The first step of the trail.         */
+/* ------------------------------------------------------------------ */
+.tex-presence-question {
+  margin: 0 0 1.4em;
+  font-size: clamp(14px, 1.5vw, 17px);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+  color: var(--tex-ink-mute);
+  animation: tex-voice-rise 420ms var(--tex-ease) both;
+}
+
+/* Once a conversation is RUNNING (a trail above, or held rows below), the
+   living turn stops centering on its own total height — a tall block would
+   push the answer up into the trail — and anchors instead: the question line
+   holds at one stable height and everything below flows downward. */
+.tex-presence--anchored {
+  top: 34vh;
+  transform: translateX(-50%);
+}
+
+/* More holds than the glass should carry stay counted, not hidden. */
+.tex-held-more {
+  margin: 1.4em 0 0;
+  font-size: 13px;
+  color: var(--tex-ink-mute);
+}
+
+/* ------------------------------------------------------------------ */
+/* The conversation trail — the turns before this one, receded:         */
+/* smaller, fainter, stacked above the living answer, the oldest         */
+/* dissolving into the paper. Cleared only by "refresh" / Escape.        */
+/* ------------------------------------------------------------------ */
+.tex-trail {
+  position: absolute;
+  left: 50%;
+  bottom: calc(66vh + 1.6em);
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: min(88vw, 46rem);
+  max-height: 28vh;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1.7em;
+  overflow: hidden;
+  text-align: center;
+  pointer-events: none;
+  font-size: 16px;
+  /* the oldest turn dissolves into the paper — never a hard clip */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+}
+.tex-trail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  font-size: clamp(15px, 1.7vw, 19px);
+  animation: tex-trail-rise 560ms var(--tex-ease) both;
+}
+/* Depth: the further above the living turn, the smaller and quieter. */
+.tex-trail-item:nth-last-child(1) {
+  opacity: 0.6;
+}
+.tex-trail-item:nth-last-child(2) {
+  opacity: 0.42;
+  font-size: clamp(14px, 1.55vw, 17.5px);
+}
+.tex-trail-item:nth-last-child(3) {
+  opacity: 0.3;
+  font-size: clamp(13px, 1.4vw, 16px);
+}
+.tex-trail-item:nth-last-child(n + 4) {
+  opacity: 0.2;
+  font-size: clamp(12px, 1.3vw, 15px);
+}
+.tex-trail-q {
+  margin: 0;
+  font-size: 0.72em;
+  line-height: 1.4;
+  color: var(--tex-ink-mute);
+}
+.tex-trail-a {
+  margin: 0;
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: 1em;
+  line-height: 1.35;
+  color: var(--tex-ink-soft);
+  text-wrap: balance;
+}
+@keyframes tex-trail-rise {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-trail-item {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Held rows under a held-ask answer — the queue the sentence counted,  */
+/* each resolvable in place with the held card's own three acts.        */
+/* ------------------------------------------------------------------ */
+.tex-held-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 36em;
+  margin: 2.4em 0 0;
+  pointer-events: auto;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 280ms both;
+}
+.tex-held-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55em;
+  width: 100%;
+  padding: 1.6em 0;
+}
+.tex-held-row + .tex-held-row {
+  border-top: 1px solid var(--tex-ink-hair);
+}
+.tex-held-row:first-child {
+  padding-top: 0;
+}
+.tex-held-row:last-child {
+  padding-bottom: 0;
+}
+.tex-held-row-line {
+  margin: 0;
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.45;
+  color: var(--tex-ink);
+  text-wrap: balance;
+}
+.tex-held-row-meta {
+  margin: 0;
+  font-family: var(--tex-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--tex-ink-mute);
+}
+.tex-held-row-sealed {
+  margin: 0.3em 0 0;
+  font-size: 13px;
+  color: var(--tex-ink-soft);
+}
+/* The acts, a size down from the held card's — these are rows, not the
+   hero card; the list already rose, so the acts don't re-animate. */
+.tex-held-row-acts {
+  margin-top: 0.9em;
+  gap: 10px;
+  animation: none;
+}
+.tex-held-row-acts .tex-act {
+  min-height: 40px;
+  padding: 0.8em 1.7em;
+  font-size: clamp(9.5px, 0.95vw, 11px);
+}
+@media (pointer: coarse) {
+  .tex-held-row-acts .tex-act {
+    min-height: 46px;
+  }
 }

@@ -206,6 +206,23 @@ export const getDiscoveryCount = (tenantId) => {
 };
 
 /**
+ * GET /v1/surface/discovery/held — every decision Tex is currently holding,
+ * as structured rows (pull-only, no side effect). Returns { held: [...], count }
+ * where each row carries { agent_id, kind, confidence, note, detail, raised_at,
+ * hold, decision_id, anchor_sha256 }. A row WITH a decision_id can be resolved
+ * through POST /decisions/{id}/seal (sealDecision below); a row without one is
+ * a presence-origin hold that has no stored Decision to seal yet.
+ */
+export const listHeldDecisions = (tenantId) => {
+  const t = scopedTenant(tenantId);
+  return request(
+    `/v1/surface/discovery/held${
+      t ? `?tenant_id=${encodeURIComponent(t)}` : ""
+    }`
+  );
+};
+
+/**
  * The discovered ROSTER — the inventory Tex gained at Begin, pulled on demand.
  *
  * This is the SOLICITED result of clicking Begin (the "Tex gains inventory"
