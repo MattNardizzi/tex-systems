@@ -20,6 +20,7 @@ import {
 import SpokenLine from "./SpokenLine";
 import SealAnchor, { SEAL_ANCHOR_RE } from "./SealAnchor";
 import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
+import { completeAsk } from "../../lib/askTemplates";
 import {
   derivePresence,
   claimLabel,
@@ -543,20 +544,29 @@ export default function Vigil() {
   const computeGhost = useCallback((text, isDeletion) => {
     if (isDeletion || !text) return "";
     const m = text.match(/(\S+)$/);
-    if (!m) return "";
-    const frag = m[1];
-    if (frag.length < 2) return "";
+    const frag = m ? m[1] : "";
     const lower = frag.toLowerCase();
-    /* 1. GROUNDED — a real signed agent (always wins; this is the product's
-       voice, completing only toward what Tex can prove). */
-    const hits = rosterNamesRef.current.filter(
-      (n) => n.length > frag.length && n.toLowerCase().startsWith(lower)
-    );
-    if (hits.length === 1) return hits[0].slice(frag.length);
-    /* 2. GENERAL — a common English word (the user's quiet keyboard aid). ONLY
-       when no agent could match, so grounded always wins and general never
-       guesses a name or fact. Abstains generously (min prefix 3). */
-    if (hits.length === 0) {
+    /* 1. GROUNDED ENTITY — a real signed agent (always wins; this is the
+       product's voice, completing only toward what Tex can prove). An
+       AMBIGUOUS entity fragment silences every register — never guess. */
+    if (frag.length >= 2) {
+      const hits = rosterNamesRef.current.filter(
+        (n) => n.length > frag.length && n.toLowerCase().startsWith(lower)
+      );
+      if (hits.length === 1) return hits[0].slice(frag.length);
+      if (hits.length > 1) return "";
+    }
+    /* 2. GROUNDED QUESTION — the whole line prefixes a question Tex can
+       certifiably answer (askTemplates: each maps to a certified plan
+       primitive). One match completes the question; several complete only
+       their common prefix — never wrong, Google-Suggest over a closed,
+       honest vocabulary. Fires even on a trailing space ("how many "). */
+    const q = completeAsk(text);
+    if (q) return q;
+    /* 3. GENERAL — a common English word (the user's quiet keyboard aid).
+       ONLY when nothing grounded could match, so grounded always wins and
+       general never guesses a name or fact. Abstains generously (min 3). */
+    if (frag.length >= 2) {
       const a = assistRef.current;
       if (a && a.complete) {
         const suf = a.complete(frag, 3);
