@@ -20,7 +20,11 @@ import {
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
 import MappingMark from "./MappingMark";
-import SealAnchor, { SEAL_ANCHOR_RE } from "./SealAnchor";
+import SealAnchor, {
+  ScrambleSeal,
+  SEAL_ANCHOR_RE,
+  SEALED_NUMBER_RE,
+} from "./SealAnchor";
 import { SeeListener, SEE_STT_SUPPORTED } from "../../lib/seeListener";
 import { completeAsk } from "../../lib/askTemplates";
 import {
@@ -2186,27 +2190,58 @@ export default function Vigil() {
         </p>
       )}
 
-      {/* The seal — a resolved decision, shown briefly before silence. */}
+      {/* The seal — a resolved decision, shown briefly before silence. The
+          verdict speaks in the INSTRUMENT register (a small tracked tag, the same
+          voice the credibility tier uses), never Tex's own large voice — one word,
+          "sealed", and the sealed number carries the weight, computing itself onto
+          the glass. Keeping-holding is not a seal: it reads "held", quiet, no
+          cinematic. */}
       {sealed && (
         <div className="tex-seal" role="status">
-          <p className="tex-seal-line">
-            {sealed.verdict === "approved"
-              ? "Sealed. You approved it."
-              : sealed.verdict === "refused"
-              ? "Sealed. You refused it."
-              : "Held. It waits for you."}
-          </p>
-          {sealed.anchor && SEAL_ANCHOR_RE.test(sealed.anchor) ? (
-            <>
-              <SealAnchor hash={sealed.anchor} />
-              <p className="tex-seal-hash">{sealed.at.toLocaleTimeString()}</p>
-            </>
-          ) : sealed.anchor ? (
-            <p className="tex-seal-hash">
-              {sealed.anchor.slice(0, 16)}…&nbsp;·&nbsp;
-              {sealed.at.toLocaleTimeString()}
-            </p>
-          ) : null}
+          {(() => {
+            const isSeal =
+              sealed.verdict === "approved" || sealed.verdict === "refused";
+            return (
+              <>
+                <p
+                  className={`tex-seal-tag tex-seal-tag--${
+                    isSeal ? "sealed" : "held"
+                  }`}
+                >
+                  <span className="tex-seal-tag-mark" aria-hidden="true" />
+                  <span className="tex-seal-tag-label">
+                    {isSeal ? "sealed" : "held"}
+                  </span>
+                </p>
+                {isSeal &&
+                sealed.anchor &&
+                SEAL_ANCHOR_RE.test(sealed.anchor) ? (
+                  <>
+                    <SealAnchor hash={sealed.anchor} />
+                    <p className="tex-seal-hash">
+                      {sealed.at.toLocaleTimeString()}
+                    </p>
+                  </>
+                ) : isSeal &&
+                  sealed.anchor &&
+                  SEALED_NUMBER_RE.test(sealed.anchor) ? (
+                  <>
+                    <ScrambleSeal
+                      value={sealed.anchor}
+                      className="tex-seal-anchor"
+                    />
+                    <p className="tex-seal-hash">
+                      {sealed.at.toLocaleTimeString()}
+                    </p>
+                  </>
+                ) : (
+                  <p className="tex-seal-hash">
+                    {sealed.at.toLocaleTimeString()}
+                  </p>
+                )}
+              </>
+            );
+          })()}
           {sealed.signature && (
             <p className="tex-seal-sig">
               {sealed.signature.post_quantum ? "post-quantum sealed" : "sealed"}

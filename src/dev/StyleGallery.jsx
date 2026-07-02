@@ -228,7 +228,10 @@ const SURFACES = {
     label: "08 · seal",
     node: (
       <div className="tex-seal" role="status">
-        <p className="tex-seal-line">Sealed. You approved it.</p>
+        <p className="tex-seal-tag tex-seal-tag--sealed">
+          <span className="tex-seal-tag-mark" aria-hidden="true" />
+          <span className="tex-seal-tag-label">sealed</span>
+        </p>
         <SealAnchor hash={HASH} />
         <p className="tex-seal-hash">3:42:07 PM</p>
         <p className="tex-seal-sig">post-quantum sealed&nbsp;·&nbsp;ML-DSA-65</p>

@@ -49,6 +49,21 @@ export const TIER_GLOSS = {
 /* A bare hex digest reads as a hash handle; anything else is a name. */
 const looksLikeHash = (s) => /^[0-9a-f]{16,}$/i.test(String(s || "").trim());
 
+/* A raw id read aloud is noise — a decision UUID or a bare sha256 spoken
+   character-by-character helps no one, and the number already lives reachable in
+   the proof handle / surfaced object. Strip a TRAILING id (a UUID, or a 32+ hex
+   run), with the separator that introduced it ("… : <id>", "… — <id>"), from the
+   line Tex speaks and shows. Only trailing, only a real id, and never blanks the
+   line — the answer's words survive, the id does not. */
+const TRAILING_ID_RE =
+  /[\s:—–-]*\b(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32,})\b\.?\s*$/i;
+function stripSpokenId(text) {
+  const cleaned = text.replace(TRAILING_ID_RE, "").trimEnd();
+  if (!cleaned || cleaned === text.trimEnd()) return text;
+  /* Restore terminal punctuation the id's period took with it. */
+  return /[.!?)]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+}
+
 /* Normalize any evidence reference — a string digest, or an object carrying a
    sha256 under one of several plausible keys — into the { value, kind } handle the
    object surface already knows how to hold. Returns null when there is nothing
@@ -139,8 +154,9 @@ export function derivePresence(res) {
   if (!res) return null;
   const env = res.presence || null;
 
-  const spokenText = (env?.spoken_text || res.answer || "").trim();
-  if (!spokenText) return null;
+  const rawSpoken = (env?.spoken_text || res.answer || "").trim();
+  if (!rawSpoken) return null;
+  const spokenText = stripSpokenId(rawSpoken);
 
   const tier = normTier(env?.overall_tier) || deriveTier(res);
   const object =
