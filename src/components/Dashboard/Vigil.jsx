@@ -2211,7 +2211,7 @@ export default function Vigil() {
     : ignitionReady && ignitionDoorOpen
     ? "I am Tex. Nothing happens without me. Press Begin."
     : mapping
-    ? "Tex is mapping the estate."
+    ? "Tex is waking the estate."
     : state === "held"
     ? "Tex is holding a decision for you."
     : state === "faltering"
@@ -2424,9 +2424,9 @@ export default function Vigil() {
           className="tex-door"
           role="status"
           aria-live="polite"
-          aria-label="Mapping the estate"
+          aria-label="Waking the estate"
         >
-          <p className="tex-door-sentence tex-mapping">Mapping</p>
+          <p className="tex-door-sentence tex-mapping">Waking</p>
           <MappingMark />
         </div>
       )}
