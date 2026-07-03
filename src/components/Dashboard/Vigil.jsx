@@ -136,71 +136,137 @@ const heldRowMeta = (row) => {
   return parts.join("  ·  ") || null;
 };
 
-/* The held queue, each row resolvable in place. A row with a stored decision
-   carries the SAME three acts as the held card (Approve / Keep holding /
-   Refuse → POST /seal); a presence-origin row (no decision_id) is fact
-   without acts. The seal shows optimistically; the backend's real anchor
-   replaces it the moment /seal returns. One list, one truth — it rises under
-   a held-ask answer and under the aggregate held card alike. */
+/* The record-sealed beat: how long a resolved held decision rests on its seal
+   ("Sealed. You approved it.") before the queue morphs to the next one — long
+   enough to watch the verdict land, short enough to keep moving. */
+const HELD_SEAL_BEAT_MS = 1500;
+
+/* The held queue — ONE resolvable decision on the glass at a time. The operator
+   resolves the current one (Approve / Keep holding / Refuse → POST /seal); its
+   seal lands and rests a beat, then the surface MORPHS to the next held
+   decision, and so on until the last — which rests on its seal, the natural
+   finish. Only rows carrying a decision_id are walked: a presence-origin hold
+   with nothing to seal is not a decision the operator can resolve, so it never
+   enters the queue (and can never strand the walk on an unpressable card).
+   Progress ("2 / 5") tells the operator how far through they are. The seal
+   shows optimistically; the backend's real anchor replaces it the moment /seal
+   returns. Used under a held-ask answer and under the aggregate held card
+   alike — one queue, one truth. */
 function HeldRowsList({ rows, onResolve }) {
-  if (!rows?.length) return null;
+  const list = (rows || []).filter((row) => row.decision_id);
+  const keyOf = (row, i) => row.decision_id || `${row.agent_id || "hold"}-${i}`;
+
+  /* A fresh set of decisions (different ids) restarts the walk; the same set
+     mutating in place (a seal landing) does not. */
+  const queueKey = list.map((row, i) => keyOf(row, i)).join("|");
+
+  /* Decisions whose beat has played and the queue has moved past — always a
+     prefix, since the walk is strictly in order. */
+  const [advanced, setAdvanced] = useState(() => new Set());
+  const advanceTimerRef = useRef(null);
+  const scheduledKeyRef = useRef(null);
+
+  useEffect(() => {
+    setAdvanced(new Set());
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = null;
+    scheduledKeyRef.current = null;
+  }, [queueKey]);
+
+  useEffect(
+    () => () => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    },
+    []
+  );
+
+  const currentIndex = list.findIndex((row, i) => !advanced.has(keyOf(row, i)));
+  const total = list.length;
+  const current = currentIndex > -1 ? list[currentIndex] : null;
+  const currentKey = current ? keyOf(current, currentIndex) : null;
+  const hasNext = currentIndex > -1 && currentIndex < total - 1;
+  const sealed = current?.sealedVerdict || null;
+
+  /* Advance once the current decision is resolved and its seal has rested a
+     beat. The last decision never advances: the queue rests on its seal, which
+     IS the finish. */
+  useEffect(() => {
+    if (!current || !hasNext || !sealed) return;
+    if (scheduledKeyRef.current === currentKey) return;
+    scheduledKeyRef.current = currentKey;
+    advanceTimerRef.current = setTimeout(() => {
+      advanceTimerRef.current = null;
+      morphSurface(() =>
+        setAdvanced((prev) => {
+          if (prev.has(currentKey)) return prev;
+          const next = new Set(prev);
+          next.add(currentKey);
+          return next;
+        })
+      );
+    }, HELD_SEAL_BEAT_MS);
+  }, [current, sealed, currentKey, hasNext]);
+
+  if (!current) return null;
+
   return (
-    <div className="tex-held-list" role="group" aria-label="Held decisions">
-      {rows.slice(0, 6).map((row, i) => (
-        <div
-          className="tex-held-row"
-          key={row.decision_id || `${row.agent_id || "hold"}-${i}`}
-        >
-          <p className="tex-held-row-line">{heldRowLine(row)}</p>
-          {heldRowMeta(row) && (
-            <p className="tex-held-row-meta">{heldRowMeta(row)}</p>
-          )}
-          {row.sealedVerdict ? (
-            <p className="tex-held-row-sealed" role="status">
-              {row.sealedVerdict === "approved"
-                ? "Sealed. You approved it."
-                : row.sealedVerdict === "refused"
-                ? "Sealed. You refused it."
-                : "Held. It waits for you."}
-              {row.sealedAnchor
-                ? ` · ${String(row.sealedAnchor).slice(0, 12)}…`
-                : ""}
-            </p>
-          ) : row.decision_id ? (
-            <div className="tex-acts tex-held-row-acts">
-              <button
-                type="button"
-                data-act="approve"
-                className="tex-act tex-act--approve"
-                onClick={() => onResolve(row, "approved")}
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                data-act="hold"
-                className="tex-act tex-act--hold"
-                onClick={() => onResolve(row, "held")}
-              >
-                Keep holding
-              </button>
-              <button
-                type="button"
-                data-act="refuse"
-                className="tex-act tex-act--refuse"
-                onClick={() => onResolve(row, "refused")}
-              >
-                Refuse
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ))}
-      {rows.length > 6 && (
-        <p className="tex-held-more" aria-hidden="true">
-          and {rows.length - 6} more, still held.
+    <div
+      className="tex-held-list tex-held-queue"
+      role="group"
+      aria-label={
+        total > 1 ? `Held decision ${currentIndex + 1} of ${total}` : "Held decision"
+      }
+    >
+      {total > 1 && (
+        <p className="tex-held-progress" aria-hidden="true">
+          {currentIndex + 1} / {total}
         </p>
       )}
+      <div className="tex-held-row" key={currentKey}>
+        <p className="tex-held-row-line">{heldRowLine(current)}</p>
+        {heldRowMeta(current) && (
+          <p className="tex-held-row-meta">{heldRowMeta(current)}</p>
+        )}
+        {current.sealedVerdict ? (
+          <p className="tex-held-row-sealed" role="status">
+            {current.sealedVerdict === "approved"
+              ? "Sealed. You approved it."
+              : current.sealedVerdict === "refused"
+              ? "Sealed. You refused it."
+              : "Held. It waits for you."}
+            {current.sealedAnchor
+              ? ` · ${String(current.sealedAnchor).slice(0, 12)}…`
+              : ""}
+          </p>
+        ) : current.decision_id ? (
+          <div className="tex-acts tex-held-row-acts">
+            <button
+              type="button"
+              data-act="approve"
+              className="tex-act tex-act--approve"
+              onClick={() => onResolve(current, "approved")}
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              data-act="hold"
+              className="tex-act tex-act--hold"
+              onClick={() => onResolve(current, "held")}
+            >
+              Keep holding
+            </button>
+            <button
+              type="button"
+              data-act="refuse"
+              className="tex-act tex-act--refuse"
+              onClick={() => onResolve(current, "refused")}
+            >
+              Refuse
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
