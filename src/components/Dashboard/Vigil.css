@@ -1606,3 +1606,23 @@
   letter-spacing: 0.22em;
   color: var(--tex-ink-mute);
 }
+/* The seal screen — a resolved decision's record alone on the glass: the
+   verdict line, then the sealed number computing itself and locking (the
+   scramble-lock supplies its own .tex-seal-anchor spacing beneath). */
+.tex-held-seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 0.6em 0;
+  text-align: center;
+}
+.tex-held-seal-line {
+  margin: 0;
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: clamp(18px, 2.1vw, 25px);
+  line-height: 1.4;
+  color: var(--tex-ink);
+  text-wrap: balance;
+}

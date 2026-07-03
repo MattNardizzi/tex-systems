@@ -136,10 +136,18 @@ const heldRowMeta = (row) => {
   return parts.join("  ·  ") || null;
 };
 
-/* The record-sealed beat: how long a resolved held decision rests on its seal
-   ("Sealed. You approved it.") before the queue morphs to the next one — long
-   enough to watch the verdict land, short enough to keep moving. */
-const HELD_SEAL_BEAT_MS = 1500;
+/* The seal screen: how long a resolved decision rests alone on the glass —
+   the verdict line, then its sealed number scrambling and LOCKING onto the real
+   anchor — before the queue morphs to the next. Long enough to watch the number
+   land (the scramble-lock's own lead-in + stagger + settle) and hold a beat. */
+const HELD_SEAL_BEAT_MS = 2600;
+/* Keep-holding seals nothing to a verdict, so there is no number to land — the
+   line alone rests a shorter beat before the next decision. */
+const HELD_HOLD_BEAT_MS = 1300;
+/* How long the seal screen shows the computing scramble (the mapping mark) while
+   it waits on the wire's anchor, before falling back to locking the decision's
+   own id — so a slow or silent /seal still lands a number, never spins forever. */
+const HELD_ANCHOR_WAIT_MS = 1300;
 
 /* The held queue — ONE resolvable decision on the glass at a time. The operator
    resolves the current one (Approve / Keep holding / Refuse → POST /seal); its
@@ -149,9 +157,10 @@ const HELD_SEAL_BEAT_MS = 1500;
    with nothing to seal is not a decision the operator can resolve, so it never
    enters the queue (and can never strand the walk on an unpressable card).
    Progress ("2 / 5") tells the operator how far through they are. The seal
-   shows optimistically; the backend's real anchor replaces it the moment /seal
-   returns. Used under a held-ask answer and under the aggregate held card
-   alike — one queue, one truth. */
+   screen shows the computing scramble while the wire seals, then locks ONCE onto
+   the real anchor (or the decision's own id if the wire stays silent). Used
+   under a held-ask answer and under the aggregate held card alike — one queue,
+   one truth. */
 function HeldRowsList({ rows, onResolve }) {
   const list = (rows || []).filter((row) => row.decision_id);
   const keyOf = (row, i) => row.decision_id || `${row.agent_id || "hold"}-${i}`;
@@ -160,54 +169,116 @@ function HeldRowsList({ rows, onResolve }) {
      mutating in place (a seal landing) does not. */
   const queueKey = list.map((row, i) => keyOf(row, i)).join("|");
 
-  /* Decisions whose beat has played and the queue has moved past — always a
-     prefix, since the walk is strictly in order. */
-  const [advanced, setAdvanced] = useState(() => new Set());
+  /* Which decisions are DONE is derived from the wire, not held in local state:
+     a row with a sealedVerdict is resolved, and resolved rows form a prefix (the
+     walk is strictly in order). This is what lets the queue survive the surface
+     swapping HeldRowsList between its two mount points (held card vs answer
+     overlay) when the operator asks mid-walk — a fresh instance re-derives the
+     same position from the data and never replays already-sealed decisions.
+
+     The ONE ephemeral piece: which resolved row is holding its seal ceremony on
+     the glass right now (shown for its record-sealed beat before the walk moves
+     on). If the component remounts mid-ceremony the walk simply resumes at the
+     next unsealed decision — a skipped ceremony, never a replay. */
+  const [sealingKey, setSealingKey] = useState(null);
+  /* The number the CURRENT seal locks onto, decided ONCE so it never re-locks:
+     { key, value }. Until it is set the seal shows the computing scramble — the
+     number is never locked on a placeholder and then re-locked on the real one. */
+  const [landTarget, setLandTarget] = useState(null);
   const advanceTimerRef = useRef(null);
   const scheduledKeyRef = useRef(null);
+  const anchorWaitRef = useRef(null);
+  const anchorScheduledKeyRef = useRef(null);
 
   useEffect(() => {
-    setAdvanced(new Set());
+    setSealingKey(null);
+    setLandTarget(null);
     if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    if (anchorWaitRef.current) clearTimeout(anchorWaitRef.current);
     advanceTimerRef.current = null;
+    anchorWaitRef.current = null;
     scheduledKeyRef.current = null;
+    anchorScheduledKeyRef.current = null;
   }, [queueKey]);
 
   useEffect(
     () => () => {
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      if (anchorWaitRef.current) clearTimeout(anchorWaitRef.current);
     },
     []
   );
 
-  const currentIndex = list.findIndex((row, i) => !advanced.has(keyOf(row, i)));
+  /* The current decision: the one holding its seal ceremony, else the first not
+     yet resolved. Resolved rows before it stay sealed (data), so a remount can
+     never rewind the walk. */
+  const currentIndex = list.findIndex(
+    (row, i) => !row.sealedVerdict || keyOf(row, i) === sealingKey
+  );
   const total = list.length;
   const current = currentIndex > -1 ? list[currentIndex] : null;
   const currentKey = current ? keyOf(current, currentIndex) : null;
   const hasNext = currentIndex > -1 && currentIndex < total - 1;
   const sealed = current?.sealedVerdict || null;
+  const isSeal = sealed === "approved" || sealed === "refused";
 
-  /* Advance once the current decision is resolved and its seal has rested a
-     beat. The last decision never advances: the queue rests on its seal, which
-     IS the finish. */
+  /* Decide the seal's sticky number, exactly once: the real anchor the moment
+     /seal returns it, or the decision's own id if the wire stays silent past
+     HELD_ANCHOR_WAIT_MS. Once chosen it never changes, so the number scrambles
+     while computing and then locks ONE time — no UUID→sha re-scramble. */
   useEffect(() => {
-    if (!current || !hasNext || !sealed) return;
+    if (!isSeal || !current) return;
+    if (landTarget && landTarget.key === currentKey) return; /* already decided */
+    if (current.sealedAnchor) {
+      if (anchorWaitRef.current) {
+        clearTimeout(anchorWaitRef.current);
+        anchorWaitRef.current = null;
+      }
+      setLandTarget({ key: currentKey, value: current.sealedAnchor });
+      return;
+    }
+    if (anchorScheduledKeyRef.current === currentKey) return;
+    anchorScheduledKeyRef.current = currentKey;
+    const fallbackId = current.decision_id;
+    anchorWaitRef.current = setTimeout(() => {
+      anchorWaitRef.current = null;
+      setLandTarget((prev) =>
+        prev && prev.key === currentKey ? prev : { key: currentKey, value: fallbackId }
+      );
+    }, HELD_ANCHOR_WAIT_MS);
+  }, [isSeal, current, currentKey, landTarget]);
+
+  const target =
+    isSeal && landTarget && landTarget.key === currentKey ? landTarget.value : null;
+  const landed = Boolean(target);
+
+  /* Advance once the seal has fully shown — a verdict whose number has LANDED, or
+     a keep-holding that seals no number. The beat is measured from the landing,
+     so the number is always seen to lock before the surface moves on. The last
+     decision never advances: it rests on its seal, the finish. */
+  useEffect(() => {
+    if (!current || !hasNext) return;
+    const readyToAdvance = sealed === "held" || (isSeal && landed);
+    if (!readyToAdvance) return;
     if (scheduledKeyRef.current === currentKey) return;
     scheduledKeyRef.current = currentKey;
     advanceTimerRef.current = setTimeout(() => {
       advanceTimerRef.current = null;
-      morphSurface(() =>
-        setAdvanced((prev) => {
-          if (prev.has(currentKey)) return prev;
-          const next = new Set(prev);
-          next.add(currentKey);
-          return next;
-        })
-      );
-    }, HELD_SEAL_BEAT_MS);
-  }, [current, sealed, currentKey, hasNext]);
+      /* Release the ceremony: the row is now resolved in the data, so clearing
+         the sealing key drops the walk to the next unsealed decision. */
+      morphSurface(() => setSealingKey((k) => (k === currentKey ? null : k)));
+    }, sealed === "held" ? HELD_HOLD_BEAT_MS : HELD_SEAL_BEAT_MS);
+  }, [current, sealed, currentKey, hasNext, isSeal, landed, sealingKey]);
 
   if (!current) return null;
+
+  /* Resolve the current decision: mark it as the one holding its seal ceremony
+     (so the walk keeps showing it through its beat, even as the wire adds the
+     verdict), then send the act to the backend. */
+  const resolveCurrent = (verdict) => {
+    setSealingKey(currentKey);
+    onResolve(current, verdict);
+  };
 
   return (
     <div
@@ -222,29 +293,42 @@ function HeldRowsList({ rows, onResolve }) {
           {currentIndex + 1} / {total}
         </p>
       )}
-      <div className="tex-held-row" key={currentKey}>
-        <p className="tex-held-row-line">{heldRowLine(current)}</p>
-        {heldRowMeta(current) && (
-          <p className="tex-held-row-meta">{heldRowMeta(current)}</p>
-        )}
-        {current.sealedVerdict ? (
-          <p className="tex-held-row-sealed" role="status">
+      {current.sealedVerdict ? (
+        /* The seal screen — the resolved decision alone on the glass: the
+           verdict line, then the sealed number. While the wire computes the
+           anchor the mapping mark scrambles (the same hex the Waking mark
+           shows); the moment the real number is known it locks onto it, ONCE.
+           Rests a beat, then the queue morphs to the next decision. */
+        <div className="tex-held-seal" key={`${currentKey}-seal`} role="status">
+          <p className="tex-held-seal-line">
             {current.sealedVerdict === "approved"
               ? "Sealed. You approved it."
               : current.sealedVerdict === "refused"
               ? "Sealed. You refused it."
               : "Held. It waits for you."}
-            {current.sealedAnchor
-              ? ` · ${String(current.sealedAnchor).slice(0, 12)}…`
-              : ""}
           </p>
-        ) : current.decision_id ? (
+          {isSeal ? (
+            target && SEAL_ANCHOR_RE.test(target) ? (
+              <SealAnchor hash={target} />
+            ) : target && SEALED_NUMBER_RE.test(target) ? (
+              <ScrambleSeal value={target} className="tex-seal-anchor" />
+            ) : (
+              <MappingMark />
+            )
+          ) : null}
+        </div>
+      ) : (
+        <div className="tex-held-row" key={currentKey}>
+          <p className="tex-held-row-line">{heldRowLine(current)}</p>
+          {heldRowMeta(current) && (
+            <p className="tex-held-row-meta">{heldRowMeta(current)}</p>
+          )}
           <div className="tex-acts tex-held-row-acts">
             <button
               type="button"
               data-act="approve"
               className="tex-act tex-act--approve"
-              onClick={() => onResolve(current, "approved")}
+              onClick={() => resolveCurrent("approved")}
             >
               Approve
             </button>
@@ -252,7 +336,7 @@ function HeldRowsList({ rows, onResolve }) {
               type="button"
               data-act="hold"
               className="tex-act tex-act--hold"
-              onClick={() => onResolve(current, "held")}
+              onClick={() => resolveCurrent("held")}
             >
               Keep holding
             </button>
@@ -260,13 +344,13 @@ function HeldRowsList({ rows, onResolve }) {
               type="button"
               data-act="refuse"
               className="tex-act tex-act--refuse"
-              onClick={() => onResolve(current, "refused")}
+              onClick={() => resolveCurrent("refused")}
             >
               Refuse
             </button>
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1228,12 +1312,15 @@ export default function Vigil() {
     if (!id) return;
     dismissedRef.current.add(id);
     bumpDismissed((n) => n + 1);
-    setHeldRows((rows) =>
-      rows
-        ? rows.map((r) =>
-            r.decision_id === id ? { ...r, sealedVerdict: verdict } : r
-          )
-        : rows
+    /* The decision card MORPHS into its seal screen (law #2, nothing pops). */
+    morphSurface(() =>
+      setHeldRows((rows) =>
+        rows
+          ? rows.map((r) =>
+              r.decision_id === id ? { ...r, sealedVerdict: verdict } : r
+            )
+          : rows
+      )
     );
     sealDecision(id, { verdict, resolvedBy: "operator" })
       .then((res) => {
