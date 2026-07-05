@@ -16,6 +16,7 @@ import {
   unlockVoice,
   prewarmPresence,
   playPresenceAck,
+  prewarmSpeak,
   VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
@@ -93,6 +94,15 @@ function morphSurface(apply) {
 /* follow-up context all clear, and the next question starts a topic.   */
 /* ------------------------------------------------------------------ */
 const TRAIL_MAX = 4; /* prior turns kept on the glass; older ones let go */
+
+/* Return to silence. When nothing is asked of Tex and no hand is on the glass
+   for this long, the surface dissolves back to empty white — the resting state
+   the whole product is built around. It is the PASSIVE twin of Escape: the same
+   clean slate (refreshSurface), and the same hard rule — it NEVER clears a
+   decision waiting for a human seal (see `deciding`), never interrupts the
+   day-one arc, and never cuts across Tex mid-answer or a hand mid-hold. Silence
+   is the default; this is only how the surface finds its way back to it. */
+const IDLE_BLANK_MS = 10000;
 
 /* The clean-slate verbs — the ONE ask the surface answers itself, never
    the backend. Matched on the normalized whole line, so "Refresh." and
@@ -1209,8 +1219,16 @@ export default function Vigil() {
        one spoken line — the count of what the scan actually discovered. That
        single spoken sentence IS the whole Begin reveal: the glass speaks the
        count and returns to silence. Tex does not unfurl an inventory list — a
-       roster of rows reads as a dashboard, which the surface refuses to be. */
-    const line = await ignition.begin();
+       roster of rows reads as a dashboard, which the surface refuses to be.
+
+       Begin ignites the SAME estate the vigil watches: the resolved watch
+       tenant is threaded through, so the count Tex speaks and the estate the
+       surface then reads are one estate — never "ignite default, watch
+       tex-enterprise". The keyed sentinel stays off the wire (prod posture:
+       the key carries the tenant; scopedTenant already omits the id). */
+    const line = await ignition.begin(
+      watchTenant && watchTenant !== KEYED_ESTATE ? watchTenant : undefined
+    );
     const wait = Math.max(0, MAP_MIN_MS - (Date.now() - started));
 
     clearMappingTimer();
@@ -1256,7 +1274,7 @@ export default function Vigil() {
       }
     }, wait);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ignition]);
+  }, [ignition, watchTenant]);
 
   const deferDiscovery = useCallback(() => {
     openHandledRef.current = true; /* rest in silence; Tex does not nag */
@@ -1402,6 +1420,26 @@ export default function Vigil() {
   const holdPointerRef = useRef(null);
   const holdActiveRef = useRef(false);
 
+  /* The speculative bet's AUDIO twin: when a bet resolves while it is still
+     the LIVE bet (mid-hold, or inside the release's finalize window), warm the
+     answer's timed clip through the voice engine's prefetch slot. A pure
+     fetch — nothing sounds, no epoch moves; only texSpeakSynced can voice it,
+     and only when the redeemed answer matches exactly (text + prosody token).
+     On the common redeemed path Tex's voice then starts from LOCAL audio at
+     the release instead of paying the TTS round trip. A bet that was already
+     redeemed (specRef nulled at redemption) or replaced by a newer bet warms
+     nothing — no wasted fetch; a warm that is never spoken is aborted by the
+     next speak's supersede and can never sound. */
+  const armAnswerPrewarm = useCallback((p) => {
+    const betEpoch = askEpochRef.current;
+    p.then((res) => {
+      if (betEpoch !== askEpochRef.current) return; /* turn superseded */
+      if (!specRef.current || specRef.current.promise !== p) return; /* redeemed or re-bet */
+      const presence = derivePresence(res);
+      if (presence?.spokenText) prewarmSpeak(presence.spokenText, presence.prosodyToken);
+    }).catch(() => {});
+  }, []);
+
   /* Every live partial while the mic is held: feed the heard line (the words
      form on the glass AS they are spoken) and arm the SPECULATIVE ask — once a
      partial holds stable for SPECULATE_STABLE_MS, /v1/ask fires early so the
@@ -1424,9 +1462,10 @@ export default function Vigil() {
            .then/.catch handlers at release. */
         p.catch(() => {});
         specRef.current = { q, promise: p };
+        armAnswerPrewarm(p);
       }, SPECULATE_STABLE_MS);
     },
-    [watchTenant]
+    [watchTenant, armAnswerPrewarm]
   );
 
   const beginHold = useCallback(
@@ -1640,6 +1679,10 @@ export default function Vigil() {
         const p = askTex(early, watchTenant, lastExchangeRef.current);
         p.catch(() => {});
         specRef.current = { q, promise: p };
+        /* The finalize window (up to 1600ms) is exactly the time this warm
+           needs — if the words don't change, the answer's audio is local by
+           the time the redemption speaks it. */
+        armAnswerPrewarm(p);
       }
     }
 
@@ -1734,7 +1777,7 @@ export default function Vigil() {
            surfaceAnswer, so thinking/verifying clear inside its morph. */
         surfaceFailure("I can't reach the records right now.");
       });
-  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, maybeSurfaceHeldRows, refreshSurface, watchTenant]);
+  }, [holding, state, alive, sayHere, surfaceObject, pullEvidence, liveDecision, surfaceAnswer, surfaceFailure, maybeSurfaceHeldRows, refreshSurface, watchTenant, armAnswerPrewarm]);
 
   /* A CANCELLED gesture is not a release. The OS stole the pointer (an
      incoming call, an edge-swipe, palm rejection) or the hold lost its window
@@ -1853,6 +1896,11 @@ export default function Vigil() {
      the input commits. A typed ask barges in on any ambient line, like a press. */
   const beginTyping = useCallback(
     (firstChar) => {
+      /* Prime the voice INSIDE the keystroke gesture — a typed-first session
+         otherwise reaches its first spoken answer outside the activation
+         window and strict browsers keep it silent (the press path unlocks in
+         beginHold; typing needs its own). Idempotent; no epoch is touched. */
+      unlockVoice();
       loadRoster();
       loadAssist();
       /* A typed reach takes the surface exactly like a press: the object, a
@@ -2358,6 +2406,79 @@ export default function Vigil() {
     const decide = deciding ? " is-deciding" : "";
     return `${base} ${s}${listening}${think}${lost}${decide}`;
   }, [state, holding, thinking, alive, deciding]);
+
+  /* ---------------- RETURN TO SILENCE — idle-to-blank ----------------
+     Silence is Tex's resting state. When no hand is on the glass and nothing
+     is being asked for IDLE_BLANK_MS, the surface dissolves back to empty white
+     through the same clean slate Escape uses (quiet → refreshSurface), wrapped
+     in the one-material morph so the words EXHALE out rather than pop.
+
+     The hard rule lives in `idleBlocked`: this fade may NEVER take the surface
+     while a decision waits for a human seal (`deciding` — the held card, an
+     unresolved held row, Begin at the door), never during the day-one arc, and
+     never across Tex mid-answer or a hand mid-hold. When approval is needed, the
+     surface stays; only a truly at-rest glass is allowed to find its way back to
+     blank. A half-formed typed line is treated as intent and is left untouched. */
+  const idleActivityRef = useRef(0);
+  const quietRef = useRef(quiet);
+  quietRef.current = quiet;
+
+  /* Refreshed every render so the mount-scoped watcher never reads stale state.
+     A plain ref write (no re-render) — the interval below reads .current. */
+  const idleBlocked =
+    deciding ||
+    !ignitionReady ||
+    ignitionDoorOpen ||
+    mapping ||
+    holding ||
+    thinking ||
+    verifying ||
+    typed != null;
+  const idleHasContent =
+    trail.length > 0 ||
+    Boolean(answer) ||
+    Boolean(spoken) ||
+    Boolean(surfaced) ||
+    Boolean(sealed) ||
+    heard.length > 0;
+  const idleGuardRef = useRef(null);
+  idleGuardRef.current = { blocked: idleBlocked, hasContent: idleHasContent };
+
+  useEffect(() => {
+    /* Any real reach keeps Tex present; only true absence lets it fade. Cheap
+       ref writes, no re-render, captured so a stopPropagation upstream can't
+       hide the operator's presence from the clock. */
+    const mark = () => {
+      idleActivityRef.current = Date.now();
+    };
+    mark();
+    const opts = { passive: true, capture: true };
+    const evs = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"];
+    evs.forEach((e) => document.addEventListener(e, mark, opts));
+
+    const tick = setInterval(() => {
+      const g = idleGuardRef.current;
+      /* Not eligible right now (a choice waits, the door is open, Tex is mid
+         work, the tab is hidden, or the glass is already bare): hold the clock
+         at "now" so the countdown starts fresh the instant the surface is once
+         again at rest with something on it — never fires stale mid-resolution. */
+      if (!g || g.blocked || !g.hasContent || document.hidden) {
+        idleActivityRef.current = Date.now();
+        return;
+      }
+      if (Date.now() - idleActivityRef.current >= IDLE_BLANK_MS) {
+        idleActivityRef.current = Date.now();
+        /* Tex-driven return to rest → ride the one-material morph so the whole
+           surface dissolves to white together. */
+        morphSurface(() => quietRef.current());
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(tick);
+      evs.forEach((e) => document.removeEventListener(e, mark, opts));
+    };
+  }, []);
 
   const ariaState = !alive
     ? "Tex is no longer responding. The connection to the witness was lost."
@@ -2953,6 +3074,9 @@ export default function Vigil() {
             aria-label="Type a question to Tex"
             onClick={(e) => {
               e.stopPropagation();
+              /* A tap is a valid audio-unlock gesture — a typed-first session
+                 must not render its first answer silent (see beginTyping). */
+              unlockVoice();
               loadRoster();
               loadAssist();
               const el = inputRef.current;

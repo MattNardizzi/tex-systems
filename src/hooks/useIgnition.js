@@ -80,7 +80,7 @@ export function useIgnition() {
     };
   }, []);
 
-  const begin = useCallback(async () => {
+  const begin = useCallback(async (estateTenant) => {
     if (igniting) return null;
     setIgniting(true);
     try {
@@ -90,8 +90,15 @@ export function useIgnition() {
          spoken line carries the honest coverage — the count, plus the planes
          still dark and the vantage that would open the biggest one. A directory,
          when connected, is just one plane sourced server-side, never an
-         interactive consent on Begin. */
-      const spoken = await igniteAndCount(connectedTenantRef.current || undefined);
+         interactive consent on Begin.
+
+         ``estateTenant`` is the estate the SURFACE watches (the caller's
+         resolved watch tenant), so ignition and the vigil always speak of one
+         estate. It wins over the session-connected directory; with neither,
+         the id is omitted and the key (or the backend default) carries it. */
+      const spoken = await igniteAndCount(
+        estateTenant || connectedTenantRef.current || undefined
+      );
       setIgnited(true);
       return spoken;
     } catch (_err) {
