@@ -233,8 +233,9 @@ export const listHeldDecisions = (tenantId) => {
  * Prefer GET /v1/agents/governance — the richer per-agent read, where each row
  * carries governance_state / decision_count / forbid_count / last_decision_at,
  * so a row can later wear the plane badge (D2) without a second call. If that
- * endpoint is unavailable, fall back to GET /v1/agents?status=active, which
- * EXCLUDES sleeping/revoked agents so the list matches the count Tex spoke.
+ * endpoint is unavailable, fall back to GET /v1/agents?status=ACTIVE — the
+ * status param is a STRICT UPPERCASE enum (lowercase 422s) — which EXCLUDES
+ * sleeping/revoked agents so the list matches the count Tex spoke.
  *
  * Returns the parsed agent list (an array). On total failure resolves to an
  * empty array — the surface renders an honest empty state, never a fabricated
@@ -270,7 +271,7 @@ export const getAgentRoster = async (tenantId) => {
   }
   try {
     const sep = qs ? "&" : "?";
-    return pluck(await request(`/v1/agents${qs}${sep}status=active`));
+    return pluck(await request(`/v1/agents${qs}${sep}status=ACTIVE`));
   } catch (_e) {
     /* Both reads failed — resolve to nothing, never a fabricated roster. */
   }
