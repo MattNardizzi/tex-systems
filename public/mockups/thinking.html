@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — The Thinking Mark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0a0a0a; --ink2:#525252; --ink3:#8f8f8f; --scram:#bcbcbc; --lock:#1a1a1a;
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+  --focus:cubic-bezier(.22,1,.36,1); --util:cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--mic);color:var(--ink);background:#fff;overflow:hidden;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
+/* faint luminance-only grain — premium paper, never a tint (matches seal.html) */
+.grain{position:fixed;inset:0;z-index:9;pointer-events:none;mix-blend-mode:soft-light;opacity:.30;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px}
+
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+.wrap{position:relative;display:grid;place-items:center;height:64px}
+
+/* ── THE THINKING MARK ─────────────────────────────────────────────
+   Not a dot. A small hash fragment, still searching — Tex computing the
+   proof. Geist Mono, scramble-grey, calm breath. This is what replaces
+   the black dot. It is the seal, one moment before it exists. */
+.mark{position:absolute;font-family:var(--mono);font-weight:500;
+  font-size:clamp(14px,2vw,19px);letter-spacing:.34em;
+  color:var(--scram);white-space:nowrap;opacity:0;
+  padding-left:.34em/* optical: absorb the trailing tracking so it reads centred */}
+.mark.breathe{animation:tex-think 2400ms var(--util) infinite}
+@keyframes tex-think{0%,100%{opacity:.5}50%{opacity:.92}}
+
+/* ── THE SEAL ──────────────────────────────────────────────────────
+   The full sha256 locking into place, left → right — the fragment,
+   grown whole and proven. Identical mechanics to seal.html. */
+.seal{position:absolute;font-family:var(--mono);
+  font-size:clamp(9px,1.55vw,15px);letter-spacing:.06em;white-space:nowrap;opacity:0}
+.seal .c{color:var(--scram);transition:color .28s var(--util)}
+.seal .c.lock{color:var(--lock)}
+
+/* the whisper-faint state caption, bottom-centre */
+.state{position:fixed;left:0;right:0;bottom:20%;text-align:center;
+  font-family:var(--mic);font-size:10px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--ink3);opacity:0;transition:opacity .5s var(--util)}
+
+.replay{position:fixed;right:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#cfcfcf;background:none;border:0;cursor:pointer}
+.tag{position:fixed;left:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:#cfcfcf}
+@media (prefers-reduced-motion:reduce){.mark.breathe{animation:none;opacity:.8}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="stage">
+  <div class="wrap">
+    <div class="mark" id="mark"></div>
+    <div class="seal" id="seal"></div>
+  </div>
+</div>
+<div class="state" id="state"></div>
+
+<button class="replay" id="replay">Replay ↻</button>
+<div class="tag">The Thinking Mark</div>
+
+<script>
+/* THE THINKING MARK — the seal's earlier life.
+   You ask Tex. Instead of a borrowed dot, a small hash FRAGMENT appears,
+   still searching (scramble-grey, breathing) — Tex is computing the proof.
+   The instant the answer resolves, the fragment grows into the full sha256
+   and LOCKS into place, left → right: the same object, now proven.
+   Every colour is a neutral grey (R=G=B). No glow, no particle, no tint. */
+const HASH = "3f9a1c7e0b6d2548a1f4c93e7b08d65c2e9f1a4b8c3d70e6f5a2b9c8d1e0f7a6";
+const HEX  = "0123456789abcdef";
+const STUB = 6; // how many characters the "searching" fragment shows
+const $ = s=>document.querySelector(s);
+const wait = ms=>new Promise(r=>setTimeout(r,ms));
+const UTIL='cubic-bezier(.4,0,.2,1)', FOCUS='cubic-bezier(.22,1,.36,1)';
+
+const markEl = $('#mark');
+const sealEl = $('#seal');
+
+// full seal: one span per character
+const cells = [...HASH].map(ch=>{ const s=document.createElement('span'); s.className='c'; s.textContent=ch; sealEl.appendChild(s); return s; });
+
+let rafSeal=0, sealScrambleOn=false;
+function sealScramble(){
+  if(!sealScrambleOn) return;
+  for(let i=0;i<cells.length;i++){ if(!cells[i].classList.contains('lock')) cells[i].textContent=HEX[(Math.random()*16)|0]; }
+  rafSeal=requestAnimationFrame(sealScramble);
+}
+
+// the thinking fragment scrambles on a calm, throttled cadence — deliberate,
+// never a frantic buffer. This is what tells you Tex is *weighing*, not stalling.
+let thinkTimer=0, thinkOn=false;
+function thinkTick(){
+  if(!thinkOn) return;
+  let s=''; for(let i=0;i<STUB;i++) s+=HEX[(Math.random()*16)|0];
+  markEl.textContent=s;
+  thinkTimer=setTimeout(thinkTick,96);
+}
+
+async function lockSeal(){
+  sealScrambleOn=true; sealScramble();
+  await wait(120);
+  for(let i=0;i<cells.length;i++){
+    cells[i].textContent=HASH[i];
+    cells[i].classList.add('lock');
+    await wait(14);
+  }
+  sealScrambleOn=false; cancelAnimationFrame(rafSeal);
+}
+
+function setState(txt){ const el=$('#state'); el.textContent=txt; el.style.opacity=txt?1:0; }
+
+let running=true;
+async function play(){
+  while(running){
+    // ── reset ──
+    markEl.style.opacity=0; markEl.classList.remove('breathe');
+    sealEl.style.opacity=0; cells.forEach(c=>{ c.classList.remove('lock'); c.textContent=HASH[0]; });
+    setState('');
+    await wait(320);
+
+    // ── THINKING: the fragment appears and searches ──
+    thinkOn=true; thinkTick();
+    markEl.animate([{opacity:0,filter:'blur(4px)'},{opacity:1,filter:'blur(0)'}],{duration:520,easing:FOCUS,fill:'both'});
+    markEl.style.opacity=1; markEl.classList.add('breathe');
+    setState('weighing proof');
+    await wait(2000); // the beat you watch — this is the dot's replacement
+
+    // ── HANDOFF: fragment resolves into the full seal ──
+    markEl.classList.remove('breathe');
+    markEl.animate([{opacity:1,filter:'blur(0)'},{opacity:0,filter:'blur(4px)'}],{duration:260,easing:UTIL,fill:'both'});
+    thinkOn=false; clearTimeout(thinkTimer);
+    await wait(200);
+
+    // ── SEAL: the proof locks into place ──
+    sealEl.animate([{opacity:0},{opacity:1}],{duration:360,easing:UTIL,fill:'both'});
+    sealEl.style.opacity=1;
+    await lockSeal();
+    setState('sealed');
+    await wait(3000);
+
+    // ── calm exit, then loop ──
+    [markEl,sealEl,$('#state')].forEach(el=>el.animate([{opacity:el.style.opacity||1},{opacity:0}],{duration:720,easing:UTIL,fill:'both'}));
+    await wait(1100);
+  }
+}
+
+document.getElementById('replay').addEventListener('click',()=>location.reload());
+document.fonts.ready.then(play);
+setTimeout(()=>{ if(!markEl.textContent) play(); }, 900);
+</script>
+</body>
+</html>

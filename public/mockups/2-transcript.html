@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — Transcript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0b0b0b; --ink2:#2c2c2c; --soft:#5d5d5d; --mute:#9a9a9a; --faint:#c7c7c7;
+  --hair:rgba(0,0,0,.075); --hair2:rgba(0,0,0,.14); --paper:#fff;
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--mic); color:var(--ink); letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  background:#fff;
+  background-image:radial-gradient(130% 110% at 43% -6%,#fff 0%,#fdfdfd 56%,#f8f8f8 100%);
+}
+.grain{position:fixed;inset:0;z-index:99;pointer-events:none;mix-blend-mode:soft-light;opacity:.4;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px 180px}
+.screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:48px}
+.tag{position:fixed;left:24px;bottom:20px;z-index:100;font-family:var(--mic);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--mute)}
+
+/* ── TRANSCRIPT ─────────────────────────────────────────────────────────
+   Tex speaks; its speech is typeset like a beautiful transcript. A thin
+   spine rule on the left; the utterance hand-broken into SHORT left-aligned
+   lines so Michroma never wraps as a block; tiny marginalia for metadata.
+   This is the editorial answer to the long-sentence problem. */
+.doc{width:100%;max-width:600px;display:grid;grid-template-columns:120px 1fr;column-gap:0}
+.margin{position:relative;padding-right:28px;border-right:1px solid var(--hair);text-align:right}
+.m-label{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--mute);line-height:1.7}
+.m-time{margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;color:var(--faint)}
+.m-tier{margin-top:auto;display:inline-flex;align-items:center;gap:8px;justify-content:flex-end;
+  font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--soft)}
+.m-tier .dot{width:6px;height:6px;border-radius:50%;background:var(--ink)}
+.body{padding-left:32px}
+.speaker{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink)}
+.say{margin-top:22px;font-size:18px;line-height:1.6;letter-spacing:-.01em;color:var(--ink)}
+.say .ln{display:block}
+.aside{margin-top:22px;font-size:13.5px;line-height:1.72;letter-spacing:.004em;color:var(--soft);max-width:26em}
+.aside .ln{display:block}
+.q{margin-top:30px;padding-top:24px;border-top:1px solid var(--hair)}
+.q-label{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--mute)}
+.q-text{margin-top:13px;font-size:15.5px;line-height:1.5;letter-spacing:-.005em;color:var(--ink2);max-width:18em}
+.acts{display:flex;gap:34px;margin-top:38px}
+.act{display:inline-flex;align-items:center;gap:11px;font-family:var(--mic);font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--soft);cursor:pointer;background:none;border:0;padding:6px 0;transition:color .18s cubic-bezier(.32,.72,0,1)}
+.act::after{content:"";width:0;height:1px;background:var(--ink);transition:width .2s cubic-bezier(.32,.72,0,1)}
+.act:hover{color:var(--ink)}.act:hover::after{width:22px}
+.act--primary{color:var(--ink)}
+.act--primary::after{width:22px;background:var(--ink)}
+.act--primary:hover::after{width:40px}
+
+/* door */
+.door{max-width:600px;display:grid;grid-template-columns:120px 1fr}
+.door .say{margin-top:0;font-size:20px}
+.begin{display:inline-flex;align-items:center;gap:14px;margin-top:32px;
+  font-family:var(--mic);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink);cursor:pointer;background:none;border:0}
+.begin::after{content:"";width:30px;height:1px;background:var(--ink);transition:width .18s cubic-bezier(.32,.72,0,1)}
+.begin:hover::after{width:56px}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<section class="screen" id="held">
+  <div class="doc">
+    <div class="margin">
+      <div class="m-label">Held&nbsp;·&nbsp;03</div>
+      <div class="m-time">3:42:07&nbsp;PM</div>
+    </div>
+    <div class="body">
+      <div class="speaker">Tex</div>
+      <p class="say">
+        <span class="ln">A wire wants to move $40,000</span>
+        <span class="ln">to an account I've never seen.</span>
+      </p>
+      <p class="aside">
+        <span class="ln">ClaimPulse opened it nine seconds ago.</span>
+        <span class="ln">Everything checks but the destination —</span>
+        <span class="ln">and that one thing I can't vouch for.</span>
+      </p>
+      <div class="q">
+        <div class="q-label">There's one thing I'd need to know</div>
+        <p class="q-text">Have you sent money to this account before?</p>
+      </div>
+      <div class="acts">
+        <button class="act act--primary">Approve</button>
+        <button class="act">Keep holding</button>
+        <button class="act">Refuse</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="door">
+  <div class="door">
+    <div class="margin"><div class="m-label">Tex</div></div>
+    <div class="body">
+      <p class="say">The weight is mine now.</p>
+      <button class="begin">Begin</button>
+    </div>
+  </div>
+</section>
+
+<div class="tag">02 — Transcript</div>
+</body>
+</html>

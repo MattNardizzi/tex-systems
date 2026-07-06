@@ -1,0 +1,67 @@
+/* ConfirmCorrect — minimal, ink-on-paper, matches the SpokenLine surface.
+   Two quiet affordances that only appear next to a claim; the sealed receipt
+   reads like a watermark, not a toast. */
+
+.tex-cc {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--tex-unit, 8px) * 0.75);
+  font-family: var(--tex-sans, system-ui, sans-serif);
+  font-size: 0.82em;
+  line-height: 1;
+  vertical-align: baseline;
+  user-select: none;
+}
+
+.tex-cc-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--tex-ink-hair, rgba(0, 0, 0, 0.14));
+  color: var(--tex-ink-mute, rgba(0, 0, 0, 0.55));
+  border-radius: 999px;
+  padding: 0.28em 0.7em;
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.tex-cc-btn:hover:not(:disabled) {
+  color: var(--tex-ink, #111);
+  border-color: var(--tex-ink-soft, rgba(0, 0, 0, 0.3));
+}
+
+.tex-cc-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tex-cc-yes:hover:not(:disabled) {
+  background: var(--tex-paper, transparent);
+}
+
+/* "That's wrong" is deliberately not alarming — a correction is a gift to Tex,
+   not an error report. It tightens, quietly. */
+.tex-cc-no:hover:not(:disabled) {
+  color: var(--tex-ink, #111);
+}
+
+.tex-cc-done {
+  color: var(--tex-ink-mute, rgba(0, 0, 0, 0.55));
+  font-style: italic;
+}
+
+.tex-cc-msg {
+  white-space: nowrap;
+}
+
+.tex-cc-anchor {
+  font-family: var(--tex-mono, ui-monospace, monospace);
+  font-style: normal;
+  font-size: 0.92em;
+  color: var(--tex-ink-soft, rgba(0, 0, 0, 0.35));
+  letter-spacing: 0.02em;
+}
+
+.tex-cc-error .tex-cc-msg {
+  color: var(--tex-ink-mute, rgba(0, 0, 0, 0.55));
+}

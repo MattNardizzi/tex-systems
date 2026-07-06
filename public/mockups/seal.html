@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — The Seal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0a0a0a; --ink2:#525252; --ink3:#8f8f8f; --scram:#bcbcbc;
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+  --focus:cubic-bezier(.22,1,.36,1); --util:cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--mic);color:var(--ink);background:#fff;overflow:hidden;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
+/* faint luminance-only grain — premium paper, never a tint */
+.grain{position:fixed;inset:0;z-index:9;pointer-events:none;mix-blend-mode:soft-light;opacity:.30;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px}
+
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+.wrap{text-align:center;transform:translateY(-2%)}
+
+.verdict{font-size:clamp(24px,3.2vw,32px);line-height:1;letter-spacing:-.02em;color:var(--ink);
+  opacity:0;filter:blur(7px)}
+
+/* the hash — the one thing that lives: hex locking into place, left to right */
+.hash{margin-top:34px;font-family:var(--mono);font-size:clamp(9px,1.55vw,15px);
+  letter-spacing:.06em;white-space:nowrap;color:var(--ink);opacity:0}
+.hash .c{color:var(--scram);transition:color .28s var(--util)}
+.hash .c.lock{color:#1a1a1a}
+
+.meta{margin-top:26px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);opacity:0}
+
+.replay{position:fixed;right:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#cfcfcf;background:none;border:0;cursor:pointer}
+.tag{position:fixed;left:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:#cfcfcf}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="stage">
+  <div class="wrap">
+    <h1 class="verdict" id="verdict">Approved.</h1>
+    <div class="hash" id="hash"></div>
+    <p class="meta" id="meta">Post-quantum sealed · ML-DSA-65</p>
+  </div>
+</div>
+
+<button class="replay" id="replay">Replay ↻</button>
+<div class="tag">The Seal</div>
+
+<script>
+/* THE SEAL — clean.
+   A decision resolves. "Approved." settles into focus, then the sha256 locks
+   into place one character at a time, left to right — each hex digit scrambling
+   through values, then darkening as it locks. The sweep is the whole move:
+   precise, machine-exact, calm. Nothing else on the screen. Every colour is a
+   neutral grey (R=G=B). No glow, no particles, no line. */
+const HASH = "3f9a1c7e0b6d2548a1f4c93e7b08d65c2e9f1a4b8c3d70e6f5a2b9c8d1e0f7a6";
+const HEX = "0123456789abcdef";
+const $ = s=>document.querySelector(s);
+const wait = ms=>new Promise(r=>setTimeout(r,ms));
+const FOCUS='cubic-bezier(.22,1,.36,1)', UTIL='cubic-bezier(.4,0,.2,1)';
+
+/* build one span per character */
+const hashEl = $('#hash');
+const cells = [...HASH].map(ch=>{ const s=document.createElement('span'); s.className='c'; s.textContent=ch; hashEl.appendChild(s); return s; });
+
+let raf=0, scrambleOn=false;
+function scrambleTick(){
+  if(!scrambleOn) return;
+  for(let i=0;i<cells.length;i++){ if(!cells[i].classList.contains('lock')) cells[i].textContent=HEX[(Math.random()*16)|0]; }
+  raf=requestAnimationFrame(scrambleTick);
+}
+
+async function resolveHash(){
+  // reset
+  cells.forEach(c=>{ c.classList.remove('lock'); });
+  scrambleOn=true; scrambleTick();
+  await wait(120);
+  // lock left → right
+  for(let i=0;i<cells.length;i++){
+    cells[i].textContent=HASH[i];
+    cells[i].classList.add('lock');
+    await wait(15);
+  }
+  scrambleOn=false; cancelAnimationFrame(raf);
+}
+
+function fadeIn(el,opts){ return el.animate([{opacity:0},{opacity:opts.to??1}],{duration:opts.d||600,delay:opts.delay||0,easing:opts.ease||UTIL,fill:'both'}); }
+
+let running=true;
+async function play(){
+  while(running){
+    // reset
+    $('#verdict').style.opacity=0; $('#hash').style.opacity=0; $('#meta').style.opacity=0;
+    cells.forEach(c=>{ c.classList.remove('lock'); c.textContent=HASH[0]; });
+    await wait(300);
+    // verdict settles into focus
+    $('#verdict').animate([{opacity:0,filter:'blur(7px)'},{opacity:1,filter:'blur(0)'}],{duration:680,easing:FOCUS,fill:'both'});
+    await wait(620);
+    // hash appears, then locks into place
+    $('#hash').style.opacity=1;
+    await resolveHash();
+    await wait(260);
+    // credibility line
+    fadeIn($('#meta'),{to:.95,d:640,ease:FOCUS});
+    await wait(3400);
+    // calm exit, then loop
+    [$('#verdict'),$('#hash'),$('#meta')].forEach(el=>el.animate([{opacity:1},{opacity:0}],{duration:760,easing:UTIL,fill:'both'}));
+    await wait(1200);
+  }
+}
+
+function setStill(){
+  $('#verdict').style.opacity=1; $('#verdict').style.filter='none';
+  $('#hash').style.opacity=1; cells.forEach((c,i)=>{ c.textContent=HASH[i]; c.classList.add('lock'); });
+  $('#meta').style.opacity=.95;
+}
+function boot(){
+  window.__sealReady=true;
+  if(new URLSearchParams(location.search).get('still')!==null){ setStill(); return; }
+  play();
+}
+document.getElementById('replay').addEventListener('click',()=>location.reload());
+document.fonts.ready.then(boot);
+setTimeout(()=>{ if(!window.__sealReady) boot(); }, 900);
+</script>
+</body>
+</html>

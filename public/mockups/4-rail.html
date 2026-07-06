@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — Rail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0b0b0b; --ink2:#2c2c2c; --soft:#5d5d5d; --mute:#9a9a9a; --faint:#c7c7c7;
+  --hair:rgba(0,0,0,.075); --hair2:rgba(0,0,0,.14); --paper:#fff;
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--mic); color:var(--ink); letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  background:#fff;
+  background-image:radial-gradient(130% 110% at 50% -8%,#fff 0%,#fcfcfc 60%,#f6f6f6 100%);
+}
+.grain{position:fixed;inset:0;z-index:99;pointer-events:none;mix-blend-mode:soft-light;opacity:.35;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px 180px}
+
+/* the persistent product frame: a slim left rail with identity + live status */
+.app{min-height:100vh;display:grid;grid-template-columns:72px 1fr}
+.rail{border-right:1px solid var(--hair);display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;padding:34px 0}
+.rail .id{writing-mode:vertical-rl;font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--ink)}
+.rail .live{display:flex;flex-direction:column;align-items:center;gap:14px}
+.rail .live .lbl{writing-mode:vertical-rl;font-size:9px;letter-spacing:.32em;text-transform:uppercase;color:var(--mute)}
+.rail .live .dot{width:6px;height:6px;border-radius:50%;background:var(--ink);opacity:.85}
+.stage{display:flex;align-items:center;justify-content:center;padding:48px}
+
+/* the held card — a precise hairline panel, sharp corners, soft achromatic lift */
+.card{width:100%;max-width:440px;background:#fff;border:1px solid var(--hair2);border-radius:12px;
+  box-shadow:0 1px 1px rgba(0,0,0,.02),0 18px 50px -28px rgba(0,0,0,.18);overflow:hidden}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;padding:18px 26px;border-bottom:1px solid var(--hair)}
+.card-head .l{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink)}
+.card-head .r{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--mute)}
+.card-body{padding:26px}
+.statement{font-size:16px;line-height:1.55;letter-spacing:-.008em;color:var(--ink)}
+.detail{margin-top:16px;font-size:13px;line-height:1.7;letter-spacing:.004em;color:var(--soft);max-width:30em}
+.q{margin-top:24px;padding-top:22px;border-top:1px solid var(--hair)}
+.q .lbl{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--mute)}
+.q .t{margin-top:12px;font-size:14px;line-height:1.5;letter-spacing:-.004em;color:var(--ink2)}
+.acts{display:flex;gap:10px;padding:20px 26px;border-top:1px solid var(--hair);background:#fcfcfc}
+.act{font-family:var(--mic);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2);
+  padding:12px 18px;border:1px solid var(--hair2);border-radius:7px;background:#fff;cursor:pointer;
+  transition:.16s cubic-bezier(.32,.72,0,1)}
+.act:hover{border-color:var(--ink);color:var(--ink)}
+.act--primary{background:var(--ink);color:#fff;border-color:var(--ink);margin-right:auto}
+.act--primary:hover{background:#000;color:#fff}
+.foot{margin-top:20px;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--faint)}
+
+/* door */
+.door{max-width:440px;text-align:center}
+.door .statement{font-size:20px}
+.begin{display:inline-flex;align-items:center;gap:14px;margin-top:34px;
+  font-family:var(--mic);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink);cursor:pointer;background:none;border:0}
+.begin::after{content:"";width:30px;height:1px;background:var(--ink);transition:width .18s cubic-bezier(.32,.72,0,1)}
+.begin:hover::after{width:56px}
+.tag{position:fixed;left:96px;bottom:20px;z-index:100;font-family:var(--mic);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--mute)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<section class="app" id="held">
+  <aside class="rail">
+    <span class="id">Tex</span>
+    <span class="live"><span class="dot"></span><span class="lbl">Watching</span></span>
+  </aside>
+  <div class="stage">
+    <div class="card">
+      <div class="card-head"><span class="l">Decision held</span><span class="r">9s</span></div>
+      <div class="card-body">
+        <p class="statement">A wire wants to move $40,000 to an account I've never seen.</p>
+        <p class="detail">ClaimPulse opened it nine seconds ago. Everything checks but the destination, and that one thing I can't vouch for.</p>
+        <div class="q">
+          <div class="lbl">There's one thing I'd need to know</div>
+          <p class="t">Have you sent money to this account before?</p>
+        </div>
+      </div>
+      <div class="acts">
+        <button class="act act--primary">Approve</button>
+        <button class="act">Keep holding</button>
+        <button class="act">Refuse</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="app door" id="door">
+  <aside class="rail">
+    <span class="id">Tex</span>
+    <span class="live"><span class="dot"></span><span class="lbl">Awaiting</span></span>
+  </aside>
+  <div class="stage">
+    <div class="door">
+      <p class="statement">The weight is mine now.</p>
+      <button class="begin">Begin</button>
+    </div>
+  </div>
+</section>
+
+<div class="tag">04 — Rail</div>
+</body>
+</html>

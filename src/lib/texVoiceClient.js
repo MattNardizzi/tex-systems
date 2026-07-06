@@ -304,6 +304,12 @@ const BARGE_FADE_S = 0.008;
    so this never fires in the normal path; the prefetch (line N+1 warmed during N)
    hides most of the wait. */
 const FETCH_TIMEOUT_MS = 8000;
+/* How long a 503 from /v1/speak/stream_timed benches the streaming path. The
+   single-worker backend cold-starts and wedges (see FETCH_TIMEOUT_MS above), so
+   a 503 is usually a moment, not a verdict — benching the whole SESSION on one
+   (the old behavior) downgraded every later answer to full-clip latency while
+   the endpoint sat healthy. Only a 404 (route truly not deployed) is permanent. */
+const STREAM_RETRY_MS = 60000;
 /* The longest we wait past a clip's known duration for its `ended` event. A
    suspended AudioContext never fires `ended` (its clock is frozen), so this
    watchdog guarantees the sequence still advances instead of hanging. */
@@ -320,7 +326,8 @@ let _activeEnd = null; // resolver for the current playback await (true = natura
 let _waitCancel = null; // canceller for an inter-line pacing wait
 let _prefetch = null; // { text, controller, promise } — line N+1 warmed during N
 let _activeStream = null; // { stop() } — the chunked streamed-timestamp playback
-let _streamTimedDead = false; // 404/503 once → the endpoint isn't deployed/keyed; skip for the session
+let _streamTimedDead = false; // 404 once → the endpoint isn't deployed; skip for the session
+let _streamTimedRetryAt = 0; // 503 → transient (cold boot / wedge); bench until this timestamp, then re-probe
 
 function _ctx() {
   if (_voiceCtx) return _voiceCtx;
@@ -609,15 +616,35 @@ function _timedFetch(text, prosody) {
    feels gapless without putting an LLM in the speaking seat or a socket through
    the serverless proxy. A miss/timeout simply means a fresh fetch or a silent
    line — prefetch can only help, never freeze. */
-function _primePrefetch(text) {
+function _primePrefetch(text, prosody) {
   if (!text) return;
-  if (_prefetch && _prefetch.text === text) return;
+  const key = prosody || "";
+  if (_prefetch && _prefetch.text === text && _prefetch.prosody === key) return;
   if (_prefetch) {
     try { _prefetch.controller.abort(); } catch {}
   }
-  const { controller, promise } = _timedFetch(text);
-  promise.catch(() => {}); // an aborted/failed/timed-out warm-up must not surface as unhandled
-  _prefetch = { text, controller, promise };
+  const { controller, promise } = _timedFetch(text, prosody);
+  const entry = { text, prosody: key, controller, promise, ready: false };
+  /* `ready` marks a SETTLED payload — only a settled warm may short-circuit the
+     streaming path in texSpeakSynced (an in-flight one would trade the stream's
+     first chunk for a full-synthesis wait). */
+  promise
+    .then(() => {
+      entry.ready = true;
+    })
+    .catch(() => {}); // an aborted/failed/timed-out warm-up must not surface as unhandled
+  _prefetch = entry;
+}
+
+/* PUBLIC prewarm for a line Tex is LIKELY to speak next — the speculative ask's
+   audio twin. A pure fetch into the single prefetch slot: nothing sounds, no
+   epoch moves, no running line is touched; only texSpeakSynced/_speakTimedOne
+   can ever voice it, and only for the exact same text+prosody. A warm that is
+   never redeemed (revised transcript, superseded turn) is aborted by the next
+   supersede or displaced by the next warm — it cannot play. */
+export function prewarmSpeak(text, prosody) {
+  if (!VOICE_ENABLED || !text) return;
+  _primePrefetch(text, prosody);
 }
 
 /* Play one sealed line through Web Audio with an in-sync word highlight. Returns
@@ -627,7 +654,7 @@ function _primePrefetch(text) {
    starts so the next line is ready before it is needed. Falls back to the plain
    stream (real voice, no highlight) on 503 / decode failure — never authoring or
    altering the sealed text. */
-async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody } = {}) {
+async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, warmed } = {}) {
   /* Voice deactivated — no audio. Report "did not play" so a sequence advances
      on its silence floor and texSpeakTimed still fires onEnd; the words are
      already on the glass (SpokenLine renders full ink with no active word). */
@@ -643,9 +670,14 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody } =
   let data;
   try {
     let pf;
-    if (_prefetch && _prefetch.text === text && !prosody) {
-      /* The prefetch slot is only ever warmed for the NEUTRAL opener, so never
-         reuse it for a prosody-bearing line — fetch that fresh with its token. */
+    if (warmed) {
+      /* A warm detached by texSpeakSynced BEFORE its supersede (which clears
+         the slot) — the payload is already local, so this await is instant. */
+      pf = warmed;
+    } else if (_prefetch && _prefetch.text === text && _prefetch.prosody === (prosody || "")) {
+      /* The slot is keyed on text+prosody, so a warm only ever serves the
+         EXACT line it was fetched for — a neutral opener warm can never voice
+         a verdict-toned answer, nor the reverse. */
       pf = _prefetch;
       _prefetch = null;
     } else {
@@ -808,7 +840,8 @@ async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
   }
   if (!res.ok || !res.body) {
     clearTimeout(timer);
-    if (res.status === 404 || res.status === 503) _streamTimedDead = true;
+    if (res.status === 404) _streamTimedDead = true;
+    else if (res.status === 503) _streamTimedRetryAt = Date.now() + STREAM_RETRY_MS;
     return "fallback";
   }
   if (myEpoch !== _epoch) {
@@ -862,7 +895,10 @@ async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
       if (t >= wordStarts[i]) idx = i;
       else break; // starts are ordered; the last begun word is the active one
     }
-    if (idx !== lastIdx) {
+    /* Monotonic: an underrun rebase (scheduleChunk shifting startAt) briefly
+       shrinks t, but playback never seeks backward — hold the lit word until
+       the audio catches up instead of flashing an earlier one. */
+    if (idx > lastIdx) {
       lastIdx = idx;
       if (onWord) onWord(idx, null);
     }
@@ -881,8 +917,17 @@ async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
       nextAt = startAt;
       _activeRaf = requestAnimationFrame(tick);
     }
-    src.start(Math.max(nextAt, ctx.currentTime));
-    nextAt += buf.duration;
+    /* An underrun (a chunk landing after its seam already passed) starts late.
+       Advance nextAt from where this chunk ACTUALLY starts — advancing from the
+       stale seam would pin every later chunk to "now" while the previous one is
+       still playing (overlapping, garbled speech for the rest of the line). The
+       highlight anchor shifts by the same gap so wordStarts (stream-time) stay
+       aligned with the delayed audio. */
+    const at = Math.max(nextAt, ctx.currentTime);
+    src.start(at);
+    const gap = at - nextAt;
+    if (gap > 0) startAt += gap;
+    nextAt = at + buf.duration;
     scheduledDur += buf.duration;
     sources.push(src);
   };
@@ -1029,15 +1074,31 @@ export async function texSpeakSynced(text, { onWord, onEnd, prosody } = {}) {
     if (onEnd) onEnd();
     return;
   }
+  /* Claim a warmed answer BEFORE superseding — _supersede aborts the prefetch
+     slot (it must: a stale warm should die with its turn), so a matching,
+     already-SETTLED warm is detached here and handed straight to the timed
+     path. This is the speculative ask's payoff: the bet resolved while the key
+     was still held, prewarmSpeak fetched the full timed clip, and now the
+     voice starts from local audio — no TTFB at all, faster than the stream. */
+  let warmed = null;
+  if (
+    _prefetch &&
+    _prefetch.ready &&
+    _prefetch.text === text &&
+    _prefetch.prosody === (prosody || "")
+  ) {
+    warmed = _prefetch;
+    _prefetch = null;
+  }
   const myEpoch = _supersede();
   let owned = false;
-  if (!_streamTimedDead) {
+  if (!warmed && !_streamTimedDead && Date.now() >= _streamTimedRetryAt) {
     const r = await _speakStreamTimedOne(text, myEpoch, { onWord, prosody });
     owned = r !== "fallback";
   }
   if (!owned) {
     if (myEpoch !== _epoch) return;
-    await _speakTimedOne(text, myEpoch, { onWord, prosody });
+    await _speakTimedOne(text, myEpoch, { onWord, prosody, warmed });
   }
   if (myEpoch !== _epoch) return;
   if (onEnd) onEnd();

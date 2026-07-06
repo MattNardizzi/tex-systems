@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — Instrument</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0b0b0b; --ink2:#2c2c2c; --soft:#5d5d5d; --mute:#9a9a9a; --faint:#c7c7c7;
+  --hair:rgba(0,0,0,.075); --hair2:rgba(0,0,0,.14); --paper:#fff;
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--mic); color:var(--ink); letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  background:#fff;
+  background-image:radial-gradient(130% 110% at 43% -6%,#fff 0%,#fdfdfd 56%,#f8f8f8 100%);
+}
+.grain{position:fixed;inset:0;z-index:99;pointer-events:none;mix-blend-mode:soft-light;opacity:.4;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px 180px}
+.screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:48px}
+.tag{position:fixed;left:24px;bottom:20px;z-index:100;font-family:var(--mic);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--mute)}
+
+/* ── INSTRUMENT ─────────────────────────────────────────────────────────
+   A precision panel. A real hairline grid. Numbered registers, mono
+   readouts. Long prose is DECOMPOSED into labelled instrument fields so it
+   never wraps as a paragraph. Sharp rectangular keys, never pills. */
+.panel{width:100%;max-width:540px;text-align:left}
+.reg{display:flex;align-items:baseline;justify-content:space-between;
+  font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute)}
+.reg .id{color:var(--ink)}
+.rule{height:1px;background:var(--hair2);margin:18px 0}
+.rule--soft{background:var(--hair)}
+.statement{font-size:17px;line-height:1.62;letter-spacing:-.01em;color:var(--ink);max-width:19em}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--hair);margin-top:26px}
+.field{padding:16px 0;border-bottom:1px solid var(--hair)}
+.field:nth-child(odd){padding-right:24px;border-right:1px solid var(--hair)}
+.field:nth-child(even){padding-left:24px}
+.field--wide{grid-column:1 / -1;border-right:0;padding-right:0}
+.flabel{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--mute)}
+.fvalue{margin-top:9px;font-size:12.5px;letter-spacing:0;color:var(--ink2)}
+.fvalue--mono{font-family:var(--mono);letter-spacing:.02em;font-size:12px}
+.resolve{margin-top:28px}
+.resolve .flabel{color:var(--soft)}
+.question{margin-top:14px;font-size:15px;line-height:1.5;letter-spacing:-.005em;color:var(--ink2);max-width:18em}
+.keys{display:flex;margin-top:34px;border:1px solid var(--hair2);border-radius:3px;overflow:hidden;width:max-content}
+.key{font-family:var(--mic);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink2);
+  padding:15px 24px;background:#fff;border-right:1px solid var(--hair2);cursor:pointer;transition:.18s cubic-bezier(.32,.72,0,1)}
+.key:last-child{border-right:0}
+.key:hover{color:var(--ink);background:#fbfbfb}
+.key--primary{background:var(--ink);color:#fff}
+.key--primary:hover{background:#000;color:#fff}
+.foot{margin-top:30px;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--mute)}
+
+/* door */
+.door{width:100%;max-width:540px;text-align:left}
+.door .statement{font-size:19px;max-width:none}
+.begin{display:inline-flex;align-items:center;gap:14px;margin-top:34px;
+  font-family:var(--mic);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink);cursor:pointer;background:none;border:0}
+.begin::after{content:"";width:30px;height:1px;background:var(--ink);transition:width .18s cubic-bezier(.32,.72,0,1)}
+.begin:hover::after{width:56px}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<section class="screen" id="held">
+  <main class="panel">
+    <div class="reg"><span class="id">TEX</span><span>HOLD&nbsp;&nbsp;/&nbsp;&nbsp;03</span></div>
+    <div class="rule"></div>
+    <p class="statement">A wire wants to move $40,000 to an account I've never seen.</p>
+    <div class="fields">
+      <div class="field"><div class="flabel">Agent</div><div class="fvalue">ClaimPulse</div></div>
+      <div class="field"><div class="flabel">Opened</div><div class="fvalue fvalue--mono">9s ago</div></div>
+      <div class="field field--wide"><div class="flabel">What I can't vouch for</div><div class="fvalue">The destination. Everything else checks.</div></div>
+    </div>
+    <div class="resolve">
+      <div class="flabel">The one thing I'd need to know</div>
+      <p class="question">Have you sent money to this account before?</p>
+    </div>
+    <div class="keys">
+      <button class="key key--primary">Approve</button>
+      <button class="key">Keep holding</button>
+      <button class="key">Refuse</button>
+    </div>
+    <div class="foot">9f2c4a7b…0a9f8e7d&nbsp;&nbsp;·&nbsp;&nbsp;band&nbsp;[0.31,&nbsp;0.34]</div>
+  </main>
+</section>
+
+<section class="screen" id="door">
+  <main class="door">
+    <div class="reg"><span class="id">TEX</span><span>SOVEREIGN&nbsp;COGNITION</span></div>
+    <div class="rule"></div>
+    <p class="statement">The weight is mine now.</p>
+    <button class="begin">Begin</button>
+  </main>
+</section>
+
+<div class="tag">01 — Instrument</div>
+</body>
+</html>

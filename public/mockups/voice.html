@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — The Voice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0a0a0a; --ink2:#525252; --ink3:#8f8f8f; --ink4:#c4c4c4;
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+  --reveal:cubic-bezier(.16,1,.3,1); --focus:cubic-bezier(.22,1,.36,1); --util:cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--mic);color:var(--ink);background:#fff;overflow:hidden;cursor:none;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
+
+/* premium paper — luminance-only grain, never a tint */
+.grain{position:fixed;inset:0;z-index:8;pointer-events:none;mix-blend-mode:soft-light;opacity:.30;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px}
+
+#field{position:fixed;inset:0;z-index:1}            /* the living voice-axis */
+.cursor{position:fixed;z-index:9;top:0;left:0;width:7px;height:7px;border-radius:50%;
+  background:var(--ink);pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:normal;
+  transition:width .3s var(--focus),height .3s var(--focus),opacity .3s var(--util);opacity:0}
+
+.mark{position:fixed;top:38px;left:50%;transform:translateX(-50%);z-index:3;
+  font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:var(--ink3);opacity:0}
+
+/* what Tex says — centred, above the axis */
+.says{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(50% + 64px);z-index:3;
+  width:min(88vw,720px);text-align:center}
+.statement{font-size:clamp(21px,3.1vw,29px);line-height:1.24;letter-spacing:-.015em;color:var(--ink)}
+.ln{display:block;overflow:hidden}
+.ln>span{display:block;transform:translateY(112%);will-change:transform,filter,opacity}
+.ask{margin-top:22px;font-size:clamp(13px,1.4vw,15px);line-height:1.5;letter-spacing:.005em;color:var(--ink2);opacity:0;filter:blur(4px)}
+
+/* the actions — magnetic, below the axis. not buttons. living words. */
+.acts{position:fixed;left:50%;transform:translateX(-50%);top:calc(50% + 50px);z-index:3;
+  display:flex;gap:clamp(28px,4vw,52px);opacity:0}
+.act{font-family:var(--mic);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  background:none;border:0;cursor:none;color:var(--ink3);will-change:transform,letter-spacing,color;
+  padding:8px 2px}
+
+.replay{position:fixed;right:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink4);background:none;border:0;cursor:pointer}
+.tag{position:fixed;left:22px;bottom:16px;z-index:9;font-family:var(--mic);
+  font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink4)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<canvas id="field"></canvas>
+<div class="cursor" id="cur"></div>
+
+<span class="mark" id="mark">Tex</span>
+
+<div class="says" id="says">
+  <h1 class="statement">
+    <span class="ln"><span>A wire wants to move</span></span>
+    <span class="ln"><span>$40,000 to an account</span></span>
+    <span class="ln"><span>I've never seen.</span></span>
+  </h1>
+  <p class="ask" id="ask">Have you sent money to this account before?</p>
+</div>
+
+<div class="acts" id="acts">
+  <button class="act" data-k="p">Approve</button>
+  <button class="act" data-k="h">Keep holding</button>
+  <button class="act" data-k="r">Refuse</button>
+</div>
+
+<button class="replay" id="replay">Replay ↻</button>
+<div class="tag">The Voice</div>
+
+<script>
+/* ───────────────────────────────────────────────────────────────────────
+   TEX — THE VOICE OF GOVERNANCE, ALIVE.
+   A single taut hairline is Tex's presence. It is AWARE of your cursor:
+   it reaches toward you with spring physics, the way a wire lifts under a
+   passing magnet. When Tex speaks, each line of thought racks into focus
+   above the axis and sends a ripple travelling down it. The actions below
+   are not buttons — they are magnetic words that deepen, open their
+   tracking and lean toward you as you approach. Everything is achromatic
+   (every value rgb(v,v,v)) and rendered crisp — no glow, no tint, no loop
+   that isn't doing work. The aliveness is real-time response, not canned
+   spectacle. Canvas2D, no WebGL.
+   ─────────────────────────────────────────────────────────────────────── */
+const cv=document.getElementById('field'), ctx=cv.getContext('2d');
+const cur=document.getElementById('cur');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
+
+/* pointer state, smoothed */
+const M={x:-9999,y:-9999,has:false};          /* raw pointer */
+const P={x:-9999,y:-9999};                      /* smoothed pointer (trails) */
+let curX=-9999,curY=-9999;                      /* custom cursor dot */
+
+/* value-noise for the idle "breath" of an attending mind */
+function h1(i){const x=Math.sin(i*127.1+13.7)*43758.5453;return x-Math.floor(x);}
+function noise1(x){const i=Math.floor(x),f=x-i,a=h1(i),b=h1(i+1),u=f*f*(3-2*f);return a*(1-u)+b*u;}
+
+/* travelling voice-ripples emitted when Tex speaks a line */
+const ripples=[];                               /* {x0, born, dir} */
+let T0=performance.now();
+function emitRipple(xFrac){ ripples.push({x0:(xFrac??0.5)*W, born:performance.now()-T0, dir:1}); }
+
+function resize(){
+  W=innerWidth; H=innerHeight; DPR=Math.min(devicePixelRatio||1,2);
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+resize(); addEventListener('resize',resize);
+
+/* spring state for the cursor's pull on the wire */
+let pullAmp=0;            /* current peak deflection, springs toward target */
+const axisYFrac=0.5;
+
+function drawField(now){
+  const t=(now-T0)/1000;
+  if(stillLock&&stillFx!==null){ M.x=stillFx*W; M.y=stillFy*H; M.has=true; P.x=M.x;P.y=M.y;curX=M.x;curY=M.y; }
+  ctx.clearRect(0,0,W,H);
+  const cy=H*axisYFrac;
+
+  /* smooth the pointer toward raw (trailing weight) */
+  if(M.has){ P.x+=(M.x-P.x)*0.16; P.y+=(M.y-P.y)*0.16; }
+
+  /* target peak: the wire reaches toward the cursor. saturates with distance
+     (tanh) so it never snaps to the pointer — it leans, with restraint. */
+  let target=0;
+  if(M.has){
+    const dy=P.y-cy;
+    target = 30*Math.tanh(dy/120);            /* up to ~30px toward cursor */
+  }
+  pullAmp += (target-pullAmp)*0.12;            /* spring */
+
+  const sigma = Math.max(90, W*0.10);          /* horizontal spread of the lift */
+  const N = Math.min(260, Math.floor(W/4));
+  ctx.beginPath();
+  for(let k=0;k<=N;k++){
+    const x=(k/N)*W;
+    /* idle breath — sub-pixel, slow, organic */
+    let y = cy + (noise1(x*0.006 + t*0.18)-0.5)*1.3;
+    /* cursor lift — a gaussian bell that follows the pointer x */
+    if(M.has){
+      const gx=Math.exp(-((x-P.x)*(x-P.x))/(2*sigma*sigma));
+      y += pullAmp*gx;
+    }
+    /* travelling ripples from speech */
+    for(let r=0;r<ripples.length;r++){
+      const rp=ripples[r], age=t-rp.born/1000; if(age<0) continue;
+      const speed=W*0.62, head=rp.x0+speed*age*rp.dir;
+      const env=Math.exp(-age*1.7);                       /* fades over ~1.2s */
+      const rs=46;
+      const g=Math.exp(-((x-head)*(x-head))/(2*rs*rs));
+      y += -16*env*g*Math.sin((x-head)*0.06);
+      const g2=Math.exp(-((x-(2*rp.x0-head))*(x-(2*rp.x0-head)))/(2*rs*rs)); /* mirror, both ways */
+      y += -16*env*g2*Math.sin(((2*rp.x0-head)-x)*0.06);
+    }
+    if(k===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  /* crisp, achromatic, no glow */
+  ctx.lineWidth=1.1; ctx.strokeStyle='rgba(10,10,10,0.92)';
+  ctx.lineJoin='round'; ctx.stroke();
+
+  /* retire dead ripples */
+  for(let r=ripples.length-1;r>=0;r--){ if(t-ripples[r].born/1000>2.2) ripples.splice(r,1); }
+
+  /* custom cursor dot trails the pointer */
+  if(M.has){ curX+=(M.x-curX)*0.35; curY+=(M.y-curY)*0.35;
+    cur.style.transform=`translate(${curX}px,${curY}px) translate(-50%,-50%)`; }
+
+  /* magnetic actions */
+  updateActs();
+  requestAnimationFrame(drawField);
+}
+
+/* ── magnetic action words ─────────────────────────────────────────── */
+const acts=[...document.querySelectorAll('.act')].map(el=>({el,x:0,y:0,tx:0,ty:0,v:0,tv:0}));
+function updateActs(){
+  for(const a of acts){
+    const r=a.el.getBoundingClientRect();
+    const ccx=r.left+r.width/2, ccy=r.top+r.height/2;
+    let inten=0;
+    if(M.has){
+      const d=Math.hypot(M.x-ccx,M.y-ccy), R=150;
+      inten=Math.max(0,1-d/R); inten*=inten;
+      a.tx=(M.x-ccx)*0.10*inten; a.ty=(M.y-ccy)*0.10*inten;
+    }else{ a.tx=0; a.ty=0; }
+    a.tv=inten;
+    a.x+=(a.tx-a.x)*0.14; a.y+=(a.ty-a.y)*0.14; a.v+=(a.tv-a.v)*0.14;
+    const ls=(0.14+0.10*a.v).toFixed(3);
+    const g=Math.round(143+(10-143)*a.v);               /* ink3 → ink, achromatic */
+    a.el.style.transform=`translate(${a.x.toFixed(2)}px,${a.y.toFixed(2)}px)`;
+    a.el.style.letterSpacing=ls+'em';
+    a.el.style.color=`rgb(${g},${g},${g})`;
+  }
+}
+
+/* ── pointer wiring ────────────────────────────────────────────────── */
+let stillLock=false, stillFx=null, stillFy=null;  /* freeze a simulated cursor for review stills */
+function onMove(e){ if(stillLock) return; M.x=e.clientX; M.y=e.clientY;
+  if(!M.has){ M.has=true; P.x=M.x;P.y=M.y;curX=M.x;curY=M.y; cur.style.opacity=1; } }
+addEventListener('pointermove',onMove);
+addEventListener('pointerdown',e=>{ cur.style.width='13px';cur.style.height='13px'; });
+addEventListener('pointerup',e=>{ cur.style.width='7px';cur.style.height='7px'; });
+addEventListener('pointerleave',()=>{ M.has=false; cur.style.opacity=0; });
+
+/* ── the reveal: Tex wakes, then speaks ───────────────────────────── */
+const $=s=>document.querySelector(s);
+const lines=[...document.querySelectorAll('.statement .ln>span')];
+function rackLine(el,delay){
+  return el.animate(
+    [{transform:'translateY(112%)',filter:'blur(6px)',opacity:0},
+     {transform:'translateY(0)',filter:'blur(0)',opacity:1}],
+    {duration:880,delay,easing:'cubic-bezier(.16,1,.3,1)',fill:'both'});
+}
+async function speak(){
+  $('#mark').animate([{opacity:0},{opacity:.85}],{duration:900,delay:200,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+  await wait(900);
+  for(let i=0;i<lines.length;i++){
+    rackLine(lines[i],0);
+    setTimeout(()=>emitRipple(0.5),460);          /* the line lands → the voice ripples */
+    await wait(520);
+  }
+  await wait(360);
+  $('#ask').animate([{opacity:0,filter:'blur(4px)'},{opacity:1,filter:'blur(0)'}],{duration:620,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+  emitRipple(0.5);
+  await wait(520);
+  $('#acts').animate([{opacity:0},{opacity:1}],{duration:760,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+}
+
+/* still frames for review */
+function setStill(){
+  lines.forEach(el=>{el.style.transform='translateY(0)';el.style.filter='none';el.style.opacity=1;});
+  $('#mark').style.opacity=.85; $('#ask').style.opacity=1; $('#ask').style.filter='none'; $('#acts').style.opacity=1;
+}
+
+function boot(){
+  window.__voiceReady=true;
+  requestAnimationFrame(drawField);
+  const params=new URLSearchParams(location.search);
+  if(params.get('still')!==null){
+    setStill();
+    const mx=params.get('mx'), my=params.get('my');
+    if(mx!==null&&my!==null){ stillLock=true; stillFx=parseFloat(mx); stillFy=parseFloat(my); M.has=true; cur.style.opacity=1; }
+    return;
+  }
+  speak();
+}
+document.getElementById('replay').addEventListener('click',()=>location.reload());
+document.fonts.ready.then(boot);
+setTimeout(()=>{ if(!window.__voiceReady) boot(); }, 900);
+</script>
+</body>
+</html>

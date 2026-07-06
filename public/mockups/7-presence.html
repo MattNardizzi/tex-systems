@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — Presence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0a0a0a; --ink2:#525252; --ink3:#8f8f8f; --ink4:#b8b8b8;
+  --hair:rgba(0,0,0,.08);
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+  --edge:11vw; --enter:cubic-bezier(.32,.72,0,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--mic);color:var(--ink);background:#fff;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em;overflow:hidden}
+
+#gl{position:fixed;inset:0;z-index:0;display:block}
+.grain{position:fixed;inset:0;z-index:5;pointer-events:none;mix-blend-mode:soft-light;opacity:.3;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px}
+
+.mark{position:fixed;top:40px;left:var(--edge);z-index:3;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
+.cluster{position:fixed;left:var(--edge);top:50%;transform:translateY(-52%);z-index:3;max-width:560px;
+  animation:rise 600ms var(--enter) both}
+@keyframes rise{from{opacity:0;transform:translateY(calc(-52% + 10px))}to{opacity:1;transform:translateY(-52%)}}
+.statement{font-size:26px;line-height:1.22;letter-spacing:-.015em;color:var(--ink);font-weight:400}
+.question{margin-top:24px;font-size:17px;line-height:1.45;letter-spacing:.01em;color:var(--ink2)}
+.rule{margin-top:40px;width:100%;max-width:400px;height:1px;background:var(--hair);border:0}
+.acts{display:flex;gap:40px;margin-top:24px}
+.act{font-family:var(--mic);font-size:12px;letter-spacing:.14em;text-transform:uppercase;background:none;border:0;cursor:pointer;padding:6px 0 5px;transition:color .15s ease}
+.act--primary{color:var(--ink)}.act--hold{color:var(--ink2)}.act--refuse{color:var(--ink3)}
+@media (hover:hover) and (pointer:fine){.act:hover{color:var(--ink)}}
+.object{position:fixed;left:var(--edge);bottom:9%;z-index:3;font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink4)}
+.tag{position:fixed;right:24px;bottom:18px;z-index:6;font-family:var(--mic);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink4)}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div class="grain"></div>
+
+<span class="mark">Tex</span>
+<div class="cluster">
+  <h1 class="statement">A wire wants to move<br>$40,000 to an account<br>I've never seen.</h1>
+  <p class="question">Have you sent money to this account before?</p>
+  <hr class="rule" />
+  <div class="acts">
+    <button class="act act--primary">Approve</button>
+    <button class="act act--hold">Keep holding</button>
+    <button class="act act--refuse">Refuse</button>
+  </div>
+</div>
+<div class="object">9f2c4a7b…0a9f8e7d</div>
+<div class="tag">07 — Presence</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const noiseGLSL = `
+vec3 mod289(vec3 x){return x - floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x - floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C=vec2(1.0/6.0,1.0/3.0); const vec4 D=vec4(0.0,0.5,1.0,2.0);
+  vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.0-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+  vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy; i=mod289(i);
+  vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+  float n_=0.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z); vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.0-abs(x)-abs(y);
+  vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0; vec4 s1=floor(b1)*2.0+1.0; vec4 sh=-step(h,vec4(0.0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
+  vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0); m=m*m;
+  return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+}`;
+
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setClearColor(0xffffff, 1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping; /* identity — guarantees R=G=B, zero tint */
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+camera.position.set(0, 0, 6.2);
+
+/* achromatic STUDIO environment — grayscale only (no hue anywhere), but high
+   contrast: a bright key softbox + a dark surround so clear glass catches crisp
+   light/dark reflections instead of vanishing into white. */
+function envTexture(){
+  const w=512,h=256; const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const x=c.getContext('2d');
+  x.fillStyle='#383838'; x.fillRect(0,0,w,h);
+  let vg=x.createLinearGradient(0,0,0,h);
+  vg.addColorStop(0,'rgba(255,255,255,0.0)'); vg.addColorStop(1,'rgba(0,0,0,0.6)');
+  x.fillStyle=vg; x.fillRect(0,0,w,h);
+  let key=x.createRadialGradient(w*0.5,h*0.28,8, w*0.5,h*0.28,h*0.6);
+  key.addColorStop(0,'rgba(255,255,255,1)'); key.addColorStop(0.45,'rgba(255,255,255,0.55)'); key.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=key; x.fillRect(0,0,w,h);
+  let rimL=x.createRadialGradient(w*0.16,h*0.6,4, w*0.16,h*0.6,h*0.34);
+  rimL.addColorStop(0,'rgba(255,255,255,0.9)'); rimL.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=rimL; x.fillRect(0,0,w,h);
+  const t=new THREE.CanvasTexture(c); t.mapping=THREE.EquirectangularReflectionMapping; t.colorSpace=THREE.SRGBColorSpace;
+  return t;
+}
+const pmrem = new THREE.PMREMGenerator(renderer); pmrem.compileEquirectangularShader();
+const env = pmrem.fromEquirectangular(envTexture()).texture;
+scene.environment = env;
+
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(3,4,5); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffffff, 1.4); rim.position.set(-4,-2,-3); scene.add(rim);
+
+const uniforms = { uTime:{value:0}, uAmp:{value:0.20} };
+const geo = new THREE.IcosahedronGeometry(1.55, 48);
+const mat = new THREE.MeshPhysicalMaterial({
+  transmission:1.0, thickness:2.4, roughness:0.07, ior:1.46, metalness:0.0,
+  clearcoat:0.5, clearcoatRoughness:0.2, color:0xffffff,
+  attenuationColor:0xffffff, attenuationDistance:6.0, envMapIntensity:1.15, transparent:true
+});
+mat.onBeforeCompile = (shader)=>{
+  shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uAmp = uniforms.uAmp;
+  shader.vertexShader = `uniform float uTime; uniform float uAmp;\n${noiseGLSL}\n` +
+    `float disp(vec3 p){ float t=uTime*0.16; float n=snoise(p*0.85+vec3(0.0,0.0,t)); n+=0.5*snoise(p*1.7+vec3(t*0.6,0.0,0.0)); return n*uAmp; }\n` +
+    shader.vertexShader;
+  shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', `
+    vec3 dPos = position + normal*disp(position);
+    vec3 refv = abs(normal.y) < 0.99 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
+    vec3 tang = normalize(cross(normal, refv));
+    vec3 bitang = normalize(cross(normal, tang));
+    float eps = 0.0018;
+    vec3 q1 = position + tang*eps; q1 += normal*disp(q1);
+    vec3 q2 = position + bitang*eps; q2 += normal*disp(q2);
+    vec3 objectNormal = normalize(cross(q1 - dPos, q2 - dPos));
+    #ifdef USE_TANGENT
+      vec3 objectTangent = vec3(tangent.xyz);
+    #endif
+  `);
+  shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = dPos;`);
+};
+const mesh = new THREE.Mesh(geo, mat);
+mesh.position.x = 1.35;
+scene.add(mesh);
+
+function resize(){
+  const w=window.innerWidth, h=window.innerHeight;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  // keep the presence in the right field as the viewport widens
+  mesh.position.x = w/h > 1.1 ? 1.55 : 0.0;
+}
+window.addEventListener('resize', resize); resize();
+
+const start = performance.now();
+function loop(now){
+  const t=(now-start)/1000;
+  uniforms.uTime.value=t;
+  mesh.rotation.y = t*0.18; mesh.rotation.x = Math.sin(t*0.12)*0.18;
+  const s = 1.0 + Math.sin(t*0.6)*0.015; mesh.scale.setScalar(s);
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.__texReady = true;
+</script>
+</body>
+</html>

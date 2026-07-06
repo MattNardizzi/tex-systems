@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — Reduction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0b0b0b; --ink2:#2c2c2c; --soft:#5d5d5d; --mute:#9a9a9a; --faint:#c7c7c7;
+  --hair:rgba(0,0,0,.07); --hair2:rgba(0,0,0,.14);
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--mic); color:var(--ink); letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  background:#fff;
+  background-image:radial-gradient(125% 105% at 50% -10%,#fff 0%,#fdfdfd 58%,#f7f7f7 100%);
+}
+.grain{position:fixed;inset:0;z-index:99;pointer-events:none;mix-blend-mode:soft-light;opacity:.38;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px 180px}
+
+.screen{position:relative;min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:64px}
+
+/* one quiet identity mark, top-centre — the only chrome */
+.mark{position:absolute;top:42px;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:var(--ink);opacity:.9}
+
+/* the held cluster — three elements, nothing else */
+.held{transform:translateY(-4vh)}
+.eyebrow{font-size:9.5px;letter-spacing:.36em;text-transform:uppercase;color:var(--mute)}
+.statement{margin-top:40px;font-size:22px;line-height:1.55;letter-spacing:-.012em;color:var(--ink);
+  max-width:15em}
+.statement .fig{color:var(--ink)}
+.question{margin:34px auto 0;font-size:14.5px;line-height:1.6;letter-spacing:-.004em;color:var(--soft);max-width:20em}
+
+/* the actions — one solid key, two quiet text acts. no bar, no boxes. */
+.acts{display:flex;align-items:center;justify-content:center;gap:40px;margin-top:64px}
+.act{font-family:var(--mic);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft);
+  background:none;border:0;cursor:pointer;padding:10px 2px;position:relative;transition:color .18s cubic-bezier(.32,.72,0,1)}
+.act::after{content:"";position:absolute;left:50%;right:50%;bottom:2px;height:1px;background:var(--ink);
+  transition:left .22s cubic-bezier(.32,.72,0,1),right .22s cubic-bezier(.32,.72,0,1)}
+.act:hover{color:var(--ink)}
+.act:hover::after{left:0;right:0}
+.act--primary{color:#fff;background:var(--ink);padding:15px 30px;border-radius:4px;letter-spacing:.24em}
+.act--primary::after{display:none}
+.act--primary:hover{background:#000}
+
+/* the horizon — a single hairline ground near the lower third, so nothing floats.
+   the proof handle rests on it, mono, barely there. */
+.horizon{position:absolute;left:50%;bottom:13%;transform:translateX(-50%);
+  width:min(60vw,600px);height:1px;background:var(--hair)}
+.proof{position:absolute;left:50%;bottom:calc(13% - 26px);transform:translateX(-50%);
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--faint)}
+
+.tag{position:fixed;left:24px;bottom:18px;z-index:100;font-family:var(--mic);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--mute)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<section class="screen">
+  <span class="mark">Tex</span>
+
+  <div class="held">
+    <p class="eyebrow">Decision held</p>
+    <p class="statement">A <span class="fig">$40,000</span> wire to an account I've never seen.</p>
+    <p class="question">Have you sent money to this account before?</p>
+    <div class="acts">
+      <button class="act act--primary">Approve</button>
+      <button class="act">Keep holding</button>
+      <button class="act">Refuse</button>
+    </div>
+  </div>
+
+  <div class="horizon"></div>
+  <div class="proof">9f2c4a7b…0a9f8e7d</div>
+</section>
+
+<div class="tag">05 — Reduction</div>
+</body>
+</html>

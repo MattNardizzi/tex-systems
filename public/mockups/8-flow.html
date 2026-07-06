@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex — Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..500&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#0a0a0a; --ink2:#525252; --ink3:#8f8f8f; --ink4:#b8b8b8;
+  --hair:rgba(0,0,0,.08);
+  --mic:"Michroma",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+  --edge:12vw;
+  --reveal:cubic-bezier(.16,1,.3,1); --focus:cubic-bezier(.22,1,.36,1); --util:cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--mic);color:var(--ink);background:#fff;overflow:hidden;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
+.grain{position:fixed;inset:0;z-index:6;pointer-events:none;mix-blend-mode:soft-light;opacity:.3;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:180px}
+
+.stage{position:fixed;inset:0;background:#fff}
+.mark{position:fixed;top:40px;left:var(--edge);z-index:3;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);opacity:0}
+
+.cluster{position:fixed;left:var(--edge);top:50%;transform:translateY(-52%);z-index:3;max-width:560px;width:560px}
+
+/* held */
+.statement{font-size:26px;line-height:1.22;letter-spacing:-.015em;color:var(--ink)}
+.line{display:block;overflow:hidden}
+.line .inner{display:block;transform:translateY(110%)}
+.question{margin-top:24px;font-size:17px;line-height:1.45;letter-spacing:.01em;color:var(--ink2);opacity:0;filter:blur(3px)}
+.rule{margin-top:40px;width:100%;max-width:400px;height:1px;background:var(--hair);border:0;transform:scaleX(0);transform-origin:left;opacity:0}
+.acts{display:flex;gap:40px;margin-top:24px;opacity:0}
+.act{font-family:var(--mic);font-size:12px;letter-spacing:.14em;text-transform:uppercase;display:inline-block}
+.act--primary{color:var(--ink)}.act--hold{color:var(--ink2)}.act--refuse{color:var(--ink3)}
+
+/* seal */
+.seal{position:fixed;left:var(--edge);top:50%;transform:translateY(-52%);z-index:3;max-width:560px;width:560px;opacity:0;pointer-events:none}
+.verdict{font-size:26px;line-height:1.22;letter-spacing:-.015em;color:var(--ink);opacity:0;filter:blur(3px)}
+.hashwrap{position:relative;margin-top:30px;height:64px}
+#hash{position:absolute;left:0;top:0}
+.sig{margin-top:14px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);opacity:0}
+
+.tag{position:fixed;right:24px;bottom:18px;z-index:6;font-family:var(--mic);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink4)}
+.replay{position:fixed;right:24px;top:24px;z-index:6;font-family:var(--mic);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);background:none;border:0;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="stage"></div>
+<div class="grain"></div>
+
+<span class="mark" id="mark">Tex</span>
+
+<div class="cluster" id="held">
+  <h1 class="statement">
+    <span class="line"><span class="inner">A wire wants to move</span></span>
+    <span class="line"><span class="inner">$40,000 to an account</span></span>
+    <span class="line"><span class="inner">I've never seen.</span></span>
+  </h1>
+  <p class="question" id="q">Have you sent money to this account before?</p>
+  <hr class="rule" id="rule" />
+  <div class="acts" id="acts">
+    <span class="act act--primary" id="approve">Approve</span>
+    <span class="act act--hold">Keep holding</span>
+    <span class="act act--refuse">Refuse</span>
+  </div>
+</div>
+
+<div class="seal" id="seal">
+  <h1 class="verdict" id="verdict">Approved.</h1>
+  <div class="hashwrap"><canvas id="hash"></canvas></div>
+  <p class="sig" id="sig">Post-quantum sealed · ML-DSA-65</p>
+</div>
+
+<button class="replay" id="replay">Replay ↻</button>
+<div class="tag">08 — Flow</div>
+
+<script>
+const HASH = "9f2c4a7b8e1d3056c2a9f1e4b7d80c6a5f3e2b1d9c8a7065f4e3d2c1b0a9f8e7d";
+const $ = (s)=>document.querySelector(s);
+const wait = (ms)=>new Promise(r=>setTimeout(r,ms));
+
+/* ── motion primitives ─────────────────────────────────────────── */
+function revealHeld(){
+  $('#mark').animate([{opacity:0},{opacity:1}],{duration:600,delay:200,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+  document.querySelectorAll('#held .inner').forEach((el,i)=>{
+    el.animate([{transform:'translateY(110%)'},{transform:'translateY(0)'}],{duration:620,delay:i*120,easing:'cubic-bezier(.16,1,.3,1)',fill:'both'});
+  });
+  $('#q').animate([{opacity:0,filter:'blur(3px)'},{opacity:1,filter:'blur(0)'}],{duration:460,delay:440,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+  $('#rule').animate([{transform:'scaleX(0)',opacity:0},{transform:'scaleX(1)',opacity:1}],{duration:620,delay:560,easing:'cubic-bezier(.16,1,.3,1)',fill:'both'});
+  $('#acts').animate([{opacity:0},{opacity:1}],{duration:500,delay:680,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+}
+function pressApprove(){
+  $('#approve').animate([{transform:'scale(1)'},{transform:'scale(.94)'},{transform:'scale(1)'}],{duration:280,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+}
+function recedeHeld(){
+  $('#held').animate([{opacity:1,transform:'translateY(-52%) scale(1)'},{opacity:0,transform:'translateY(-52%) scale(.985)'}],{duration:520,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+  $('#mark').animate([{opacity:1},{opacity:0}],{duration:400,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+}
+function revealSeal(){
+  $('#seal').style.opacity=1;
+  $('#verdict').animate([{opacity:0,filter:'blur(3px)'},{opacity:1,filter:'blur(0)'}],{duration:520,delay:120,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+  $('#sig').animate([{opacity:0},{opacity:.92}],{duration:600,delay:1700,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+}
+function recedeSeal(){
+  $('#seal').animate([{opacity:1},{opacity:0}],{duration:700,delay:300,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+}
+function resetAll(){
+  $('#seal').style.opacity=0; $('#seal').getAnimations().forEach(a=>a.cancel());
+  ['#held','#mark','#q','#rule','#acts','#verdict','#sig'].forEach(s=>$(s).getAnimations().forEach(a=>a.cancel()));
+  document.querySelectorAll('#held .inner').forEach(el=>el.getAnimations().forEach(a=>a.cancel()));
+}
+
+/* ── the one living artifact: the sealed sha256 ────────────────────
+   Forms from ~2,200 achromatic particles, breathes sub-pixel while it
+   lives, dissolves along a moving DARK seam (no glow on white). All greys
+   are rgb(v,v,v) — provably no tint. Canvas2D, no WebGL. */
+const cv = $('#hash'); const ctx = cv.getContext('2d');
+let CSSW=520, CSSH=64, DPR=Math.min(devicePixelRatio||1,2);
+let points=[]; let hashState='hidden'; let stateT0=0; let hashFont=15;
+
+function hash01(i){ const x=Math.sin(i*127.1+13.7)*43758.5453; return x-Math.floor(x); }
+function h2(ix,iy){ const h=Math.sin(ix*127.1+iy*311.7)*43758.5453; return h-Math.floor(h); }
+function vnoise(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+  const a=h2(ix,iy),b=h2(ix+1,iy),c=h2(ix,iy+1),d=h2(ix+1,iy+1);
+  const ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);
+  return a*(1-ux)*(1-uy)+b*ux*(1-uy)+c*(1-ux)*uy+d*ux*uy; }
+const bz=(p1,p2,p3,p4)=>{ return (t)=>{ // cubic-bezier solver (x1,y1,x2,y2)
+  let x=t; for(let k=0;k<5;k++){ const cx=3*p1,bx=3*(p3-p1)-cx,ax=1-cx-bx;
+    const fx=((ax*x+bx)*x+cx)*x - t; const dx=(3*ax*x+2*bx)*x+cx; if(Math.abs(dx)<1e-5)break; x-=fx/dx; }
+  const cy=3*p2,by=3*(p4-p2)-cy,ay=1-cy-by; return ((ay*x+by)*x+cy)*x; }; };
+const easeForm=bz(.16,1,.3,1); const easeDiss=bz(.4,0,.2,1);
+
+function buildPoints(){
+  const off=document.createElement('canvas'); const o=off.getContext('2d');
+  off.width=CSSW*DPR; off.height=CSSH*DPR; o.scale(DPR,DPR);
+  o.fillStyle='#000'; o.textBaseline='middle'; o.font='15px "Geist Mono", monospace';
+  // fit the 64-char hash into the column width
+  let fs=15; o.font=fs+'px "Geist Mono", monospace';
+  while(o.measureText(HASH).width>CSSW-2 && fs>9){ fs-=0.5; o.font=fs+'px "Geist Mono", monospace'; }
+  hashFont=fs;
+  o.fillText(HASH, 0, CSSH/2);
+  const img=o.getImageData(0,0,off.width,off.height).data;
+  points=[];
+  const stride=2; // sample density
+  for(let y=0;y<off.height;y+=stride){
+    for(let x=0;x<off.width;x+=stride){
+      const a=img[(y*off.width+x)*4+3];
+      if(a>110){
+        const tx=x/DPR, ty=y/DPR;
+        const i=points.length;
+        const ang=hash01(i*1.7)*Math.PI*2, rad=30+hash01(i*2.3)*110;
+        points.push({tx,ty, sx:tx+Math.cos(ang)*rad, sy:ty+Math.sin(ang)*rad,
+          phi:hash01(i)*Math.PI*2, f:0.6+hash01(i+9)*0.5,
+          n:vnoise(tx*0.02,ty*0.02), g:26+vnoise(tx*0.05,ty*0.05)*46});
+      }
+    }
+  }
+  // thin to ~2200
+  if(points.length>2400){ const keep=2200/points.length; points=points.filter((_,i)=>hash01(i*3.1)<keep); }
+}
+function sizeCanvas(){ cv.width=CSSW*DPR; cv.height=CSSH*DPR; cv.style.width=CSSW+'px'; cv.style.height=CSSH+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
+function setHashState(s){ hashState=s; stateT0=performance.now(); }
+
+function drawHash(now){
+  ctx.clearRect(0,0,CSSW,CSSH);
+  if(hashState==='hidden'){ requestAnimationFrame(drawHash); return; }
+  const t=(now-stateT0)/1000; const clock=now/1000;
+  /* LIVING = the resolved, legible Geist-Mono hash with a sub-px breath. The
+     particles are only its birth (forming) and death (dissolving). */
+  if(hashState==='living'){
+    const by=Math.sin(clock*1.8)*0.5; const a=0.94+0.06*Math.sin(clock*1.8);
+    ctx.globalAlpha=a; ctx.fillStyle='#1f1f1f'; ctx.textBaseline='middle';
+    ctx.font=hashFont+'px "Geist Mono", monospace';
+    ctx.fillText(HASH, 0, CSSH/2+by); ctx.globalAlpha=1;
+    requestAnimationFrame(drawHash); return;
+  }
+  for(let k=0;k<points.length;k++){
+    const pt=points[k]; let x,y,alpha,grey=pt.g;
+    if(hashState==='forming'){
+      const p=easeForm(Math.min(t/1.6,1));
+      x=pt.sx+(pt.tx-pt.sx)*p; y=pt.sy+(pt.ty-pt.sy)*p; alpha=p*p;
+      if(p>=1){ x=pt.tx+Math.sin(clock*pt.f*6.283+pt.phi)*0.8; y=pt.ty+Math.cos(clock*pt.f*0.7*6.283+pt.phi)*0.8; }
+    } else if(hashState==='living'){
+      x=pt.tx+Math.sin(clock*pt.f*6.283+pt.phi)*0.8;
+      y=pt.ty+Math.cos(clock*pt.f*0.7*6.283+pt.phi)*0.8;
+      alpha=0.92+0.08*Math.sin(clock*1.8+pt.phi);
+    } else { // dissolving
+      const q=easeDiss(Math.min(t/1.8,1));
+      x=pt.tx+Math.sin(clock*pt.f*6.283+pt.phi)*0.8; y=pt.ty+Math.cos(clock*pt.f*0.7*6.283+pt.phi)*0.8;
+      const local=q-pt.n;
+      if(local<0){ alpha=0.96; if(pt.n<q+0.05){ grey=13; } } // dark frontier just ahead
+      else if(local<0.2){ const d=local/0.2; alpha=0.96*(1-d); y-=d*5; }
+      else { alpha=0; }
+    }
+    if(alpha<=0.01) continue;
+    ctx.globalAlpha=alpha; const g=Math.round(grey);
+    ctx.fillStyle='rgb('+g+','+g+','+g+')';
+    ctx.fillRect(x,y,1.3,1.3);
+  }
+  ctx.globalAlpha=1;
+  requestAnimationFrame(drawHash);
+}
+
+/* ── master flow loop ─────────────────────────────────────────── */
+let running=true;
+async function run(){
+  while(running){
+    resetAll(); setHashState('hidden');
+    revealHeld();            await wait(3200);
+    pressApprove();          await wait(520);
+    recedeHeld();            await wait(540);
+    revealSeal();
+    setHashState('forming'); await wait(1600);
+    setHashState('living');  await wait(2400);
+    setHashState('dissolving'); recedeSeal(); await wait(1900);
+    setHashState('hidden');  await wait(1100);
+  }
+}
+
+let booted=false;
+function boot(){
+  if(booted) return; booted=true;
+  sizeCanvas(); buildPoints(); requestAnimationFrame(drawHash);
+  const still=new URLSearchParams(location.search).get('still');
+  if(still==='held'){ revealHeld(); return; }
+  if(still==='forming' || still==='living'){
+    $('#held').style.opacity=0; $('#mark').style.opacity=0;
+    $('#seal').style.opacity=1; $('#verdict').style.opacity=1; $('#verdict').style.filter='none'; $('#sig').style.opacity=.92;
+    hashState=still; stateT0=performance.now(); return;
+  }
+  run();
+}
+document.fonts.ready.then(boot);
+setTimeout(boot, 900); /* unconditional fallback — boot is idempotent, never blank */
+$('#replay').addEventListener('click',()=>{ location.reload(); });
+window.addEventListener('resize',()=>{ DPR=Math.min(devicePixelRatio||1,2); sizeCanvas(); buildPoints(); });
+window.__flowReady=true;
+</script>
+</body>
+</html>
