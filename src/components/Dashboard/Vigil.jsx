@@ -154,10 +154,10 @@ const HELD_SEAL_BEAT_MS = 2600;
 /* Keep-holding seals nothing to a verdict, so there is no number to land — the
    line alone rests a shorter beat before the next decision. */
 const HELD_HOLD_BEAT_MS = 1300;
-/* How long the seal screen shows the computing scramble (the mapping mark) while
-   it waits on the wire's anchor, before falling back to locking the decision's
-   own id — so a slow or silent /seal still lands a number, never spins forever. */
-const HELD_ANCHOR_WAIT_MS = 1300;
+/* The seal screen shows the computing scramble (the mapping mark) for as long as
+   the wire takes to hand back the real anchor — there is no fallback number and
+   no timeout that invents one. A slow /seal simply keeps computing; a silent one
+   stays computing rather than fabricate a seal the evidence chain never recorded. */
 
 /* The held queue — ONE resolvable decision on the glass at a time. The operator
    resolves the current one (Approve / Keep holding / Refuse → POST /seal); its
@@ -197,24 +197,18 @@ function HeldRowsList({ rows, onResolve }) {
   const [landTarget, setLandTarget] = useState(null);
   const advanceTimerRef = useRef(null);
   const scheduledKeyRef = useRef(null);
-  const anchorWaitRef = useRef(null);
-  const anchorScheduledKeyRef = useRef(null);
 
   useEffect(() => {
     setSealingKey(null);
     setLandTarget(null);
     if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    if (anchorWaitRef.current) clearTimeout(anchorWaitRef.current);
     advanceTimerRef.current = null;
-    anchorWaitRef.current = null;
     scheduledKeyRef.current = null;
-    anchorScheduledKeyRef.current = null;
   }, [queueKey]);
 
   useEffect(
     () => () => {
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-      if (anchorWaitRef.current) clearTimeout(anchorWaitRef.current);
     },
     []
   );
@@ -232,30 +226,19 @@ function HeldRowsList({ rows, onResolve }) {
   const sealed = current?.sealedVerdict || null;
   const isSeal = sealed === "approved" || sealed === "refused";
 
-  /* Decide the seal's sticky number, exactly once: the real anchor the moment
-     /seal returns it, or the decision's own id if the wire stays silent past
-     HELD_ANCHOR_WAIT_MS. Once chosen it never changes, so the number scrambles
-     while computing and then locks ONE time — no UUID→sha re-scramble. */
+  /* Decide the seal's sticky number, exactly once — and ONLY from truth: the
+     real anchor the backend's /seal returns (current.sealedAnchor). There is no
+     timer fallback and no locally-invented value: until the wire hands back the
+     sealed anchor the number is not yet known, so the seal screen shows the
+     honest computing mark (MappingMark) and never asserts a number the evidence
+     chain didn't record. Once the real anchor arrives it locks ONE time — the
+     ScrambleSeal lock-in fires on the anchor's arrival, not on a clock. */
   useEffect(() => {
     if (!isSeal || !current) return;
     if (landTarget && landTarget.key === currentKey) return; /* already decided */
     if (current.sealedAnchor) {
-      if (anchorWaitRef.current) {
-        clearTimeout(anchorWaitRef.current);
-        anchorWaitRef.current = null;
-      }
       setLandTarget({ key: currentKey, value: current.sealedAnchor });
-      return;
     }
-    if (anchorScheduledKeyRef.current === currentKey) return;
-    anchorScheduledKeyRef.current = currentKey;
-    const fallbackId = current.decision_id;
-    anchorWaitRef.current = setTimeout(() => {
-      anchorWaitRef.current = null;
-      setLandTarget((prev) =>
-        prev && prev.key === currentKey ? prev : { key: currentKey, value: fallbackId }
-      );
-    }, HELD_ANCHOR_WAIT_MS);
   }, [isSeal, current, currentKey, landTarget]);
 
   const target =
@@ -304,18 +287,23 @@ function HeldRowsList({ rows, onResolve }) {
         </p>
       )}
       {current.sealedVerdict ? (
-        /* The seal screen — the resolved decision alone on the glass: the
-           verdict line, then the sealed number. While the wire computes the
-           anchor the mapping mark scrambles (the same hex the Waking mark
-           shows); the moment the real number is known it locks onto it, ONCE.
-           Rests a beat, then the queue morphs to the next decision. */
+        /* The seal screen — the resolving decision alone on the glass. For a
+           verdict seal the line does NOT claim "Sealed" until the backend's real
+           anchor has arrived (target): while the wire computes it, the line reads
+           a calm pending "Sealing…" and the mapping mark scrambles (no number is
+           asserted). The moment the true anchor is known the line flips to
+           "Sealed." and the ScrambleSeal locks onto it, ONCE — the lock-in fires
+           on the anchor's arrival, never on a timer. Rests a beat, then the queue
+           morphs to the next decision. */
         <div className="tex-held-seal" key={`${currentKey}-seal`} role="status">
           <p className="tex-held-seal-line">
-            {current.sealedVerdict === "approved"
+            {current.sealedVerdict === "held"
+              ? "Held. It waits for you."
+              : !target
+              ? "Sealing your decision."
+              : current.sealedVerdict === "approved"
               ? "Sealed. You approved it."
-              : current.sealedVerdict === "refused"
-              ? "Sealed. You refused it."
-              : "Held. It waits for you."}
+              : "Sealed. You refused it."}
           </p>
           {isSeal ? (
             target && SEAL_ANCHOR_RE.test(target) ? (
@@ -1321,40 +1309,61 @@ export default function Vigil() {
     [watchTenant]
   );
 
-  /* Resolve one held row by a named human act — the same optimistic seal the
-     held card performs: the verdict shows instantly, the backend's real anchor
-     replaces it when POST /decisions/{id}/seal returns, and the row's wire
-     card is suppressed for the session so it never re-raises once resolved. */
+  /* Resolve one held row by a named human act. The seal is NOT optimistic: the
+     card morphs into a calm computing state (the seal screen with no verdict
+     assertion and no number) the instant the act is sent, and the seal only
+     ASSERTS — the "Sealed." line and the sealed number, scrambled then locked —
+     when POST /decisions/{id}/seal returns the REAL anchor (res.anchor_sha256).
+     On failure or a silent wire the row is honestly un-resolved: it drops back
+     to actionable and re-raises, because it genuinely is still held. Only a
+     confirmed seal suppresses the row's wire card for the session. */
   const resolveHeldRow = useCallback((row, verdict) => {
     const id = row?.decision_id;
     if (!id) return;
-    dismissedRef.current.add(id);
-    bumpDismissed((n) => n + 1);
-    /* The decision card MORPHS into its seal screen (law #2, nothing pops). */
+    /* The decision card MORPHS into its (pending) seal screen (law #2, nothing
+       pops). No dismissal yet — the row is not yet resolved; we suppress its
+       wire card only once the seal actually lands, so a failed seal re-raises. */
     morphSurface(() =>
       setHeldRows((rows) =>
         rows
           ? rows.map((r) =>
-              r.decision_id === id ? { ...r, sealedVerdict: verdict } : r
+              r.decision_id === id
+                ? { ...r, sealedVerdict: verdict, sealedAnchor: null }
+                : r
             )
           : rows
       )
     );
     sealDecision(id, { verdict, resolvedBy: "operator" })
       .then((res) => {
-        if (!res) return;
+        const anchor = res?.anchor_sha256;
+        if (!anchor) throw new Error("seal returned no anchor");
+        /* Sealed for real — now suppress the wire card and lock the true anchor. */
+        dismissedRef.current.add(id);
+        bumpDismissed((n) => n + 1);
         setHeldRows((rows) =>
           rows
             ? rows.map((r) =>
-                r.decision_id === id
-                  ? { ...r, sealedAnchor: res.anchor_sha256 || r.anchor_sha256 || null }
-                  : r
+                r.decision_id === id ? { ...r, sealedAnchor: anchor } : r
               )
             : rows
         );
       })
       .catch(() => {
-        /* Silent. The optimistic seal stands; the wire reconciles. */
+        /* The seal never landed — honestly un-resolve: drop the seal screen and
+           let the row stand as the held decision it still is. Never leave a
+           "Sealed" assertion on the glass over a seal that did not happen. */
+        morphSurface(() =>
+          setHeldRows((rows) =>
+            rows
+              ? rows.map((r) =>
+                  r.decision_id === id
+                    ? { ...r, sealedVerdict: null, sealedAnchor: null }
+                    : r
+                )
+              : rows
+          )
+        );
       });
   }, []);
 
@@ -2185,41 +2194,46 @@ export default function Vigil() {
         return;
       }
 
-      /* A held DECISION is sealed by a named human act (POST /seal). Suppress
-         the wire frame for it this session so the card never re-raises once
-         resolved, while the next frame reconciles authoritatively. */
-      /* Held → seal as one substance; seal → silence the same way. The
-         dismissal rides INSIDE the morph so the old snapshot still holds
-         the card (see the calibration branch above). */
+      /* A held DECISION is sealed by a named human act (POST /seal). The seal is
+         NOT asserted optimistically: the card morphs to a calm computing state
+         (pending — no "sealed" word, no number) and only becomes a sealed seal,
+         with the true anchor, when /seal returns it. So the wire card is NOT
+         suppressed up front — a failed seal must re-raise the held card, because
+         the decision genuinely stays held. */
+      /* Held → seal(pending) as one substance. The keep-holding branch is a local
+         state, not a backend seal, so it asserts nothing false and can melt to
+         silence on its own beat below. */
+      const isSealVerdict = verdict === "approved" || verdict === "refused";
       morphSurface(() => {
         setSpoken(null);
-        if (decision?.id) {
-          dismissedRef.current.add(decision.id);
-          bumpDismissed((n) => n + 1);
-        }
         setSealed({
           verdict,
           at: new Date(),
-          anchor: decision?.anchor_sha256 || null,
+          anchor: null,
           signature: null,
-          pending: Boolean(decision?.id),
+          /* Pending only while a real decision is out for sealing; a keep-holding
+             (or an id-less hold) has nothing on the wire, so it is not pending. */
+          pending: Boolean(decision?.id) && isSealVerdict,
         });
       });
-      clearLineTimer();
-      lineTimer.current = setTimeout(
-        () => morphSurface(() => setSealed(null)),
-        4_200
-      );
 
-      if (decision?.id) {
+      if (decision?.id && isSealVerdict) {
+        /* No melt-to-silence timer yet: the seal stays computing on the glass
+           until the wire answers, so the surface never dissolves a pending seal
+           into silence (which would read as a completed act). */
         sealDecision(decision.id, { verdict, resolvedBy: "operator" })
           .then((res) => {
-            if (!res) return;
+            const anchor = res?.anchor_sha256;
+            if (!anchor) throw new Error("seal returned no anchor");
+            /* Sealed for real — NOW suppress the wire card and lock the true
+               anchor, then rest a beat and melt to silence. */
+            dismissedRef.current.add(decision.id);
+            bumpDismissed((n) => n + 1);
             setSealed((prev) =>
               prev
                 ? {
                     ...prev,
-                    anchor: res.anchor_sha256 || prev.anchor,
+                    anchor,
                     signature: res.pq_signature || null,
                     at: res.sealed_at ? new Date(res.sealed_at) : prev.at,
                     pending: false,
@@ -2233,8 +2247,20 @@ export default function Vigil() {
             );
           })
           .catch(() => {
-            /* Silent. The optimistic seal stays; the backend was unreachable. */
+            /* The seal never landed — honestly un-resolve: melt the computing
+               seal back to silence and leave the held card to re-raise on the
+               next wire frame (it was never dismissed). Never leave a "sealed"
+               assertion over a seal that did not happen. */
+            morphSurface(() => setSealed(null));
           });
+      } else {
+        /* Keep-holding (or an id-less hold): a local, honest "held" beat, then
+           back to silence. */
+        clearLineTimer();
+        lineTimer.current = setTimeout(
+          () => morphSurface(() => setSealed(null)),
+          4_200
+        );
       }
     },
     [liveDecision, humanDecisionLive]
@@ -2580,37 +2606,44 @@ export default function Vigil() {
           verdict speaks in the INSTRUMENT register (a small tracked tag, the same
           voice the credibility tier uses), never Tex's own large voice — one word,
           "sealed", and the sealed number carries the weight, computing itself onto
-          the glass. Keeping-holding is not a seal: it reads "held", quiet, no
-          cinematic. */}
+          the glass. A verdict seal only reads "sealed" (and shows a number) once
+          the backend's real anchor has arrived; until then it reads a calm
+          "sealing" and the mapping mark computes — never a "sealed" assertion or a
+          number over a seal still in flight. Keeping-holding is not a seal: it
+          reads "held", quiet, no cinematic. */}
       {sealed && (
         <div className="tex-seal" role="status">
           {(() => {
             const isSeal =
               sealed.verdict === "approved" || sealed.verdict === "refused";
+            /* A verdict seal is only truly SEALED when the wire has handed back a
+               real anchor; while pending it is still computing. */
+            const anchorReady =
+              isSeal &&
+              !sealed.pending &&
+              sealed.anchor &&
+              (SEAL_ANCHOR_RE.test(sealed.anchor) ||
+                SEALED_NUMBER_RE.test(sealed.anchor));
+            const tag = !isSeal ? "held" : anchorReady ? "sealed" : "pending";
             return (
               <>
-                <p
-                  className={`tex-seal-tag tex-seal-tag--${
-                    isSeal ? "sealed" : "held"
-                  }`}
-                >
+                <p className={`tex-seal-tag tex-seal-tag--${tag}`}>
                   <span className="tex-seal-tag-mark" aria-hidden="true" />
                   <span className="tex-seal-tag-label">
-                    {isSeal ? "sealed" : "held"}
+                    {tag === "pending" ? "sealing" : tag}
                   </span>
                 </p>
-                {isSeal &&
-                sealed.anchor &&
-                SEAL_ANCHOR_RE.test(sealed.anchor) ? (
+                {isSeal && !anchorReady ? (
+                  /* Computing the anchor — the honest working mark, no number. */
+                  <MappingMark />
+                ) : anchorReady && SEAL_ANCHOR_RE.test(sealed.anchor) ? (
                   <>
                     <SealAnchor hash={sealed.anchor} />
                     <p className="tex-seal-hash">
                       {sealed.at.toLocaleTimeString()}
                     </p>
                   </>
-                ) : isSeal &&
-                  sealed.anchor &&
-                  SEALED_NUMBER_RE.test(sealed.anchor) ? (
+                ) : anchorReady ? (
                   <>
                     <ScrambleSeal
                       value={sealed.anchor}

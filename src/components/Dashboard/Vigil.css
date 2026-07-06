@@ -634,6 +634,25 @@
 .tex-seal-tag--held .tex-seal-tag-label {
   color: var(--tex-ink-mute);
 }
+/* Sealing in flight — not yet a seal. A soft breathing mark and muted ink hold
+   the calm "computing" register (kin to the mapping mark below it): the surface
+   is honestly waiting on the wire, never asserting a seal it does not yet have. */
+.tex-seal-tag--pending .tex-seal-tag-mark {
+  background: var(--tex-ink-mute);
+  animation: tex-seal-pending-pulse 1500ms var(--tex-ease) infinite;
+}
+.tex-seal-tag--pending .tex-seal-tag-label {
+  color: var(--tex-ink-mute);
+}
+@keyframes tex-seal-pending-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 .tex-seal-hash {
   margin: 1.6em 0 0;
   font-family: var(--tex-mono);
