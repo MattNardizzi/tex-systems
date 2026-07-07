@@ -20,6 +20,8 @@ import {
   VOICE_ENABLED,
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
+import SpanAnswer from "./SpanAnswer";
+import { askAnswer, isRouteAbsent } from "../../lib/answers";
 import MappingMark from "./MappingMark";
 import SealAnchor, {
   ScrambleSeal,
@@ -588,6 +590,15 @@ const IGNITE_LINE_CAP_MS = 20_000;
    The whole path is additive — the proven voice reach is untouched. */
 const TYPING_ENABLED = import.meta.env.VITE_TEX_TYPING === "1";
 
+/* The FLUID-TRUTH ANSWER PIPELINE surface — the typed ask answered as an ordered
+   list of SPANS (deterministic exhibits filling number-slots), each spoken in its
+   own tier's prosody. Default-OFF and byte-identical when off: with the flag
+   unset every span branch below is dead, the typed ask uses the proven askTex →
+   derivePresence → surfaceAnswer path exactly as before. Enable with
+   VITE_TEX_SPANS=1. When on, the typed ask tries POST /v1/answer FIRST and falls
+   back SILENTLY to askTex if the route is not mounted yet (404/501). */
+const SPANS_ENABLED = import.meta.env.VITE_TEX_SPANS === "1";
+
 /* The day-one open — the threshold. An arc, shown once, then gone: a being
    declares itself, claims dominion, and takes the weight. Never a rotation —
    it progresses and then ends, into the live surface. Each beat lands on Tex's
@@ -943,6 +954,12 @@ export default function Vigil() {
   const [answer, setAnswer] = useState(null);
   const [answerWord, setAnswerWord] = useState(-1);
   const [answerLeaving, setAnswerLeaving] = useState(false);
+  /* The FLUID-TRUTH span answer, when VITE_TEX_SPANS is on: the whole
+     AnswerResponse (spans + exhibits) plus the question that produced it. Null at
+     rest and whenever the flag is off, so the default surface is untouched. The
+     spoken-word highlight rides the shared answerWord (spans speak sequentially,
+     one concatenated line). */
+  const [spanAnswer, setSpanAnswer] = useState(null);
   /* Live mirror of `answer` for the retire path — a ref, not state, so
      retiring the standing turn into the trail never reads a stale closure. */
   const answerRef = useRef(null);
@@ -975,6 +992,7 @@ export default function Vigil() {
     setAnswerWord(-1);
     setAnswerLeaving(false);
     setHeldRows(null);
+    setSpanAnswer(null);
   }, []);
 
   /* A new reach takes the surface — but the standing turn does not vanish:
@@ -1052,6 +1070,8 @@ export default function Vigil() {
       setAnswerLeaving(false);
       setAnswerWord(-1);
       setAnswer(next);
+      /* Only one answer surface shows: a plain answer retires any span stack. */
+      setSpanAnswer(null);
     });
     answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
     /* Forward the gate's verdict token so the ANSWER is spoken in-tier. Only
@@ -1063,6 +1083,75 @@ export default function Vigil() {
       onWord: (i) => setAnswerWord(i),
       prosody: presence.prosodyToken,
     });
+  }, []);
+
+  /* Take the surface with a FLUID-TRUTH span answer (VITE_TEX_SPANS only).
+     The whole AnswerResponse renders as an ordered stack of spans, and Tex
+     voices them SEQUENTIALLY — one span at a time, each in its OWN tier's
+     prosody token — using the existing timed voice engine.
+
+     Sequential chaining is safe with the current engine: each texSpeakSynced
+     opens by superseding the voice epoch, so we AWAIT each span to its natural
+     end before starting the next (the finished span is already done, so the
+     next span's supersede is harmless), and we re-check our ask epoch between
+     spans so a fresh reach (a new press / typed line, which bumps
+     askEpochRef) silently ends the sequence. The highlight rides the shared
+     answerWord as a GLOBAL word index across the concatenated spoken text, so
+     each span lights up only while the voice is inside its own token range —
+     the offset math lives in SpanAnswer. Muted voice degrades cleanly (each
+     texSpeakSynced is a no-op and resolves at once), so the stack still
+     renders in full silence. */
+  const surfaceSpanAnswer = useCallback((res, question) => {
+    const spans = Array.isArray(res?.spans) ? res.spans : [];
+    if (!spans.length) return;
+    clearLineTimer();
+    clearAnswerTimer();
+    const myEpoch = askEpochRef.current;
+    /* The span stack TAKES the glass as one morph, retiring any plain answer
+       (only one answer surface shows) and clearing the thinking/verifying marks
+       inside the morph exactly as surfaceAnswer does. A stale epoch applies
+       nothing. */
+    morphSurface(() => {
+      if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+      answerRef.current = null;
+      setAnswer(null);
+      setSpoken(null);
+      setThinking(false);
+      setVerifying(false);
+      setAnswerLeaving(false);
+      setAnswerWord(-1);
+      setSpanAnswer({ res, question: question || null });
+    });
+    answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
+
+    /* Speak the spans one after another, each with its own prosody token. The
+       word index is global across the concatenation, so it advances by the
+       running offset of all prior spans' words. */
+    (async () => {
+      let wordOffset = 0;
+      for (const span of spans) {
+        if (myEpoch !== askEpochRef.current) return; /* a fresh reach won */
+        const text = span?.text || "";
+        const tokens = text.split(/\s+/).filter(Boolean).length;
+        const base = wordOffset;
+        if (text) {
+          /* prosody === lowercase verdict per the contract; prefer the span's
+             own token, fall back to the verdict lowercased. A superseded span
+             returns early inside the engine and our epoch check ends the loop. */
+          const prosody =
+            span?.prosody || (span?.verdict ? String(span.verdict).toLowerCase() : null);
+          // eslint-disable-next-line no-await-in-loop
+          await texSpeakSynced(text, {
+            prosody,
+            onWord: (i) => {
+              if (myEpoch === askEpochRef.current) setAnswerWord(base + i);
+            },
+          });
+        }
+        wordOffset += tokens;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* The never-silent rule: a failed or empty round-trip SAYS SO, in Tex's one
@@ -1964,31 +2053,76 @@ export default function Vigil() {
     /* Latest-wins: if another reach takes the surface while this question is
        on the wire, its answer dies stale instead of surfacing (see endHold). */
     const myEpoch = askEpochRef.current;
-    askTex(q, watchTenant, lastExchangeRef.current)
-      .then((res) => {
-        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-        /* verifying clears inside surfaceAnswer's morph (see endHold). */
-        const presence = derivePresence(res);
-        if (presence?.spokenText) {
+
+    /* The proven voice/typed round-trip, unchanged — extracted so the span
+       pipeline can fall back to it verbatim (byte-identical flow) when
+       /v1/answer is not mounted yet, and so a flag-off build runs exactly this. */
+    const runAskTex = () =>
+      askTex(q, watchTenant, lastExchangeRef.current)
+        .then((res) => {
+          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+          /* verifying clears inside surfaceAnswer's morph (see endHold). */
+          const presence = derivePresence(res);
+          if (presence?.spokenText) {
+            lastExchangeRef.current = {
+              prior_question: q,
+              prior_answer: presence.spokenText,
+            };
+            surfaceAnswer(presence, q);
+            /* A turn about holds surfaces the queue itself, resolvable. */
+            maybeSurfaceHeldRows(q, presence.spokenText);
+            if (presence.object?.value) {
+              surfaceObject(presence.object.value, presence.object.kind);
+            }
+          } else {
+            surfaceFailure("The records returned nothing for that.", q);
+          }
+        })
+        .catch(() => {
+          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+          surfaceFailure("I can't reach the records right now.", q);
+        });
+
+    /* FLUID-TRUTH first when VITE_TEX_SPANS is on: ask POST /v1/answer for a
+       span answer. If the route is not mounted yet (404/501) fall back SILENTLY
+       to the proven askTex path — the operator sees a normal answer, never an
+       error. Any OTHER failure (a real network fault) also falls back to askTex,
+       whose own catch surfaces an honest abstain-tier line, so a broken span
+       route can never leave the surface silent. With the flag OFF this branch is
+       dead and runAskTex is the whole path — byte-identical to before. */
+    if (SPANS_ENABLED) {
+      askAnswer(q, watchTenant)
+        .then((res) => {
+          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+          const spans = Array.isArray(res?.spans) ? res.spans : [];
+          if (!spans.length) {
+            /* A mounted route that returned no spans — degrade to the plain path
+               rather than showing an empty stack. */
+            runAskTex();
+            return;
+          }
+          /* Carry the span answer into the follow-up context so a "which one?"
+             can still resolve its references off the spoken concatenation. */
           lastExchangeRef.current = {
             prior_question: q,
-            prior_answer: presence.spokenText,
+            prior_answer: res?.spoken_text || spans.map((s) => s?.text || "").join(" "),
           };
-          surfaceAnswer(presence, q);
-          /* A turn about holds surfaces the queue itself, resolvable. */
-          maybeSurfaceHeldRows(q, presence.spokenText);
-          if (presence.object?.value) {
-            surfaceObject(presence.object.value, presence.object.kind);
+          surfaceSpanAnswer(res, q);
+        })
+        .catch((err) => {
+          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+          /* 404/501 = route not mounted yet; any other error = a real fault.
+             Both fall back to askTex, which surfaces an honest line on failure. */
+          if (!isRouteAbsent(err)) {
+            /* a real span-route fault — still never silent: askTex takes over. */
           }
-        } else {
-          surfaceFailure("The records returned nothing for that.", q);
-        }
-      })
-      .catch(() => {
-        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-        surfaceFailure("I can't reach the records right now.", q);
-      });
-  }, [typed, ghost, cancelTyping, refreshSurface, watchTenant, surfaceAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows, canonicalizeTail]);
+          runAskTex();
+        });
+      return;
+    }
+
+    runAskTex();
+  }, [typed, ghost, cancelTyping, refreshSurface, watchTenant, surfaceAnswer, surfaceSpanAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows, canonicalizeTail]);
 
   /* The input owns its own keys: stop them reaching the section's voice handler
      (a typed space/Enter must never open the mic). Enter asks; Escape dissolves;
@@ -2891,7 +3025,7 @@ export default function Vigil() {
           touch the paper are presence ("Here."), the ignition count, and the
           faltering warning — states Tex is IN, not answers to a question. The
           interactive answer lives in its own presence block below. */}
-      {!doorOpen && !mapping && !answer && state !== "held" && !sealed && (
+      {!doorOpen && !mapping && !answer && !spanAnswer && state !== "held" && !sealed && (
         <div className="tex-voice" aria-live="polite">
           {spoken &&
             (spoken.kind === "here" ||
@@ -2908,6 +3042,26 @@ export default function Vigil() {
                 )}
               </p>
             )}
+        </div>
+      )}
+
+      {/* The FLUID-TRUTH span answer (VITE_TEX_SPANS only) — the AnswerResponse
+          as an ordered stack of spans, each voiced in its own tier's prosody.
+          Flag-gated and mutually exclusive with the plain answer (surfaceAnswer
+          clears spanAnswer and vice versa), so with the flag off this branch is
+          dead and the surface is byte-identical. */}
+      {SPANS_ENABLED && !doorOpen && !mapping && !sealed && spanAnswer && (
+        <div
+          className={`tex-presence${
+            trail.length > 0 || heldRows?.length ? " tex-presence--anchored" : ""
+          }`}
+          aria-live="polite"
+        >
+          <SpanAnswer
+            answer={spanAnswer.res}
+            question={spanAnswer.question}
+            answerWord={answerWord}
+          />
         </div>
       )}
 
@@ -3134,7 +3288,7 @@ export default function Vigil() {
           centered, only because you reached for it, and dissolves the moment
           it has been taken. When an answer is on the glass the handle rises
           inside that presence block instead (above), so it never double-renders. */}
-      {!doorOpen && !mapping && state !== "held" && !answer && !sealed && surfaced && (
+      {!doorOpen && !mapping && state !== "held" && !answer && !spanAnswer && !sealed && surfaced && (
         <div className="tex-object" role="status" aria-live="polite">
           <span className="tex-object-value" key={surfaced.value}>
             {surfaced.value}

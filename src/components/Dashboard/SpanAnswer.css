@@ -1,0 +1,89 @@
+/* SpanAnswer — the typed-ask span surface (flag-gated, VITE_TEX_SPANS).
+ *
+ * The tier tag (.tex-tier*), the proof pill (.tex-claim, .tex-claim--proof,
+ * .tex-claim-cue) and the voice-word ink (.tex-word) are the EXISTING classes
+ * from Vigil.css — SpanAnswer reuses them verbatim so the span surface inherits
+ * the design system rather than reinventing it. This file only adds the span
+ * STACK layout, the calm abstain treatment, and the sealed-anchor id register.
+ *
+ * Ink only. The surface keeps colour for the faltering breath alone; the tiers
+ * read apart by their mark and weight, never a green/amber/red ramp. */
+
+.tex-span-answer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.2em;
+  width: 100%;
+  max-width: 32em;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* One span = one line in the voice register, its tier tag beneath it. */
+.tex-span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1em;
+  width: 100%;
+  animation: tex-voice-rise 760ms var(--tex-ease) both;
+}
+
+.tex-span-line {
+  margin: 0;
+  font-family: var(--tex-display);
+  font-size: clamp(20px, 3.2vw, 30px);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  color: var(--tex-ink);
+  max-width: 20em;
+}
+
+/* The calm abstain moment — distinctly muted, NO error affect. Tex simply does
+   not have a sealed way to answer that yet; the line recedes rather than alarms.
+   No red, no icon, no border: just a quieter ink and a hair more air. */
+.tex-span--abstain .tex-span-line {
+  color: var(--tex-ink-soft);
+  font-style: italic;
+  letter-spacing: 0;
+}
+
+/* The sealed anchor, revealed under a SEALED span's PROOF affordance. The id
+   register: Geist Mono, tabular, break-anywhere so the full 64-char digest is
+   copyable and never elided — the one thing the glass may hold. */
+.tex-span-proof {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9em;
+}
+.tex-span-anchor {
+  margin: 0;
+  font-family: var(--tex-mono);
+  font-size: clamp(11px, 1.2vw, 13px);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--tex-ink-2);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+  max-width: 30em;
+  animation: tex-object-rise var(--tex-rise) var(--tex-ease) both;
+}
+
+@media (max-width: 480px) {
+  .tex-span-answer {
+    gap: 1.8em;
+  }
+  .tex-span-anchor {
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-span,
+  .tex-span-anchor {
+    animation: none;
+  }
+}
