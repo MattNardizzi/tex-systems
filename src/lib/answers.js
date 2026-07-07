@@ -51,14 +51,25 @@ const scopedTenant = (tenantId) =>
  * back to the existing askTex path) from a real failure. The keyed/dev tenant
  * posture matches texApi.js: the key carries the tenant in prod; only DEV scopes.
  */
-export async function askAnswer(question, tenantId) {
+export async function askAnswer(question, tenantId, exchange) {
+  /* The prior exchange rides along (same 4000-cap idiom as texApi.js) so the
+     backend's LLM router can resolve follow-ups — "what about yesterday?"
+     keeps the prior tool and verdict. Omitted entirely when there is no
+     prior turn: the field is optional server-side, and an OLD backend
+     (extra="forbid") 422s unknown fields — which the callers already treat
+     as a fall-back-to-/v1/ask, so a mid-deploy skew degrades, never breaks. */
+  const body = {
+    question: question ?? "",
+    tenant_id: scopedTenant(tenantId) ?? null,
+  };
+  if (exchange && (exchange.prior_question || exchange.prior_answer)) {
+    body.prior_question = String(exchange.prior_question || "").slice(0, 4000);
+    body.prior_answer = String(exchange.prior_answer || "").slice(0, 4000);
+  }
   const res = await fetch(`${BASE}/v1/answer`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question: question ?? "",
-      tenant_id: scopedTenant(tenantId) ?? null,
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");

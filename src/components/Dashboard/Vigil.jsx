@@ -981,6 +981,12 @@ export default function Vigil() {
   /* Live mirror of `answer` for the retire path — a ref, not state, so
      retiring the standing turn into the trail never reads a stale closure. */
   const answerRef = useRef(null);
+  /* Live mirror of the SPAN answer for the same retire path: { question,
+     text } where text is the spoken concatenation. Without it a span turn
+     vanished on the next reach instead of receding into the trail —
+     surfaceSpanAnswer nulls answerRef by design (only one answer surface
+     shows), so retireAnswer had nothing to read for span turns. */
+  const spanAnswerRef = useRef(null);
   /* The conversation trail: prior turns as { id, q, a }, oldest first. Display
      only — the backend's follow-up context stays the single lastExchangeRef. */
   const [trail, setTrail] = useState([]);
@@ -1006,6 +1012,7 @@ export default function Vigil() {
     answerEpochRef.current += 1;
     clearAnswerTimer();
     answerRef.current = null;
+    spanAnswerRef.current = null;
     setAnswer(null);
     setAnswerWord(-1);
     setAnswerLeaving(false);
@@ -1016,12 +1023,19 @@ export default function Vigil() {
   /* A new reach takes the surface — but the standing turn does not vanish:
      it recedes into the trail (smaller, fainter, above the answer that
      replaces it), so a follow-up is asked over words still on the glass.
+     Span answers retire exactly like plain ones — one trail, both voices.
      Only "refresh" (refreshSurface) and Escape wipe the trail itself. */
   const retireAnswer = useCallback(() => {
     const a = answerRef.current;
-    if (a?.text) {
+    const s = spanAnswerRef.current;
+    const standing = a?.text ? a : s?.text ? s : null;
+    if (standing) {
       trailIdRef.current += 1;
-      const entry = { id: trailIdRef.current, q: a.question || "", a: a.text };
+      const entry = {
+        id: trailIdRef.current,
+        q: standing.question || "",
+        a: standing.text,
+      };
       setTrail((t) => [...t, entry].slice(-TRAIL_MAX));
     }
     clearAnswer();
@@ -1089,6 +1103,7 @@ export default function Vigil() {
       setAnswerWord(-1);
       setAnswer(next);
       /* Only one answer surface shows: a plain answer retires any span stack. */
+      spanAnswerRef.current = null;
       setSpanAnswer(null);
     });
     answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
@@ -1138,6 +1153,14 @@ export default function Vigil() {
       setVerifying(false);
       setAnswerLeaving(false);
       setAnswerWord(-1);
+      /* The retire mirror: what the trail will keep of this turn — the
+         operator's words and the spoken concatenation, never the exhibits. */
+      spanAnswerRef.current = {
+        question: question || "",
+        text:
+          res?.spoken_text ||
+          spans.map((s) => s?.text || "").join(" ").trim(),
+      };
       setSpanAnswer({ res, question: question || null });
     });
     answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
@@ -1902,7 +1925,7 @@ export default function Vigil() {
            promise gets a no-op catch on the span path so a failed speculative
            ask can never surface as an unhandled rejection. */
         if (SPANS_ENABLED) {
-          return askAnswer(transcript, watchTenant)
+          return askAnswer(transcript, watchTenant, lastExchangeRef.current)
             .then((res) => {
               if (myEpoch !== askEpochRef.current) return; /* superseded */
               if (res && Array.isArray(res.spans) && res.spans.length) {
@@ -2149,7 +2172,7 @@ export default function Vigil() {
        route can never leave the surface silent. With the flag OFF this branch is
        dead and runAskTex is the whole path — byte-identical to before. */
     if (SPANS_ENABLED) {
-      askAnswer(q, watchTenant)
+      askAnswer(q, watchTenant, lastExchangeRef.current)
         .then((res) => {
           if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
           const spans = Array.isArray(res?.spans) ? res.spans : [];
@@ -3032,9 +3055,18 @@ export default function Vigil() {
         !mapping &&
         !sealed &&
         trail.length > 0 &&
-        !(state === "held" && decision && !answer && !verifying && typed === null) && (
+        !(
+          state === "held" &&
+          decision &&
+          !answer &&
+          !spanAnswer &&
+          !verifying &&
+          typed === null
+        ) && (
           <div
-            className={"tex-trail" + (answer ? "" : " tex-trail--tight")}
+            className={
+              "tex-trail" + (answer || spanAnswer ? "" : " tex-trail--tight")
+            }
             aria-hidden="true"
           >
             {trail.map((t) => (
