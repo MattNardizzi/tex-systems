@@ -592,12 +592,14 @@ const TYPING_ENABLED = import.meta.env.VITE_TEX_TYPING === "1";
 
 /* The FLUID-TRUTH ANSWER PIPELINE surface — the typed ask answered as an ordered
    list of SPANS (deterministic exhibits filling number-slots), each spoken in its
-   own tier's prosody. Default-OFF and byte-identical when off: with the flag
-   unset every span branch below is dead, the typed ask uses the proven askTex →
-   derivePresence → surfaceAnswer path exactly as before. Enable with
-   VITE_TEX_SPANS=1. When on, the typed ask tries POST /v1/answer FIRST and falls
-   back SILENTLY to askTex if the route is not mounted yet (404/501). */
-const SPANS_ENABLED = import.meta.env.VITE_TEX_SPANS === "1";
+   own tier's prosody. Default-ON since 2026-07-07 (the /v1/answer backend is
+   live in prod and verified end-to-end): the typed ask tries POST /v1/answer
+   FIRST and falls back SILENTLY to the proven askTex → derivePresence →
+   surfaceAnswer path on any fault (404/501/network), so the surface can never
+   do worse than the legacy brain. Opt OUT with VITE_TEX_SPANS=0 — with the
+   flag off every span branch below is dead and behavior is byte-identical to
+   the pre-span surface. */
+const SPANS_ENABLED = import.meta.env.VITE_TEX_SPANS !== "0";
 
 /* The day-one open — the threshold. An arc, shown once, then gone: a being
    declares itself, claims dominion, and takes the weight. Never a rotation —
@@ -2881,7 +2883,7 @@ export default function Vigil() {
       {!doorOpen && !mapping && state === "held" && decision && !sealed && (
         <div
           className={`tex-held${
-            answer || verifying || typed !== null ? " is-receded" : ""
+            answer || spanAnswer || verifying || typed !== null ? " is-receded" : ""
           }`}
         >
           <p className="tex-held-sentence">{heldSentence(decision)}</p>
