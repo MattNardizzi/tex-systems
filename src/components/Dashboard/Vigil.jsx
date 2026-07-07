@@ -1839,36 +1839,67 @@ export default function Vigil() {
           spec && spec.q === normalizeAsk(transcript)
             ? spec.promise
             : askTex(transcript, watchTenant, lastExchangeRef.current);
-        return askPromise.then((res) => {
-          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-          /* verifying clears INSIDE surfaceAnswer's morph — clearing it here
-             would pop the deliberation mark out a frame before the snapshot. */
-          /* Backend decides, frontend renders: derivePresence only NORMALIZES the
-             wire (the presence envelope when present, the AskResponse otherwise).
-             The credibility tier it carries is the gate's real verdict, never a
-             confidence the UI invented. */
-          const presence = derivePresence(res);
-          if (presence?.spokenText) {
-            /* Meaning is spoken — and surfaced with its tier and any claims,
-               staying on the glass until the next reach. If the answer's target
-               is an object you must carry away (a hash, an exact name), that
-               handle also surfaces. */
-            lastExchangeRef.current = {
-              prior_question: transcript,
-              prior_answer: presence.spokenText,
-            };
-            surfaceAnswer(presence, transcript);
-            /* A turn about holds surfaces the queue itself, resolvable. */
-            maybeSurfaceHeldRows(transcript, presence.spokenText);
-            if (presence.object?.value) {
-              surfaceObject(presence.object.value, presence.object.kind);
+        const finishLegacy = () =>
+          askPromise.then((res) => {
+            if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+            /* verifying clears INSIDE surfaceAnswer's morph — clearing it here
+               would pop the deliberation mark out a frame before the snapshot. */
+            /* Backend decides, frontend renders: derivePresence only NORMALIZES the
+               wire (the presence envelope when present, the AskResponse otherwise).
+               The credibility tier it carries is the gate's real verdict, never a
+               confidence the UI invented. */
+            const presence = derivePresence(res);
+            if (presence?.spokenText) {
+              /* Meaning is spoken — and surfaced with its tier and any claims,
+                 staying on the glass until the next reach. If the answer's target
+                 is an object you must carry away (a hash, an exact name), that
+                 handle also surfaces. */
+              lastExchangeRef.current = {
+                prior_question: transcript,
+                prior_answer: presence.spokenText,
+              };
+              surfaceAnswer(presence, transcript);
+              /* A turn about holds surfaces the queue itself, resolvable. */
+              maybeSurfaceHeldRows(transcript, presence.spokenText);
+              if (presence.object?.value) {
+                surfaceObject(presence.object.value, presence.object.kind);
+              }
+            } else {
+              /* A transcribed question that came back empty is NOT silence —
+                 say so, honestly, as an abstain-tier line. */
+              surfaceFailure("The records returned nothing for that.", transcript);
             }
-          } else {
-            /* A transcribed question that came back empty is NOT silence —
-               say so, honestly, as an abstain-tier line. */
-            surfaceFailure("The records returned nothing for that.", transcript);
-          }
-        });
+          });
+        /* SPANS: the voice reach asks the sealed pipeline FIRST, exactly like
+           the typed line. A usable span answer takes the glass and speaks with
+           per-span prosody; any fault (route absent, error, no spans) falls
+           back to the proven legacy round-trip above — whose speculative bet
+           is still warm, so the fallback pays no extra latency. The bet's
+           promise gets a no-op catch on the span path so a failed speculative
+           ask can never surface as an unhandled rejection. */
+        if (SPANS_ENABLED) {
+          return askAnswer(transcript, watchTenant)
+            .then((res) => {
+              if (myEpoch !== askEpochRef.current) return; /* superseded */
+              if (res && Array.isArray(res.spans) && res.spans.length) {
+                askPromise.catch(() => {});
+                lastExchangeRef.current = {
+                  prior_question: transcript,
+                  prior_answer: res.spoken_text || "",
+                };
+                surfaceSpanAnswer(res, transcript);
+                /* A turn about holds surfaces the queue itself, resolvable. */
+                maybeSurfaceHeldRows(transcript, res.spoken_text || "");
+                return;
+              }
+              return finishLegacy();
+            })
+            .catch(() => {
+              if (myEpoch !== askEpochRef.current) return; /* superseded */
+              return finishLegacy();
+            });
+        }
+        return finishLegacy();
       })
       .catch(() => {
         if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
