@@ -127,6 +127,22 @@ const isRefreshCommand = (s) => REFRESH_COMMANDS.has(normalizeAsk(s));
 const HELD_ASK_RE = /\bheld\b|\bholds?\b|\bholding\b/i;
 const HELD_ANSWER_RE = /\bheld\b/i;
 
+/* A SPAN answer that is about the held queue — read from the answer's own
+   provenance, never re-guessed from prose: an exhibit whose query filtered
+   the ABSTAIN verdict (HELD normalizes to ABSTAIN in the decision store) is
+   a held count/list, and its is_zero flag discloses — in provenance, where
+   no quantity can leak — whether there is anything to resolve. An empty
+   queue offers no way in: an act over nothing would be a lie. When the
+   pipeline answered a held-phrased question WITHOUT a verdict-scoped exhibit
+   (an abstain), the ask regex still opens the door — the fetch behind the
+   act surfaces only rows that truly exist, so a pressed act never invents. */
+const spanAnswerHeldness = (res, question) => {
+  const exhibits = Array.isArray(res?.exhibits) ? res.exhibits : [];
+  const heldExhibit = exhibits.find((ex) => ex?.query?.verdict === "ABSTAIN");
+  if (heldExhibit) return !heldExhibit.query.is_zero;
+  return HELD_ASK_RE.test(question || "");
+};
+
 /* One quiet line per held row (GET /v1/surface/discovery/held shape):
    what was held, in the row's own words when it has any. */
 const heldRowLine = (row) => {
@@ -1374,6 +1390,27 @@ export default function Vigil() {
      decision_id (a presence-origin hold) has nothing /seal can resolve yet,
      so it renders as fact, without acts. Epoch-guarded like every other wire:
      a superseded turn's rows never land on the turn that replaced it. */
+  /* The fetch itself — shared by the phrasing-gated legacy path below and the
+     span answer's explicit HELD act (which reads held-ness from the answer's
+     own exhibits, so it must never be re-judged by the words). One discipline
+     everywhere: epoch-guarded, seal-dismissed rows filtered, and the rows
+     joining the standing answer re-anchor the whole block — a TEX-driven
+     layout change, so it morphs like every other one. */
+  const surfaceHeldRows = useCallback(() => {
+    const myEpoch = askEpochRef.current;
+    listHeldDecisions(watchTenant)
+      .then((res) => {
+        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+        const rows = (res?.held || []).filter(
+          (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
+        );
+        if (rows.length) morphSurface(() => setHeldRows(rows));
+      })
+      .catch(() => {
+        /* Silent. The sentence already told the truth; the rows are depth. */
+      });
+  }, [watchTenant]);
+
   const maybeSurfaceHeldRows = useCallback(
     (question, answerText) => {
       if (
@@ -1382,22 +1419,9 @@ export default function Vigil() {
       ) {
         return;
       }
-      const myEpoch = askEpochRef.current;
-      listHeldDecisions(watchTenant)
-        .then((res) => {
-          if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-          const rows = (res?.held || []).filter(
-            (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
-          );
-          /* The rows joining the standing answer re-anchor the whole block —
-             a TEX-driven layout change, so it morphs like every other one. */
-          if (rows.length) morphSurface(() => setHeldRows(rows));
-        })
-        .catch(() => {
-          /* Silent. The sentence already told the truth; the rows are depth. */
-        });
+      surfaceHeldRows();
     },
-    [watchTenant]
+    [surfaceHeldRows]
   );
 
   /* Resolve one held row by a named human act. The seal is NOT optimistic: the
@@ -1888,8 +1912,9 @@ export default function Vigil() {
                   prior_answer: res.spoken_text || "",
                 };
                 surfaceSpanAnswer(res, transcript);
-                /* A turn about holds surfaces the queue itself, resolvable. */
-                maybeSurfaceHeldRows(transcript, res.spoken_text || "");
+                /* A span answer about holds carries its own HELD act (the
+                   chip under the span stack) — the queue rises on an explicit
+                   press, never auto-surfaced over the spoken answer. */
                 return;
               }
               return finishLegacy();
@@ -2967,9 +2992,9 @@ export default function Vigil() {
             </div>
           )}
           {/* The aggregate hold's queue — the rows the sentence counted. Hidden
-              while an answer overlays the glass: the answer block renders the
-              same list, never both at once. */}
-          {!decision?.id && !isCalibration(decision) && !answer && (
+              while an answer overlays the glass: the answer block (plain or
+              span) renders the same list, never both at once. */}
+          {!decision?.id && !isCalibration(decision) && !answer && !spanAnswer && (
             <HeldRowsList rows={heldRows} onResolve={resolveHeldRow} />
           )}
           {/* The reached handle — the one thing the card may hold. On a
@@ -3094,7 +3119,22 @@ export default function Vigil() {
             answer={spanAnswer.res}
             question={spanAnswer.question}
             answerWord={answerWord}
+            /* The HELD act is armed only while there is a queue to click into
+               and it is not already on the glass — the moment the rows rise,
+               the chip retires inside the same morph (an affordance and the
+               thing it summons never stand together). */
+            onResolveHeld={
+              spanAnswerHeldness(spanAnswer.res, spanAnswer.question) &&
+              !heldRows?.length
+                ? surfaceHeldRows
+                : undefined
+            }
           />
+          {/* The held rows — the SAME queue the plain answer and the held card
+              render (one queue, one truth), risen beneath the span stack on
+              the HELD act's press, or already mid-walk when this answer took
+              the glass. */}
+          <HeldRowsList rows={heldRows} onResolve={resolveHeldRow} />
         </div>
       )}
 

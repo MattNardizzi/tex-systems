@@ -27,6 +27,14 @@ import "./SpanAnswer.css";
  * sequentially, concatenated), so a span only lights up while the voice is inside
  * its own token range — the same in-step highlight the voice answer already uses.
  * Pass -1 (the default) to render every line at full ink with no highlight.
+ *
+ * `onResolveHeld` — when the answer is ABOUT decisions waiting on the operator
+ * ("one decision was held for you today."), the parent arms this and one calm
+ * HELD act renders under the stack (the PROOF pill idiom): pressing it clicks
+ * INTO the held queue itself, which rises beneath with Approve / Keep holding /
+ * Refuse on each decision. This surface never decides held-ness and never
+ * fetches — the parent reads it from the answer's own exhibits and owns the
+ * wire; unarmed (undefined) means no act, e.g. an empty queue.
  */
 
 /* The one honest gloss per tier — chrome ABOUT the answer, never its meaning
@@ -123,7 +131,12 @@ function Span({ span, anchor, wordOffset, activeWord }) {
   );
 }
 
-export default function SpanAnswer({ answer, question, answerWord = -1 }) {
+export default function SpanAnswer({
+  answer,
+  question,
+  answerWord = -1,
+  onResolveHeld,
+}) {
   const spans = Array.isArray(answer?.spans) ? answer.spans : [];
   if (!spans.length) return null;
 
@@ -160,6 +173,26 @@ export default function SpanAnswer({ answer, question, answerWord = -1 }) {
           />
         );
       })}
+
+      {/* HELD — the one act on an answer about decisions waiting for a human:
+          press it and the held queue itself rises beneath, each decision
+          resolvable in place. The parent arms this only when there is truly
+          something to resolve — the act never promises an empty queue. Same
+          pill as PROOF (the design system's one reach-in idiom); data-act so
+          the press never opens the mic. */}
+      {onResolveHeld && (
+        <button
+          type="button"
+          data-act="held"
+          className="tex-claim tex-claim--proof tex-claim--held"
+          aria-label="Show the held decisions so each can be resolved"
+          onClick={onResolveHeld}
+        >
+          <span className="tex-claim-cue" aria-hidden="true">
+            show the held decisions
+          </span>
+        </button>
+      )}
     </div>
   );
 }
