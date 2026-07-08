@@ -617,6 +617,23 @@ const TYPING_ENABLED = import.meta.env.VITE_TEX_TYPING === "1";
    the pre-span surface. */
 const SPANS_ENABLED = import.meta.env.VITE_TEX_SPANS !== "0";
 
+/* ------------------------- THE BEGIN PASSCODE -------------------------
+   A velvet rope over the day-one summons: pressing Begin no longer ignites
+   discovery outright — it reveals a passcode field, and only the right word
+   lets the summons through (see openGate / submitPasscode below).
+
+   HONEST SCOPE — this is a CLIENT-SIDE gate. Vite inlines VITE_ env into the
+   built bundle, so the word ships in the JS: it turns away a casual visitor, it
+   does NOT withstand a determined one (who can read the bundle or call ignite
+   directly). Real enforcement would live behind the backend's ignite endpoint;
+   this is the surface-level lock, sized to a launch/demo surface.
+
+   Sourced from VITE_TEX_BEGIN_PASSCODE, trimmed, with a placeholder fallback so
+   the gate is NEVER accidentally open when the env var is unset (fail-closed).
+   Set the real word in the environment — locally in .env.development, in prod via
+   the Vercel dashboard (its build-time value overrides the committed default). */
+const BEGIN_PASSCODE = (import.meta.env.VITE_TEX_BEGIN_PASSCODE || "VBTex").trim();
+
 /* The day-one open — the threshold. An arc, shown once, then gone: a being
    declares itself, claims dominion, and takes the weight. Never a rotation —
    it progresses and then ends, into the live surface. Each beat lands on Tex's
@@ -764,6 +781,16 @@ export default function Vigil() {
     if (mappingTimer.current) clearTimeout(mappingTimer.current);
     mappingTimer.current = null;
   };
+
+  /* The Begin passcode gate (see BEGIN_PASSCODE). `gateOpen` reveals the
+     passcode field once Begin is pressed; `passInput` is the word being typed;
+     `passWrong` flashes a quiet reject on a mismatch (cleared on the next
+     keystroke). The field lives in the door's reserved act slot, so revealing it
+     never reflows the manifesto above. */
+  const [gateOpen, setGateOpen] = useState(false);
+  const [passInput, setPassInput] = useState("");
+  const [passWrong, setPassWrong] = useState(false);
+  const passInputRef = useRef(null);
 
   /* The day-one THRESHOLD is showing — the manifesto door. The first reach here
      WAKES Tex (unlocks audio, starts the manifesto). */
@@ -1393,6 +1420,45 @@ export default function Vigil() {
     }, wait);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ignition, watchTenant]);
+
+  /* Begin is now a gated summons: the press opens the passcode field instead of
+     igniting. Focus lands on the field (after it mounts) so the word can be typed
+     at once. Never touches ignition — only the right word reaches beginMapping. */
+  const openGate = useCallback(() => {
+    setPassWrong(false);
+    setPassInput("");
+    setGateOpen(true);
+    requestAnimationFrame(() => passInputRef.current?.focus());
+  }, []);
+
+  /* Close the gate without igniting — the operator backed out (Escape / the
+     surface going idle). Leaves the Begin act standing, exactly as before. */
+  const closeGate = useCallback(() => {
+    setGateOpen(false);
+    setPassInput("");
+    setPassWrong(false);
+  }, []);
+
+  /* Verify the word. Right → the gate closes and Begin proceeds EXACTLY as it did
+     before (beginMapping runs the real ignite). Wrong → a quiet reject: the field
+     shakes, clears, and waits. Trimmed, case-sensitive; no lockout and no attempt
+     counter — this is a velvet rope, not a vault (see BEGIN_PASSCODE). */
+  const submitPasscode = useCallback(
+    (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      if (passInput.trim() === BEGIN_PASSCODE) {
+        setGateOpen(false);
+        setPassInput("");
+        setPassWrong(false);
+        beginMapping();
+      } else {
+        setPassWrong(true);
+        setPassInput("");
+        passInputRef.current?.focus();
+      }
+    },
+    [passInput, beginMapping]
+  );
 
   const deferDiscovery = useCallback(() => {
     openHandledRef.current = true; /* rest in silence; Tex does not nag */
@@ -2922,16 +2988,57 @@ export default function Vigil() {
                 "tex-acts tex-door-acts" + (manifestoDone ? " is-revealed" : "")
               }
             >
-              <button
-                type="button"
-                data-act="begin"
-                className="tex-act tex-act--approve"
-                disabled={!manifestoDone || ignition.igniting}
-                aria-hidden={manifestoDone ? undefined : true}
-                onClick={beginMapping}
-              >
-                Begin
-              </button>
+              {gateOpen ? (
+                /* The velvet rope — Begin was pressed; the summons waits on the
+                   word. It lives in the SAME reserved slot as Begin, so the
+                   manifesto above never jumps. data-act keeps the press off the
+                   ask-mic; Enter (form submit) or Continue verifies, Escape backs
+                   out. */
+                <form className="tex-passcode" onSubmit={submitPasscode}>
+                  <input
+                    ref={passInputRef}
+                    type="password"
+                    data-act="passcode"
+                    className={
+                      "tex-passcode-field" + (passWrong ? " is-wrong" : "")
+                    }
+                    value={passInput}
+                    onChange={(e) => {
+                      setPassInput(e.target.value);
+                      if (passWrong) setPassWrong(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") closeGate();
+                    }}
+                    placeholder={passWrong ? "not the word" : "passphrase"}
+                    aria-label="Passphrase to begin"
+                    aria-invalid={passWrong || undefined}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="submit"
+                    data-act="passcode"
+                    className="tex-act tex-act--approve"
+                    disabled={ignition.igniting}
+                  >
+                    Continue
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  data-act="begin"
+                  className="tex-act tex-act--approve"
+                  disabled={!manifestoDone || ignition.igniting}
+                  aria-hidden={manifestoDone ? undefined : true}
+                  onClick={openGate}
+                >
+                  Begin
+                </button>
+              )}
             </div>
           )}
         </div>

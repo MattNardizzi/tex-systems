@@ -590,6 +590,77 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* The Begin passcode — the velvet rope. A lean, centered field in the  */
+/* id register (mono), an underline its only chrome, sitting in the     */
+/* door's reserved act slot beneath the manifesto next to Continue. A   */
+/* wrong word shakes it once and clears; nothing else about the calm    */
+/* surface moves.                                                       */
+/* ------------------------------------------------------------------ */
+.tex-passcode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.tex-passcode-field {
+  width: min(58vw, 15em);
+  padding: 0.55em 0.2em;
+  border: none;
+  border-bottom: 1px solid var(--tex-ink-hair-2);
+  border-radius: 0;
+  background: transparent;
+  color: var(--tex-ink);
+  font-family: var(--tex-mono);
+  font-size: clamp(13px, 1.3vw, 16px);
+  letter-spacing: 0.14em;
+  text-align: center;
+  caret-color: var(--tex-ink);
+  transition: border-color var(--tex-micro) var(--tex-ease-micro);
+}
+.tex-passcode-field::placeholder {
+  color: var(--tex-ink-faint);
+  letter-spacing: 0.2em;
+  text-transform: lowercase;
+}
+.tex-passcode-field:focus {
+  outline: none;
+  border-bottom-color: var(--tex-ink);
+}
+/* A wrong word — the underline firms to full ink and the field shakes once,
+   then the placeholder confesses "not the word" over an empty field. */
+.tex-passcode-field.is-wrong {
+  border-bottom-color: var(--tex-ink);
+  animation: tex-passcode-shake 420ms var(--tex-ease-inout);
+}
+.tex-passcode-field.is-wrong::placeholder {
+  color: var(--tex-ink-soft);
+}
+@keyframes tex-passcode-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-passcode-field.is-wrong {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* The seal — a resolved decision, shown briefly, then silence.        */
 /* ------------------------------------------------------------------ */
 .tex-seal {
