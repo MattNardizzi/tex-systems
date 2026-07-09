@@ -655,6 +655,21 @@ function heldTexLine(decision) {
   return authored ? wire.trim() : "It's yours to decide.";
 }
 
+/* What the VOICE says when a hold arrives — the SAME hold the card renders,
+   so the spoken and the written can never disagree: WHO and WHAT when the
+   wire carries them (the agent, its own ask, then Tex's hand-off), the wire
+   sentence otherwise. Composed only from grounded wire fields — never an
+   invented word. */
+function spokenHeldLine(decision) {
+  const name = heldAgentName(decision);
+  const ask = heldContentExcerpt(decision);
+  if (name && ask) {
+    return `${name} is asking: ${ask.replace(/[.…\s]+$/, "")}. ${heldTexLine(decision)}`;
+  }
+  if (name) return `${name} — ${heldTexLine(decision)}`;
+  return heldSentence(decision);
+}
+
 /* The hold — Tex's abstention made first-class (Layer 4). The card renders
    the TYPE (whether more information could resolve it) and, when the hold is
    epistemic, the single pivotal QUESTION that would resolve it. */
@@ -1457,7 +1472,7 @@ export default function Vigil() {
     if (dismissedRef.current.has(dismissKey)) return;
     if (lastSpokenHeldIdRef.current === dismissKey) return;
     lastSpokenHeldIdRef.current = dismissKey;
-    texSpeak(heldSentence(liveDecision));
+    texSpeak(spokenHeldLine(liveDecision));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, dismissKey, alive, holding, thinking, verifying, ignitionDoorOpen, mapping, spoken]);
 
@@ -3261,7 +3276,18 @@ export default function Vigil() {
           never the two sentences mushed on top of each other. It also recedes
           during the gate-verification pause, so the deliberation mark reads alone
           before the answer arrives. */}
-      {!doorOpen && !mapping && state === "held" && decision && !sealed && (
+      {/* The ignite declaration owns the glass for its beat: while the spoken
+          count is up (spoken.kind === "ignite"), the held card WAITS — the same
+          precedence the held VOICE already obeys (it defers announcing during
+          the ignite episode and speaks the moment the line dissolves). Without
+          this, a standing hold stomps the declaration the instant waking ends
+          and the count is heard but never seen. */}
+      {!doorOpen &&
+        !mapping &&
+        spoken?.kind !== "ignite" &&
+        state === "held" &&
+        decision &&
+        !sealed && (
         <div
           className={`tex-held${
             answer || spanAnswer || verifying || typed !== null ? " is-receded" : ""
@@ -3444,7 +3470,16 @@ export default function Vigil() {
           touch the paper are presence ("Here."), the ignition count, and the
           faltering warning — states Tex is IN, not answers to a question. The
           interactive answer lives in its own presence block below. */}
-      {!doorOpen && !mapping && !answer && !spanAnswer && state !== "held" && !sealed && (
+      {/* state !== "held" keeps "Here."/falter from fighting the held card —
+          but the IGNITE count renders even while held: the card is suppressed
+          for exactly that beat (see the held-card gate above), so the
+          declaration is seen as well as heard. */}
+      {!doorOpen &&
+        !mapping &&
+        !answer &&
+        !spanAnswer &&
+        (state !== "held" || spoken?.kind === "ignite") &&
+        !sealed && (
         <div className="tex-voice" aria-live="polite">
           {spoken &&
             (spoken.kind === "here" ||
