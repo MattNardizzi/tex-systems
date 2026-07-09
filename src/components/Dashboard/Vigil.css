@@ -311,6 +311,48 @@
   animation: tex-rise var(--tex-rise) var(--tex-ease) 200ms both;
 }
 
+/* WHO & WHAT — the agent behind a hold and its actual ask. The agent is the
+   card's chrome label (the instrument register: uppercase, widely tracked,
+   muted); the ask leads in the headline slot but is QUOTED and set one step off
+   the voice register so it never reads as Tex's own words; Tex's short hand-off
+   sits beneath, quieter. Achromatic throughout — hierarchy by size × tracking ×
+   ink × case, per the law. */
+.tex-held-agent {
+  margin: 0 0 1.2em;
+  font-family: var(--tex-display);
+  font-size: clamp(9.5px, 0.95vw, 11px);
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  text-transform: uppercase;
+  color: var(--tex-ink-mute);
+  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
+}
+.tex-held-excerpt {
+  margin: 0;
+  max-width: 18em;
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: clamp(22px, 2.9vw, 30px);
+  line-height: 1.42;
+  letter-spacing: -0.006em;
+  color: var(--tex-ink);
+  text-wrap: balance;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
+}
+.tex-held-tex-line {
+  margin: 1.5em 0 0;
+  max-width: 22em;
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.5;
+  letter-spacing: -0.002em;
+  color: var(--tex-ink-soft);
+  text-wrap: balance;
+  animation: tex-rise var(--tex-rise) var(--tex-ease) 200ms both;
+}
+
 /* The hold, made legible. The TYPE line is an instrument label; the
    QUESTION — the single pivotal fact — sits apart at mid-ink, the eye's
    landing point. A hairline above the question sets it off as the thing
@@ -1674,6 +1716,30 @@
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--tex-ink-mute);
+}
+/* WHO on a held row — the agent as the row's chrome label. */
+.tex-held-row-agent {
+  margin: 0;
+  font-family: var(--tex-display);
+  font-size: clamp(9px, 0.9vw, 10.5px);
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  text-transform: uppercase;
+  color: var(--tex-ink-mute);
+}
+/* WHAT on a held row — the agent's ask, one truncated line, never Tex's voice. */
+.tex-held-row-ask {
+  margin: 0;
+  max-width: min(84vw, 34em);
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.4;
+  color: var(--tex-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tex-held-row-sealed {
   margin: 0.3em 0 0;

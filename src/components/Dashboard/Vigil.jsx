@@ -164,6 +164,39 @@ const heldRowMeta = (row) => {
   return parts.join("  ·  ") || null;
 };
 
+/* The new agent_name field on a row — the ONLY WHO that flips a row into the
+   who/what layout. The pre-existing agent_id is NOT a trigger (nearly every
+   legacy row carries one; triggering on it would flip them all), it only serves
+   as a display fallback for the label once the row is already who/what. */
+const heldRowAgentName = (row) => {
+  const n = row?.detail?.agent_name;
+  return typeof n === "string" && n.trim() ? n.trim() : null;
+};
+
+/* WHO on a held row — the agent as the row's chrome label (uppercased in CSS).
+   Prefers the new agent_name, falls back to the row's agent_id; truncated so a
+   long principal never blows the label. */
+const heldRowAgentLabel = (row) => {
+  const name = heldRowAgentName(row) || row?.agent_id || null;
+  if (typeof name !== "string" || !name.trim()) return null;
+  const t = name.trim();
+  return t.length > 32 ? `${t.slice(0, 32)}…` : t;
+};
+
+/* WHAT on a held row — the agent's actual ask (the new content_excerpt), shown as
+   one truncated line. Absent → the row keeps its own note/kind line. */
+const heldRowExcerpt = (row) => {
+  const ex = row?.detail?.content_excerpt;
+  return typeof ex === "string" && ex.trim() ? ex.trim() : null;
+};
+
+/* Just the time for a row whose agent has been promoted to its own label. */
+const heldRowTime = (row) => {
+  if (!row?.raised_at) return null;
+  const t = new Date(row.raised_at);
+  return Number.isNaN(t.getTime()) ? null : t.toLocaleTimeString();
+};
+
 /* The seal screen: how long a resolved decision rests alone on the glass —
    the verdict line, then its sealed number scrambling and LOCKING onto the real
    anchor — before the queue morphs to the next. Long enough to watch the number
@@ -283,6 +316,15 @@ function HeldRowsList({ rows, onResolve }) {
 
   if (!current) return null;
 
+  /* WHO & WHAT for the current row — the agent behind it and its actual ask.
+     The layout flips ONLY on the new fields (agent_name / content_excerpt); a
+     legacy row (agent_id + note, no new fields) renders exactly as before
+     (note/kind line + provenance meta). The label may still fall back to
+     agent_id, but only once a new field has already opened the who/what layout. */
+  const rowExcerpt = heldRowExcerpt(current);
+  const rowWhoWhat = Boolean(heldRowAgentName(current) || rowExcerpt);
+  const rowAgent = rowWhoWhat ? heldRowAgentLabel(current) : null;
+
   /* Resolve the current decision: mark it as the one holding its seal ceremony
      (so the walk keeps showing it through its beat, even as the wire adds the
      verdict), then send the act to the backend. */
@@ -335,9 +377,27 @@ function HeldRowsList({ rows, onResolve }) {
         </div>
       ) : (
         <div className="tex-held-row" key={currentKey}>
-          <p className="tex-held-row-line">{heldRowLine(current)}</p>
-          {heldRowMeta(current) && (
-            <p className="tex-held-row-meta">{heldRowMeta(current)}</p>
+          {rowWhoWhat ? (
+            <>
+              {rowAgent && <p className="tex-held-row-agent">{rowAgent}</p>}
+              {rowExcerpt ? (
+                <p className="tex-held-row-ask" title={rowExcerpt}>
+                  {rowExcerpt}
+                </p>
+              ) : (
+                <p className="tex-held-row-line">{heldRowLine(current)}</p>
+              )}
+              {heldRowTime(current) && (
+                <p className="tex-held-row-meta">{heldRowTime(current)}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="tex-held-row-line">{heldRowLine(current)}</p>
+              {heldRowMeta(current) && (
+                <p className="tex-held-row-meta">{heldRowMeta(current)}</p>
+              )}
+            </>
           )}
           <div className="tex-acts tex-held-row-acts">
             <button
@@ -470,18 +530,59 @@ function DeliberationMark() {
   );
 }
 
+/* The generic hold sentence — the posture-true fallback Tex uses when the wire
+   carries no typed sentence of its own. Named so the who/what card can tell an
+   authored hold sentence apart from this stand-in and drop its redundant half. */
+const GENERIC_HELD_SENTENCE =
+  "I need to know if I can let this through. It's yours to decide.";
+
+/* The same stand-in as the backend composes it — with the action type in
+   parens ("…let this through (data_delete). It's yours to decide."). Either
+   shape is the generic sentence, never an authored one. */
+const GENERIC_HELD_SENTENCE_RE =
+  /^I need to know if I can let this through(?:\s*\([^)]*\))?\.\s*It's yours to decide\.$/;
+
 /* The line Tex speaks first when reached in a held state, or that the
    held card renders. Grounded in whatever the wire carries; posture-
    true fallbacks when it carries nothing yet. */
 function heldSentence(decision) {
-  return (
-    decision?.hold?.sentence ||
-    decision?.sentence ||
-    "I need to know if I can let this through. It's yours to decide."
-  );
+  return decision?.hold?.sentence || decision?.sentence || GENERIC_HELD_SENTENCE;
 }
 function heldDetail(decision) {
   return decision?.hold?.detail || decision?.detail || null;
+}
+
+/* WHO & WHAT — the agent behind a hold and its actual ask. The backend attaches
+   these to the resolved hold detail (heldDetail's object); either present flips
+   the card to the who/what presentation. Robust to a bare-string detail (old
+   holds) and to a detail object that carries neither field — in both cases both
+   return null and the card renders exactly as before (zero regression). */
+function heldExtras(decision) {
+  const d = heldDetail(decision);
+  return d && typeof d === "object" ? d : null;
+}
+function heldAgentName(decision) {
+  const d = heldExtras(decision);
+  const name = d ? d.agent_name : null;
+  return typeof name === "string" && name.trim() ? name.trim() : null;
+}
+function heldContentExcerpt(decision) {
+  const d = heldExtras(decision);
+  const ex = d ? d.content_excerpt : null;
+  return typeof ex === "string" && ex.trim() ? ex.trim() : null;
+}
+
+/* Tex's short line beneath a who/what card. An AUTHORED wire sentence is kept
+   (it is Tex speaking, not the stand-in); the generic fallback's first half is
+   redundant once the agent's ask is on the glass, so only "It's yours to decide."
+   remains — the hand-off, in Tex's voice. */
+function heldTexLine(decision) {
+  const wire = decision?.hold?.sentence || decision?.sentence;
+  const authored =
+    typeof wire === "string" &&
+    wire.trim() &&
+    !GENERIC_HELD_SENTENCE_RE.test(wire.trim());
+  return authored ? wire.trim() : "It's yours to decide.";
 }
 
 /* The hold — Tex's abstention made first-class (Layer 4). The card renders
@@ -3072,9 +3173,36 @@ export default function Vigil() {
             answer || spanAnswer || verifying || typed !== null ? " is-receded" : ""
           }`}
         >
-          <p className="tex-held-sentence">{heldSentence(decision)}</p>
-          {heldDetail(decision) && (
-            <p className="tex-held-detail">{heldDetail(decision)}</p>
+          {/* WHO & WHAT — when the wire attaches the agent and its actual ask,
+              the card leads with them: the agent as a chrome label, the agent's
+              own ask (quoted — reported speech, never Tex's voice) in the
+              headline slot, and Tex's short hand-off beneath. Neither present →
+              the original presentation, byte-for-byte (the spoken heldSentence,
+              then its string detail). Everything below this branch (the hold
+              type/question, the certified watermark, the acts) is unchanged. */}
+          {heldAgentName(decision) || heldContentExcerpt(decision) ? (
+            <>
+              {heldAgentName(decision) && (
+                <p className="tex-held-agent">{heldAgentName(decision)}</p>
+              )}
+              {heldContentExcerpt(decision) ? (
+                <>
+                  <p className="tex-held-excerpt">
+                    {`“${heldContentExcerpt(decision)}”`}
+                  </p>
+                  <p className="tex-held-tex-line">{heldTexLine(decision)}</p>
+                </>
+              ) : (
+                <p className="tex-held-sentence">{heldSentence(decision)}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="tex-held-sentence">{heldSentence(decision)}</p>
+              {typeof heldDetail(decision) === "string" && heldDetail(decision) && (
+                <p className="tex-held-detail">{heldDetail(decision)}</p>
+              )}
+            </>
           )}
           {heldHold(decision) && (
             <div className="tex-held-hold">
