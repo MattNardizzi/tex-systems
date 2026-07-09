@@ -143,6 +143,76 @@ const spanAnswerHeldness = (res, question) => {
   return HELD_ASK_RE.test(question || "");
 };
 
+/* ------------------------------------------------------------------ */
+/* The act walks EXACTLY what was spoken. When a span answer is about   */
+/* the holds waiting on the operator, the backend returns the very rows */
+/* it voiced as an exhibit whose query.tool === "list_held_waiting" —   */
+/* rows [{ decision_id, agent, action_type, content_excerpt, at }]. The */
+/* sibling count_held_waiting tool answers the count questions and      */
+/* carries no rows. Reading the queue from the answer's OWN provenance   */
+/* is what lets the SHOW THE HELD DECISIONS act surface precisely the    */
+/* holds the sentence just named, never a second source (the in-memory   */
+/* sink) that can disagree. The rows are mapped into the SAME shape       */
+/* HeldRowsList already walks (the GET /held row), so the one-at-a-time   */
+/* presentation and the existing seal (resolveHeldRow → POST /seal) are   */
+/* reused wholesale — never a forked component or a new empty-state.      */
+/* ------------------------------------------------------------------ */
+
+/* The exhibit that carries the spoken holds, if this answer has one. */
+const listHeldWaitingExhibit = (res) => {
+  const exhibits = Array.isArray(res?.exhibits) ? res.exhibits : [];
+  return exhibits.find((ex) => ex?.query?.tool === "list_held_waiting") || null;
+};
+
+/* A row's timestamp → millis, for ordering newest-first. An ISO string or an
+   epoch number; anything unparseable sorts oldest (0). */
+const heldWaitingRowMs = (at) => {
+  if (at == null) return 0;
+  const n = typeof at === "number" ? at : Date.parse(at);
+  return Number.isNaN(n) ? 0 : n;
+};
+
+/* One spoken list_held_waiting row → the row shape HeldRowsList consumes:
+   the decision id it seals, WHO (detail.agent_name, with agent_id as the
+   label's own fallback) and WHAT (detail.content_excerpt) for the who/what
+   layout, the raised time (raised_at), and — for a row whose ask text is
+   absent — action_type carried as `kind` so heldRowLine renders the existing
+   "Held: <action>" fallback rather than a bare stand-in. */
+const mapHeldWaitingRow = (row) => {
+  const agent =
+    typeof row?.agent === "string" && row.agent.trim() ? row.agent.trim() : null;
+  const excerpt =
+    typeof row?.content_excerpt === "string" && row.content_excerpt.trim()
+      ? row.content_excerpt.trim()
+      : null;
+  const action =
+    typeof row?.action_type === "string" && row.action_type.trim()
+      ? row.action_type.trim()
+      : null;
+  return {
+    decision_id: row?.decision_id,
+    agent_id: agent,
+    detail: { agent_name: agent, content_excerpt: excerpt, action_type: action },
+    kind: action,
+    raised_at: row?.at ?? null,
+  };
+};
+
+/* The spoken holds this answer carries, mapped and ordered newest-first (the
+   walker steps the array in order, so index 0 is the newest). Only rows that
+   carry a decision_id — a row with nothing to seal is not a resolvable hold, so
+   it never enters the walk. Empty for any answer WITHOUT a list_held_waiting
+   exhibit (old answers, count-only answers, sink-sourced flows), which leaves
+   every one of those paths on exactly today's behavior. */
+const spanAnswerHeldWaiting = (res) => {
+  const ex = listHeldWaitingExhibit(res);
+  const rows = Array.isArray(ex?.rows) ? ex.rows : [];
+  return rows
+    .filter((r) => r && r.decision_id)
+    .map(mapHeldWaitingRow)
+    .sort((a, b) => heldWaitingRowMs(b.raised_at) - heldWaitingRowMs(a.raised_at));
+};
+
 /* One quiet line per held row (GET /v1/surface/discovery/held shape):
    what was held, in the row's own words when it has any. */
 const heldRowLine = (row) => {
@@ -1601,6 +1671,21 @@ export default function Vigil() {
       });
   }, [watchTenant]);
 
+  /* The span answer's HELD act when the answer carries the EXACT holds it spoke
+     (a list_held_waiting exhibit): rise THOSE mapped rows as the resolvable
+     queue instead of a second fetch, so the walk shows precisely what was
+     voiced. Same queue (HeldRowsList), same seal (resolveHeldRow), same
+     discipline as surfaceHeldRows — seal-dismissed rows filtered, the rows join
+     the standing answer inside a morph. Synchronous (the rows are already in
+     hand from the answer's provenance), so there is no wire and no epoch race to
+     guard. */
+  const surfaceSpokenHeldRows = useCallback((rows) => {
+    const live = (rows || []).filter(
+      (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
+    );
+    if (live.length) morphSurface(() => setHeldRows(live));
+  }, []);
+
   const maybeSurfaceHeldRows = useCallback(
     (question, answerText) => {
       if (
@@ -2815,6 +2900,15 @@ export default function Vigil() {
     return `${base} ${s}${listening}${think}${lost}${decide}`;
   }, [state, holding, thinking, alive, deciding]);
 
+  /* The EXACT holds the standing span answer SPOKE — mapped to the walker's row
+     shape and ordered newest-first — recomputed only when the span answer
+     changes. Empty for any answer without a list_held_waiting exhibit, which
+     keeps count-only and sink-sourced flows on today's behavior. */
+  const spanSpokenHeld = useMemo(
+    () => (spanAnswer ? spanAnswerHeldWaiting(spanAnswer.res) : []),
+    [spanAnswer]
+  );
+
   /* ---------------- RETURN TO SILENCE — idle-to-blank ----------------
      Silence is Tex's resting state. When no hand is on the glass and nothing
      is being asked for IDLE_BLANK_MS, the surface dissolves back to empty white
@@ -3389,10 +3483,17 @@ export default function Vigil() {
             /* The HELD act is armed only while there is a queue to click into
                and it is not already on the glass — the moment the rows rise,
                the chip retires inside the same morph (an affordance and the
-               thing it summons never stand together). */
+               thing it summons never stand together). When the answer carries
+               the EXACT holds it spoke (list_held_waiting rows), the act walks
+               THOSE — newest first — so the queue can never disagree with the
+               sentence. Otherwise it is EXACTLY today's act: the phrasing-gated
+               sink fetch (surfaceHeldRows). */
             onResolveHeld={
-              spanAnswerHeldness(spanAnswer.res, spanAnswer.question) &&
-              !heldRows?.length
+              heldRows?.length
+                ? undefined
+                : spanSpokenHeld.length
+                ? () => surfaceSpokenHeldRows(spanSpokenHeld)
+                : spanAnswerHeldness(spanAnswer.res, spanAnswer.question)
                 ? surfaceHeldRows
                 : undefined
             }
