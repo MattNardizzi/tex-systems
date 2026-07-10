@@ -39,6 +39,50 @@ import {
 } from "../../lib/presence";
 
 /* ------------------------------------------------------------------ */
+/* Interactive-hit guard — what makes every act un-losable.             */
+/* ------------------------------------------------------------------ */
+/* The whole product is ONE pointerdown target: the field's beginHold. A press
+   on empty paper opens the ask-mic; a press ANYWHERE — including on a proof
+   pill or a decision act — used to run beginHold's teardown FIRST (it clears the
+   answer, the seal, the reached object) and only THEN let the control's own
+   click fire, against a glass that had already dissolved. That is exactly how a
+   click on "show the proof" quietly ate the whole answer and fell back to the
+   surface beneath.
+
+   hitsInteractive is the global fix. beginHold consults it and returns BEFORE it
+   clears anything, so a press that lands on any control is that control's press —
+   never the mic, never a surface teardown. It reads the event's composedPath (the
+   authoritative, retarget-proof list of every node the press passed through,
+   target first), falling back to a target.closest() walk where composedPath is
+   unavailable. Any control added later inherits the guard for free: make it a
+   native button / a / input, or mark it [data-act] / [role=button], and it is
+   safe with no per-button plumbing. (Individual buttons need no stopPropagation;
+   this handler-level guard is the belt, not the buttons.) */
+const INTERACTIVE_HIT =
+  "[data-act],[role=button],[role=link],[role=menuitem],button,a[href],input,textarea,select,label";
+function hitsInteractive(e) {
+  if (!e) return false; /* the keyboard reach carries no event — always allowed */
+  const path = typeof e.composedPath === "function" ? e.composedPath() : null;
+  if (path && path.length) {
+    for (const node of path) {
+      if (node === document || node === window) break;
+      if (
+        node &&
+        node.nodeType === 1 &&
+        typeof node.matches === "function" &&
+        node.matches(INTERACTIVE_HIT)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+  /* No composedPath (older engine): walk up from the event target. */
+  const t = e.target;
+  return !!(t && typeof t.closest === "function" && t.closest(INTERACTIVE_HIT));
+}
+
+/* ------------------------------------------------------------------ */
 /* The speculative ask (the precog pattern). A partial transcript that  */
 /* has held STABLE this long while the mic is still held is worth       */
 /* betting on: /v1/ask fires EARLY, so the sealed answer is often       */
@@ -1939,8 +1983,14 @@ export default function Vigil() {
         setAwake(true);
         return;
       }
-      /* Don't start a hold when pressing an actual decision button. */
-      if (e && e.target && e.target.closest && e.target.closest("[data-act]")) {
+      /* A press on ANY interactive control — a decision act, the proof / held
+         pill, the passcode field, Begin, the typed line — is that control's
+         press. Return BEFORE the teardown below (clearLineTimer, setSealed,
+         retireAnswer, setSurfaced) so the answer the pill sits on survives the
+         click and the mic never opens under it. The global guard, not per-button
+         stopPropagation, is the real fix — every control added later is safe by
+         being a button / [data-act]. */
+      if (hitsInteractive(e)) {
         return;
       }
       /* The ask gesture is inert until the day-one threshold is resolved and
