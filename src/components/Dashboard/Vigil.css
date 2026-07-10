@@ -862,18 +862,6 @@
    still staying a "tilt-the-screen-to-see-it" whisper (R<G<B, a 7-value spread). */
 .tex-field--faltering {
   background-color: var(--tex-paper);
-  animation: tex-field-pallor 3100ms var(--tex-ease-inout) infinite;
-}
-@keyframes tex-field-pallor {
-  0% {
-    background-color: #ffffff;
-  }
-  50% {
-    background-color: #eaeef1; /* --tex-cold hue (207°) @ ~hsl(207°,12%,93%) */
-  }
-  100% {
-    background-color: #ffffff;
-  }
 }
 
 /* DECIDING — a choice rests with the human (Begin at the door, the held card's
@@ -884,17 +872,47 @@
    magnitude as the cold wash — the neutral twin. Identical breath, no confession. */
 .tex-field.is-deciding {
   background-color: var(--tex-paper);
-  animation: tex-field-deciding 3100ms var(--tex-ease-inout) infinite;
 }
-@keyframes tex-field-deciding {
+
+/* THE BREATH ITSELF — one compositable overlay, shared by both washes.
+   Animating background-color on the 100vh field forced a full-viewport
+   MAIN-THREAD repaint every frame, re-blended through the fixed soft-light
+   grain, for as long as any hold stood — with a live estate, almost always;
+   the single largest steady-state paint cost on the surface. The identical
+   breath as the wash tint at animated OPACITY over the white paper
+   (α·tint + (1−α)·white IS the old keyframe interpolation, same easing, same
+   period) runs on the compositor instead. `isolation` pins a stacking
+   context so the z-index:-1 layer paints ABOVE the field's own paper and
+   BELOW every child. */
+.tex-field--faltering,
+.tex-field.is-deciding {
+  isolation: isolate;
+}
+.tex-field--faltering::after,
+.tex-field.is-deciding::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  animation: tex-field-wash 3100ms var(--tex-ease-inout) infinite;
+}
+.tex-field--faltering::after {
+  background-color: #eaeef1; /* --tex-cold hue (207°) @ ~hsl(207°,12%,93%) */
+}
+.tex-field.is-deciding::after {
+  background-color: #eeeeee; /* strictly neutral (R=G=B) twin of the cold wash */
+}
+@keyframes tex-field-wash {
   0% {
-    background-color: #ffffff;
+    opacity: 0;
   }
   50% {
-    background-color: #eeeeee; /* strictly neutral (R=G=B) twin of the cold wash */
+    opacity: 1;
   }
   100% {
-    background-color: #ffffff;
+    opacity: 0;
   }
 }
 
@@ -938,12 +956,15 @@
      state holds its wash a touch lighter than its animated peak. Faltering keeps
      the cold hue (--tex-cold @ ~hsl(207°,13%,94.5%) → #eef1f4); deciding holds the
      strictly-neutral twin (#f1f1f1). Same split as the animated pair above. */
-  .tex-field--faltering {
+  .tex-field--faltering::after,
+  .tex-field.is-deciding::after {
     animation: none;
+    opacity: 1;
+  }
+  .tex-field--faltering::after {
     background-color: #eef1f4; /* --tex-cold hue (207°), static */
   }
-  .tex-field.is-deciding {
-    animation: none;
+  .tex-field.is-deciding::after {
     background-color: #f1f1f1; /* strictly neutral (R=G=B), static */
   }
   .tex-door-line,

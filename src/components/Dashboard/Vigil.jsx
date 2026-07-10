@@ -115,21 +115,36 @@ const normalizeAsk = (s) =>
 /* would only delay the truth). Timing lives in index.css on the law's */
 /* own ladder: new state in at 240ms, old state out one rung faster.   */
 /* ------------------------------------------------------------------ */
+let morphInFlight = false;
 function morphSurface(apply) {
   if (
     typeof document === "undefined" ||
     !document.startViewTransition ||
     document.hidden ||
+    morphInFlight ||
     (typeof window !== "undefined" &&
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches)
   ) {
+    /* morphInFlight: a second morph landing inside a running transition's
+       window would SKIP the running one (a visible pop) and immediately pay a
+       fresh full-document double snapshot + flushSync — the ask path races
+       exactly this way (the answer's morph vs the held-rows fetch resolving
+       under 320ms). The truth still lands, instantly, inside the live new
+       view the running transition is already animating; only the second
+       crossfade is declined. */
     apply();
     return;
   }
-  document.startViewTransition(() => {
+  morphInFlight = true;
+  const vt = document.startViewTransition(() => {
     flushSync(apply);
   });
+  vt.finished
+    .catch(() => {})
+    .finally(() => {
+      morphInFlight = false;
+    });
 }
 
 /* ------------------------------------------------------------------ */
@@ -1226,11 +1241,24 @@ export default function Vigil() {
      interim/final distinction is rendered as faint→ink, the same register
      shift every serious 2026 voice UI uses (Deepgram interim-results model). */
   const [heard, setHeard] = useState("");
-  /* The speculative ask in flight for THIS hold: { q, promise } where q is the
-     normalized partial it bet on. Redeemed at release iff the final transcript
-     normalizes to the same q; otherwise abandoned (its catch is silenced). */
+  /* The speculative ask in flight for THIS hold: { q, promise, ctrl } where q
+     is the normalized partial it bet on and ctrl is the bet's AbortController.
+     Redeemed at release iff the final transcript normalizes to the same q;
+     otherwise abandoned — and an abandoned bet is ABORTED, not just dropped:
+     the promise's catch is silenced client-side, but only the abort frees the
+     single-worker backend, which would otherwise finish computing an answer
+     nobody will read while the TTS fetch queues behind it. */
   const specRef = useRef(null);
   const specTimerRef = useRef(null);
+  /* Abandon the live bet, if any: abort the wire and clear the slot. The
+     promise rejects into the no-op catch attached at bet time. Never called
+     on the redeem path — a redeemed bet's controller stays live with it. */
+  const abandonBet = () => {
+    if (specRef.current) {
+      specRef.current.ctrl.abort();
+      specRef.current = null;
+    }
+  };
   const [spoken, setSpoken] = useState(null);
 
   const lineTimer = useRef(null);
@@ -1544,12 +1572,22 @@ export default function Vigil() {
     if (!dismissKey) return;
     if (ignitionDoorOpen || mapping || spoken?.kind === "ignite") return;
     if (holding || thinking || verifying) return;
+    /* An ANSWER on the glass owns the voice. While one stands (plain or span
+       stack) the held card is receded — announcing now would cut the answer's
+       audio mid-word AND speak a line whose card isn't visible; during a span
+       stack the next span would then cut the announce right back, so the hold
+       is consumed audibly unspoken. Defer instead: `answer`/`spanAnswer` are
+       deps, so the moment the next reach retires the answer this re-fires and
+       the hold voices then, over its own card, which is on the glass again.
+       texSpeak still barge-supersedes — that is what makes a NEW hold cut a
+       STALE announce — this gate only keeps it from cutting an answer. */
+    if (answer || spanAnswer) return;
     if (dismissedRef.current.has(dismissKey)) return;
     if (lastSpokenHeldIdRef.current === dismissKey) return;
     lastSpokenHeldIdRef.current = dismissKey;
     texSpeak(spokenHeldLine(liveDecision));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, dismissKey, alive, holding, thinking, verifying, ignitionDoorOpen, mapping, spoken]);
+  }, [state, dismissKey, alive, holding, thinking, verifying, ignitionDoorOpen, mapping, spoken, answer, spanAnswer]);
 
   /* ---------------- The wordless reach: "Here." ---------------- */
   /* You held the surface and said nothing. Not an error — a check-in.
@@ -1895,6 +1933,10 @@ export default function Vigil() {
   const refreshSurface = useCallback(() => {
     askEpochRef.current += 1;
     clearLineTimer();
+    /* The presence-beat wedge-guard (see beginHold): the "Here." and ignite
+       count dissolves ride the lineTimer cleared above, so a refresh must
+       clear the beats themselves too. */
+    setSpoken((s) => (s && (s.kind === "here" || s.kind === "ignite") ? null : s));
     clearObjectTimer();
     setSurfaced(null);
     setSealed(null);
@@ -1944,8 +1986,9 @@ export default function Vigil() {
      form on the glass AS they are spoken) and arm the SPECULATIVE ask — once a
      partial holds stable for SPECULATE_STABLE_MS, /v1/ask fires early so the
      answer is often already sealed when the release lands. One bet in flight
-     at a time; a changed partial simply re-bets and the old promise is
-     abandoned (read-only, no harm). */
+     at a time; a changed partial re-bets and the old bet is ABORTED — read-only
+     on the browser side, but left running it would hold the single-worker
+     backend and delay the TTS fetch behind it (the choppy-voice RCA). */
   const onAskPartial = useCallback(
     (t) => {
       setHeard(t);
@@ -1957,11 +2000,16 @@ export default function Vigil() {
         if (q.length < 8 || q.indexOf(" ") < 0) return;
         if (isRefreshCommand(t)) return;
         if (specRef.current && specRef.current.q === q) return;
-        const p = askTex(t, watchTenant, lastExchangeRef.current);
-        /* Silence an ABANDONED bet's rejection; a REDEEMED bet gets the real
-           .then/.catch handlers at release. */
+        /* A changed partial re-bets: the old bet is dead the moment the words
+           moved, so abort its wire — otherwise every re-stabilized partial
+           stacks another full ask on the single worker. */
+        abandonBet();
+        const ctrl = new AbortController();
+        const p = askTex(t, watchTenant, lastExchangeRef.current, ctrl.signal);
+        /* Silence an ABANDONED bet's rejection (including its AbortError); a
+           REDEEMED bet gets the real .then/.catch handlers at release. */
         p.catch(() => {});
-        specRef.current = { q, promise: p };
+        specRef.current = { q, promise: p, ctrl };
         armAnswerPrewarm(p);
       }, SPECULATE_STABLE_MS);
     },
@@ -2016,6 +2064,15 @@ export default function Vigil() {
          path that ever cleared `sealed` — and the card wedges on the glass,
          blinding every later answer (they all render behind `!sealed`). */
       setSealed(null);
+      /* The same wedge-guard for the timer-owned presence beats — "Here." and
+         the day-one ignite count: each one's dissolve is the ONLY thing that
+         clears it, and both ride the lineTimer cleared above — a press inside
+         that window would otherwise wedge the stale line on the glass forever
+         if the gesture is later cancelled (a stranded ignite line also hides
+         the held card and suppresses its announce). Clearing the count's
+         VISUAL here is consistent, not a cut: stopSpeaking() below already
+         ends its voice. */
+      setSpoken((s) => (s && (s.kind === "here" || s.kind === "ignite") ? null : s));
       clearObjectTimer();
       setSurfaced(null);
       retireAnswer();
@@ -2026,8 +2083,8 @@ export default function Vigil() {
       /* Supersede any ask still in flight: this press owns the surface now. */
       askEpochRef.current += 1;
       /* A fresh hold is a fresh turn: no bet from a previous gesture may leak
-         into this one. */
-      specRef.current = null;
+         into this one — and none may keep running server-side either. */
+      abandonBet();
       if (specTimerRef.current) {
         clearTimeout(specTimerRef.current);
         specTimerRef.current = null;
@@ -2182,9 +2239,10 @@ export default function Vigil() {
       const early = see._result();
       const q = normalizeAsk(early);
       if (q.length >= 8 && q.indexOf(" ") > 0 && !isRefreshCommand(early)) {
-        const p = askTex(early, watchTenant, lastExchangeRef.current);
+        const ctrl = new AbortController();
+        const p = askTex(early, watchTenant, lastExchangeRef.current, ctrl.signal);
         p.catch(() => {});
-        specRef.current = { q, promise: p };
+        specRef.current = { q, promise: p, ctrl };
         /* The finalize window (up to 1600ms) is exactly the time this warm
            needs — if the words don't change, the answer's audio is local by
            the time the redemption speaks it. */
@@ -2213,8 +2271,8 @@ export default function Vigil() {
         /* The clean-slate verb is the surface's own turn, never a backend
            question: "refresh" wipes the trail and the topic, silently. */
         if (isRefreshCommand(transcript)) {
-          /* No bet outlives a clean slate. */
-          specRef.current = null;
+          /* No bet outlives a clean slate — on the wire either. */
+          abandonBet();
           if (specTimerRef.current) {
             clearTimeout(specTimerRef.current);
             specTimerRef.current = null;
@@ -2241,10 +2299,18 @@ export default function Vigil() {
           clearTimeout(specTimerRef.current);
           specTimerRef.current = null;
         }
-        const askPromise =
-          spec && spec.q === normalizeAsk(transcript)
-            ? spec.promise
-            : askTex(transcript, watchTenant, lastExchangeRef.current);
+        const redeemed = spec && spec.q === normalizeAsk(transcript);
+        /* A mismatched bet is abandoned work: abort it BEFORE the fresh ask
+           fires, so the real question isn't queued on the single worker
+           behind an answer to words the recognizer revised away. */
+        if (spec && !redeemed) spec.ctrl.abort();
+        /* The live ask's cancel handle — the redeemed bet keeps its own
+           controller, a fresh ask mints one. Aborted below iff the span
+           pipeline wins the glass and this answer would go unread. */
+        const askCtrl = redeemed ? spec.ctrl : new AbortController();
+        const askPromise = redeemed
+          ? spec.promise
+          : askTex(transcript, watchTenant, lastExchangeRef.current, askCtrl.signal);
         const finishLegacy = () =>
           askPromise.then((res) => {
             if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
@@ -2288,7 +2354,11 @@ export default function Vigil() {
             .then((res) => {
               if (myEpoch !== askEpochRef.current) return; /* superseded */
               if (res && Array.isArray(res.spans) && res.spans.length) {
+                /* Spans took the glass: the legacy ask is the LOSER of the
+                   race. Silence it, then abort it — discarded-but-running
+                   was half the stacked load on the single worker. */
                 askPromise.catch(() => {});
+                askCtrl.abort();
                 lastExchangeRef.current = {
                   prior_question: transcript,
                   prior_answer: res.spoken_text || "",
@@ -2334,9 +2404,9 @@ export default function Vigil() {
     }
     holdPointerRef.current = null;
     holdActiveRef.current = false;
-    /* No bet survives a cancelled turn. */
+    /* No bet survives a cancelled turn — on the wire either. */
     askEpochRef.current += 1;
-    specRef.current = null;
+    abandonBet();
     if (specTimerRef.current) {
       clearTimeout(specTimerRef.current);
       specTimerRef.current = null;
@@ -2452,6 +2522,10 @@ export default function Vigil() {
       askEpochRef.current += 1;
       clearLineTimer();
       setSealed(null);
+      /* The presence-beat wedge-guard, exactly as in beginHold: the "Here."
+         and ignite-count dissolves ride the lineTimer cleared above, so both
+         beats must yield with the timer. */
+      setSpoken((s) => (s && (s.kind === "here" || s.kind === "ignite") ? null : s));
       clearObjectTimer();
       setSurfaced(null);
       retireAnswer();

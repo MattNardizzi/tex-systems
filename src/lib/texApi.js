@@ -43,7 +43,13 @@ const scopedTenant = (tenantId) =>
 /* The fetch wrapper is intentionally small. No retries, no backoff, no
    error envelopes. If a call fails, the hook surfaces null and the vigil
    keeps speaking the last known truth. Silence is Tex's failure mode —
-   not a toast notification. */
+   not a toast notification.
+
+   `init.signal` (an AbortSignal) rides the spread into fetch: aborting it
+   closes the wire, and the single-worker backend drops the request instead
+   of computing an answer nobody will read. Callers that replace an ask
+   in flight (the speculative voice bet) MUST abort the one they abandon —
+   an orphaned promise is free in the browser but occupies the worker. */
 async function request(path, init = {}) {
   const url = `${BASE}${path}`;
   const res = await fetch(url, {
@@ -517,9 +523,13 @@ export const mintVoiceToken = () => request("/v1/voice/token");
  * Flux / ElevenLabs Scribe for STT, ElevenLabs / Cartesia for TTS); the
  * cascade shape and the grounding boundary must not be.
  */
-export const askTex = (transcript, tenantId, context) =>
+export const askTex = (transcript, tenantId, context, signal) =>
   request("/v1/ask", {
     method: "POST",
+    /* The speculative-ask contract: a bet that is re-bet, cancelled, or
+       out-raced hands its AbortSignal here so the abandoned wire actually
+       stops. Omitted ⇒ plain uncancellable ask (the typed path). */
+    ...(signal ? { signal } : {}),
     body: JSON.stringify({
       transcript: transcript ?? "",
       tenant_id: scopedTenant(tenantId) ?? null,

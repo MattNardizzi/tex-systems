@@ -183,10 +183,12 @@ a {
         the surface reads as lit from above rather than flat-filled.
 
    Faltering carries its own COLD pallor and a pending decision (is-deciding)
-   carries its own strictly-NEUTRAL breath; both drive background-color via
-   their own animation, so both are excluded here (a lit-paper background-image
-   would sit in front of and mask that animated fill). The two washes differ
-   only in hue: faltering is cold (the one license), deciding is zero-hue. */
+   carries its own strictly-NEUTRAL breath; both breathe a tint overlay
+   (::after at animated opacity, in Vigil.css) over a FLAT white base, so both
+   are excluded here — the lit-paper background-image would show through the
+   breath's rest phase and shift the wash off its designed endpoints. The two
+   washes differ only in hue: faltering is cold (the one license), deciding is
+   zero-hue. */
 body .tex-field:not(.tex-field--faltering):not(.is-deciding) {
   min-height: 100vh;
   background-color: var(--tex-paper);

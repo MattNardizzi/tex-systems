@@ -51,7 +51,7 @@ const scopedTenant = (tenantId) =>
  * back to the existing askTex path) from a real failure. The keyed/dev tenant
  * posture matches texApi.js: the key carries the tenant in prod; only DEV scopes.
  */
-export async function askAnswer(question, tenantId, exchange) {
+export async function askAnswer(question, tenantId, exchange, signal) {
   /* The prior exchange rides along (same 4000-cap idiom as texApi.js) so the
      backend's LLM router can resolve follow-ups — "what about yesterday?"
      keeps the prior tool and verdict. Omitted entirely when there is no
@@ -70,6 +70,10 @@ export async function askAnswer(question, tenantId, exchange) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    /* Same cancellation contract as texApi.request: an optional AbortSignal
+       so a caller that abandons this ask can free the single-worker backend
+       instead of letting the request run to completion unread. */
+    ...(signal ? { signal } : {}),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");

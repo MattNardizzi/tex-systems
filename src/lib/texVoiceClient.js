@@ -1113,8 +1113,9 @@ async function _speakStreamOne(text, myEpoch, prosody) {
   if (myEpoch !== _epoch) return false;
   let played = false;
   let watchdog = null;
+  let audio = null;
   try {
-    const audio = new Audio();
+    audio = new Audio();
     audio.src = speakStreamUrl(text, prosody); // proxied GET → streamed audio body
     audio.preload = "auto";
     _activeAudio = audio;
@@ -1139,7 +1140,23 @@ async function _speakStreamOne(text, myEpoch, prosody) {
     /* No synthesis reachable. Stay quiet. */
   } finally {
     if (watchdog) clearTimeout(watchdog);
-    if (myEpoch === _epoch && _activeAudio) _activeAudio = null;
+    if (myEpoch === _epoch && _activeAudio === audio) _activeAudio = null;
+    /* A line that did not end NATURALLY must be silenced HERE, before the
+       reference is dropped. The watchdog/onerror paths settle the await but
+       leave the element loading — and a wedged backend delivers the body
+       seconds later, at which point an element nobody holds starts SOUNDING
+       an old line over whatever Tex is saying now. _supersede() can only
+       reach audio through _activeAudio, so once the slot is cleared this is
+       the last hand that can ever stop it. (Already-superseded elements were
+       paused by _supersede; pausing again is a harmless no-op.) */
+    if (!played && audio) {
+      try {
+        audio.onended = null;
+        audio.onerror = null;
+        audio.pause();
+        audio.src = "";
+      } catch {}
+    }
   }
   return played;
 }
