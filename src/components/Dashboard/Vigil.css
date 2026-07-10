@@ -412,10 +412,13 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The acts — quiet, deliberate, recorded. There is ONE primary act in   */
-/* the product: a single solid near-black key (Approve / Begin). The     */
-/* others are hairline keys that fill toward ink on hover. All set in the */
-/* instrument register: uppercase Michroma, widely tracked.              */
+/* The acts — quiet, deliberate, recorded. On a held decision the three    */
+/* acts are EQUAL-WEIGHT hairline keys at rest: Approve reads as a peer of  */
+/* Refuse and Keep Holding, never a filled default. The irreversible act    */
+/* must never be dressed as the one a tired human clicks by reflex.         */
+/* Approve earns the ink fill only on deliberate engagement (hover / focus).*/
+/* The product's ONE filled-at-rest act is the day-one door's Begin.        */
+/* All set in the instrument register: uppercase Michroma, widely tracked.  */
 /* ------------------------------------------------------------------ */
 .tex-acts {
   display: flex;
@@ -468,21 +471,22 @@
   outline: 1px solid var(--tex-ink-hair-2);
   outline-offset: 3px;
 }
-/* The one primary act — a flat, sharp ink fill. No drop shadow, no gloss: on a
-   clean instrument surface, flatness reads sharper than a lifted key. */
-.tex-act--approve {
+/* Approve at REST inherits the plain hairline key from .tex-act — no fill, no
+   extra weight: it is a peer of Refuse and Keep Holding. It EARNS the flat ink
+   fill only on deliberate engagement — hover or keyboard focus — where the fill
+   is feedback for intent, never an invitation. Flat, sharp, no gloss: on a clean
+   instrument surface flatness reads sharper than a lifted key. Fill and lift ride
+   the base .tex-act transition (--tex-micro / --tex-ease-micro). The one
+   filled-AT-REST act in the whole product is the door's Begin (scoped below). */
+.tex-act--approve:hover,
+.tex-act--approve:focus-visible {
   color: var(--tex-paper);
   background: var(--tex-ink);
   border-color: var(--tex-ink);
-}
-.tex-act--approve:hover {
-  background: #000;
-  color: var(--tex-paper);
-  border-color: #000;
   transform: translateY(-1px);
 }
 .tex-act--approve:active {
-  transform: scale(0.985);
+  transform: scale(0.97);
   transition-duration: 120ms;
 }
 
@@ -615,10 +619,18 @@
   padding: 1em 2.6em;
   min-height: 47px;
 }
-.tex-door-acts .tex-act--approve:hover {
+/* Begin never fills to ink. It holds its bright paper key on hover, keyboard
+   focus AND press — so the door's one filled-at-rest act stays the same lit
+   figure the in-system Approve only becomes on engagement, and the base
+   Approve fill can never bleed onto Begin. */
+.tex-door-acts .tex-act--approve:hover,
+.tex-door-acts .tex-act--approve:focus-visible {
   color: var(--tex-ink);
   background: var(--tex-paper);
   border-color: var(--tex-ink);
+}
+.tex-door-acts .tex-act--approve:active {
+  transform: scale(0.985);
 }
 .tex-door-acts.is-revealed {
   opacity: 1;
