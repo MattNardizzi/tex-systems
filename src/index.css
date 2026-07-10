@@ -249,18 +249,22 @@ body .tex-field:not(.tex-field--faltering):not(.is-deciding) {
   }
 }
 
-/* ── Begin — the single solid object on the white ────────────────────
-   No glass, no blur, no glow ring (those were retired). Begin is one
-   real, near-black key resting on the surface: a Michroma micro-label in
-   ink-on-paper, lifted by a soft contact shadow so it reads as a physical
-   object you press. The threshold act and the in-system Approve share this
-   one treatment — there is one primary act in the whole product, and this
-   is what it looks like. Scoped here to the door; the in-system .tex-act
-   --approve picks up the same look from Vigil.css. */
-/* Begin renders as the shared primary-act pill (.tex-act.tex-act--approve)
-   straight from Vigil.css — no door-specific override — so it always matches
-   the in-system decision buttons. Only its reveal + position live in
-   Vigil.css (.tex-door-acts). */
+/* ── Begin — the ONE filled act in the whole product ─────────────────
+   THE ACT-WEIGHTING LAW (amended). No glass, no blur, no glow ring (those
+   were retired). Begin is the day-one door act, and it is the ONLY act that
+   is filled at rest — one real, lit key resting on the white: a Michroma
+   micro-label in the door's bright-key treatment, the single solid object
+   on the surface. It carries that weight because the door has exactly one
+   act; there is nothing dangerous to weigh it against.
+
+   The in-system decision acts are NOT weighted like Begin. On a held card
+   the three acts — Approve, Keep Holding, Refuse — are equal-weight hairline
+   keys, peers of one another, until the human commits: Approve fills to ink
+   only on hover / keyboard focus. That filled state is FEEDBACK for a
+   deliberate intent, never an invitation, and never a default. The most
+   dangerous, irreversible act must never wear the dressing of the safe one.
+   Begin's look lives in Vigil.css (.tex-door-acts .tex-act--approve); the
+   equal-weight decision acts live in the same file (.tex-act--approve). */
 
 /* ── One material — the View-Transition morph (Five Futures #2) ──────
    The default crossfade between the surface's macro states (door →
