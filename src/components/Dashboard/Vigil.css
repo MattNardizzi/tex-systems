@@ -1237,7 +1237,12 @@
   align-items: center;
   gap: 0.9em;
   max-width: min(86vw, 30em);
-  padding: 0.7em 1.2em;
+  /* A comfortable, un-missable target: extra vertical padding plus a hard floor
+     (border-box, so this IS the rendered height) keep the proof / held pill's
+     tap area >=32px even at the smallest font-size in the clamp — the cue text
+     stays small, only the reachable area grows. */
+  min-height: 34px;
+  padding: 0.85em 1.3em;
   border-radius: 999px;
   border: 1px solid var(--tex-ink-hair-2);
   background: var(--tex-paper);
