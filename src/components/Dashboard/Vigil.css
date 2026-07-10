@@ -522,6 +522,12 @@
 .tex-mapping {
   color: var(--tex-ink-2);
 }
+/* "Tex isn't reachable." — the down line. Quiet and recessive (a step down the
+   ink ladder), never a declaration: the interface reporting a lost wire, not Tex
+   speaking. No color, no motion of its own beyond the door's own calm rise. */
+.tex-door-down {
+  color: var(--tex-ink-mute);
+}
 .tex-mapping-anchor {
   margin: 1.4em 0 0;
   font-size: clamp(9.5px, 1.2vw, 12.5px);

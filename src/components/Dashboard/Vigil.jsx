@@ -3254,6 +3254,25 @@ export default function Vigil() {
         </div>
       )}
 
+      {/* Tex is down — the backend was unreachable at load. A single quiet Inter
+          line, third-person because Tex cannot speak for itself when the wire is
+          gone (the same voice as the visually-hidden lost message above, not a
+          confession in Tex's own register). No spinner, no red. useIgnition keeps
+          re-checking underneath; the instant a status read lands this clears and
+          the surface resolves properly — the live vigil, or the first-run
+          ceremony. It never co-renders with the door: doorOpen requires
+          ignition.ready, which is false while down. */}
+      {ignition.down && (
+        <div
+          className="tex-door"
+          role="status"
+          aria-live="polite"
+          aria-label="Tex is not reachable"
+        >
+          <p className="tex-door-sentence tex-door-down">Tex isn’t reachable.</p>
+        </div>
+      )}
+
       {/* The mapping working state. Tex is already awake, so "mapping" is it
           showing its work: the word holds in the statement register while the
           nascent anchor — the seal a breath before it exists — sweeps beneath

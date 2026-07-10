@@ -21,11 +21,35 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { igniteDiscovery, getDiscoveryCount } from "../lib/texApi";
+import {
+  igniteDiscovery,
+  getDiscoveryCount,
+  getDiscoveryStatus,
+  wakeBackend,
+} from "../lib/texApi";
 
 /* A small delay between count retries, for riding out a cold-boot / still-
    scanning window without leaving the glass white. */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* The load-time threshold read. The ceremony happens ONCE per estate: the
+   durable server status tells us whether Tex has already begun, so a returning
+   operator lands straight on the live vigil and never re-watches the opening.
+
+   STATUS_ATTEMPTS / STATUS_RETRY_MS ride out a cold-booting free-tier backend
+   (~2 retries over ~10s) before we're willing to call the wire dead — a spun-
+   down Render server must not be mistaken for "down" and shown the ceremony.
+   DOWN_RECHECK_MS is the quiet cadence we keep probing on once we HAVE resolved
+   to down, so the moment the backend answers the surface resolves properly. */
+const STATUS_ATTEMPTS = 3;
+const STATUS_RETRY_MS = 5_000;
+const DOWN_RECHECK_MS = 8_000;
+
+/* Read the durable ignition status with NO tenant — the load-time read must be
+   KEYED so the key resolves the estate (passing a tenant_id in prod 403s;
+   scopedTenant omits it there). Resolves { ignited, ignited_at } or throws when
+   the wire is unreachable. */
+const readIgnitionStatus = () => getDiscoveryStatus();
 
 /* Ignite discovery (idempotent) and ALWAYS resolve to a spoken count. The first
    time, ignite runs the scan and returns the count; once a tenant has ignited it
@@ -55,6 +79,10 @@ async function igniteAndCount(tenant) {
 export function useIgnition() {
   /* null = unknown (still resolving on mount); true/false = resolved. */
   const [ignited, setIgnited] = useState(null);
+  /* The backend was unreachable at load: a first-class, quiet "Tex is down"
+     resolution. We NEVER show the ceremony to a client whose backend is dead —
+     so this stands apart from ignited===false (the honest first-ever run). */
+  const [down, setDown] = useState(false);
   /* The operator chose "Not yet" this session. */
   const [deferred, setDeferred] = useState(false);
   /* An ignite request is in flight — guards against a double-fire. */
@@ -71,12 +99,67 @@ export function useIgnition() {
 
   useEffect(() => {
     cancelledRef.current = false;
-    /* Hold the day-one door open on every load (no server read), so Begin is
-       always there to start the connect flow. Until a directory is connected
-       there is nothing to watch and nothing to greet over. */
-    setIgnited(false);
+    let recheckId = null;
+
+    /* One durable status read → the three-way resolution. Returns true once it
+       has RESOLVED the threshold (ignited or not), false only when the wire
+       never answered across the retry window. */
+    const resolveOnce = async () => {
+      const status = await readIgnitionStatus();
+      if (cancelledRef.current) return true;
+      /* status.ignited===true  → door never opens, land on the live vigil.
+         status.ignited===false → honest first-ever run, the full ceremony.
+         The contract guarantees the boolean; anything else is treated as the
+         first-run door (which is passcode-gated regardless). */
+      setDown(false);
+      setIgnited(status?.ignited === true);
+      return true;
+    };
+
+    /* Land on the down surface AND keep quietly re-checking. The instant a
+       status read succeeds, resolve properly (ignited → live vigil; not
+       ignited → ceremony) and stop probing. ignited stays null behind the
+       down line, so the field rests blank-white under it, never the door. */
+    const goDownAndWatch = () => {
+      if (cancelledRef.current) return;
+      setIgnited(null);
+      setDown(true);
+      recheckId = setInterval(async () => {
+        if (cancelledRef.current) return;
+        try {
+          await resolveOnce();
+          if (recheckId) {
+            clearInterval(recheckId);
+            recheckId = null;
+          }
+        } catch (_e) {
+          /* still unreachable — keep the quiet line and keep watching */
+        }
+      }, DOWN_RECHECK_MS);
+    };
+
+    (async () => {
+      /* Cold starts: nudge a spun-down free-tier backend awake, then retry the
+         status read briefly before ever resolving to down. A slow boot must not
+         read as a dead wire. While this rides out, ignited stays null and the
+         field is blank white (silence, not a spinner). */
+      for (let attempt = 0; attempt < STATUS_ATTEMPTS; attempt += 1) {
+        if (cancelledRef.current) return;
+        try {
+          await resolveOnce();
+          return;
+        } catch (_e) {
+          if (attempt === 0) wakeBackend(); /* fire-and-forget warm-up */
+          if (attempt < STATUS_ATTEMPTS - 1) await sleep(STATUS_RETRY_MS);
+        }
+      }
+      /* The wire never answered across the whole window — Tex is down. */
+      goDownAndWatch();
+    })();
+
     return () => {
       cancelledRef.current = true;
+      if (recheckId) clearInterval(recheckId);
     };
   }, []);
 
@@ -115,6 +198,9 @@ export function useIgnition() {
   return {
     /* The threshold has resolved; the surface may render. */
     ready: ignited !== null,
+    /* The backend was unreachable at load — show the quiet "Tex is down" line,
+       never the ceremony. Cleared the moment a status read lands. */
+    down,
     /* Show the day-one door: resolved, not yet ignited, not deferred. */
     doorOpen: ignited === false && !deferred,
     /* The real connected directory the vigil should watch (null until one is
