@@ -106,6 +106,14 @@ const TRAIL_MAX = 4; /* prior turns kept on the glass; older ones let go */
    is the default; this is only how the surface finds its way back to it. */
 const IDLE_BLANK_MS = 10000;
 
+/* The at-rest whisper. After the surface has sat truly silent and untouched
+   (no held card, no answer, no seal, the day-one door long finished) for this
+   long, ONE faint gesture-hint fades in — the only resident tell that the glass
+   can be reached. It is the quietest mark in the system: uppercase, widely
+   tracked, ink-faint, and STATIC. It dissolves a rung faster on any activity.
+   Deliberately longer than a passing glance so it never nags a working operator. */
+const REST_HINT_MS = 12000;
+
 /* The clean-slate verbs — the ONE ask the surface answers itself, never
    the backend. Matched on the normalized whole line, so "Refresh." and
    "refresh" both land and "refresh the roster" still reaches Tex. */
@@ -783,6 +791,14 @@ const OBJECT_LINGER_MS = 6_000;
 const IGNITE_LINE_MS = 4_600;
 const IGNITE_LINE_LINGER_MS = 1_500;
 const IGNITE_LINE_CAP_MS = 20_000;
+
+/* The wordless reach — "Here." A silent hold-and-release is a check-in, not a
+   question: Tex answers it the way the law's "reach" state prescribes, with one
+   calm word in the voice register that rises and, after a short linger, dissolves
+   back to silence. It is ON-GLASS PRESENCE ONLY — never TTS. The product law is
+   "Tex speaks only answers, zero audible filler", so this beat is SEEN, not heard. */
+const HERE_LINE = "Here.";
+const HERE_LINE_MS = 2_000;
 
 /* ----------------------------- TYPE TO WRITE -----------------------------
    The specialist path: the dead-mic / can't-speak / exact-token case. You do
@@ -1485,10 +1501,21 @@ export default function Vigil() {
      Tex answers the reach with one word and returns to silence. Only when
      alive; a dead wire cannot speak, and the still breath already answered. */
   const sayHere = useCallback(() => {
-    /* A wordless reach no longer answers with a spoken or written "Here." —
-       presence is felt through the surface (the breathing deliberation mark),
-       not a word or a voice. No-op, so the reach-release branches stay intact. */
-  }, []);
+    /* A wordless reach is answered on the glass — one calm "Here." in the voice
+       register that rises and, after a short linger, dissolves. VISUAL ONLY:
+       texSpeak is deliberately NOT called — the product law is "Tex speaks only
+       answers, zero audible filler", so this presence beat is seen, never heard.
+       (While a decision is HELD the reach pulls evidence instead; this fires only
+       on the truly silent surface — see the reach-release branches.) A dead wire
+       cannot answer. */
+    if (!alive) return;
+    clearLineTimer();
+    setSpoken({ kind: "here", text: HERE_LINE });
+    lineTimer.current = setTimeout(
+      () => morphSurface(() => setSpoken(null)),
+      HERE_LINE_MS
+    );
+  }, [alive]);
 
   /* ---------------- The object — the one thing the screen may hold ---------------- */
   const [surfaced, setSurfaced] = useState(null);
@@ -2944,6 +2971,17 @@ export default function Vigil() {
   const quietRef = useRef(quiet);
   quietRef.current = quiet;
 
+  /* The at-rest whisper (REST_HINT_MS). It rides the SAME plumbing as the
+     return-to-blank above — one set of activity listeners, one interval — never a
+     second timer system. `restClockRef` is the "silent since" stamp: reset on any
+     activity and whenever the surface is not eligible, left to accumulate only
+     while the glass sits truly bare. The ref mirrors the boolean so `mark` (which
+     fires on every pointer move) can hide the whisper without a re-render unless
+     it was actually showing. */
+  const [restHint, setRestHint] = useState(false);
+  const restHintRef = useRef(false);
+  const restClockRef = useRef(0);
+
   /* Refreshed every render so the mount-scoped watcher never reads stale state.
      A plain ref write (no re-render) — the interval below reads .current. */
   const idleBlocked =
@@ -2963,7 +3001,11 @@ export default function Vigil() {
     Boolean(sealed) ||
     heard.length > 0;
   const idleGuardRef = useRef(null);
-  idleGuardRef.current = { blocked: idleBlocked, hasContent: idleHasContent };
+  idleGuardRef.current = {
+    blocked: idleBlocked,
+    hasContent: idleHasContent,
+    alive,
+  };
 
   useEffect(() => {
     /* Any real reach keeps Tex present; only true absence lets it fade. Cheap
@@ -2971,6 +3013,14 @@ export default function Vigil() {
        hide the operator's presence from the clock. */
     const mark = () => {
       idleActivityRef.current = Date.now();
+      /* Any activity resets the whisper's silence-clock and dissolves it a rung
+         faster (CSS handles the fade) — but only touch state when it was actually
+         showing, so a pointermove storm never re-renders. */
+      restClockRef.current = Date.now();
+      if (restHintRef.current) {
+        restHintRef.current = false;
+        setRestHint(false);
+      }
     };
     mark();
     const opts = { passive: true, capture: true };
@@ -2979,11 +3029,35 @@ export default function Vigil() {
 
     const tick = setInterval(() => {
       const g = idleGuardRef.current;
+      const hidden = document.hidden;
+
+      /* The at-rest whisper is eligible only on a truly silent, empty, living
+         surface — the exact INVERSE of the return-to-blank surface (which needs
+         content to fade), so the two can never fire on the same frame. While
+         ineligible, hold its clock at "now" and make sure it is hidden; while
+         eligible, let the clock run and reveal the hint once it crosses the
+         threshold. */
+      const restEligible =
+        Boolean(g) && !g.blocked && !g.hasContent && g.alive && !hidden;
+      if (!restEligible) {
+        restClockRef.current = Date.now();
+        if (restHintRef.current) {
+          restHintRef.current = false;
+          setRestHint(false);
+        }
+      } else if (
+        !restHintRef.current &&
+        Date.now() - restClockRef.current >= REST_HINT_MS
+      ) {
+        restHintRef.current = true;
+        setRestHint(true);
+      }
+
       /* Not eligible right now (a choice waits, the door is open, Tex is mid
          work, the tab is hidden, or the glass is already bare): hold the clock
          at "now" so the countdown starts fresh the instant the surface is once
          again at rest with something on it — never fires stale mid-resolution. */
-      if (!g || g.blocked || !g.hasContent || document.hidden) {
+      if (!g || g.blocked || !g.hasContent || hidden) {
         idleActivityRef.current = Date.now();
         return;
       }
@@ -3794,6 +3868,35 @@ export default function Vigil() {
           </span>
         </div>
       )}
+
+      {/* The at-rest whisper — the one resident tell that the silent glass can be
+          reached, revealed only after REST_HINT_MS of true stillness and dissolved
+          a rung faster on any activity (mount is gated to the silent surface, so a
+          decision / answer / seal removes it at once; `is-shown` drives the fade).
+          aria-hidden: the section's own aria-label already names both gestures, so
+          this must not double-announce to assistive tech. On touch the write glyph
+          already teaches "write", so the copy keeps only the hidden speak gesture. */}
+      {!doorOpen &&
+        !mapping &&
+        state === "silent" &&
+        !sealed &&
+        !answer &&
+        !spanAnswer &&
+        !surfaced &&
+        !spoken &&
+        typed === null &&
+        alive && (
+          <p
+            className={`tex-rest-hint${restHint ? " is-shown" : ""}${
+              isCoarsePointer ? " tex-rest-hint--touch" : ""
+            }`}
+            aria-hidden="true"
+          >
+            {TYPING_ENABLED && !isCoarsePointer
+              ? "hold anywhere to speak · type to write"
+              : "hold anywhere to speak"}
+          </p>
+        )}
     </section>
   );
 }
