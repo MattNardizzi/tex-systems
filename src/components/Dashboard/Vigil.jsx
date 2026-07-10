@@ -1117,6 +1117,17 @@ export default function Vigil() {
   /* The hidden mirror that measures the typed text, so the input can be sized
      to its content and the ghost can live OUTSIDE the input's value. */
   const mirrorRef = useRef(null);
+  /* THE MOUNT-GAP BUFFER — on desktop the input doesn't exist until the first
+     keystroke conjures it, and it can't take focus until it mounts (a frame or
+     two later). A fast typist fires several keys in that gap; without a catch
+     they land on nothing and vanish (only the conjuring char survives). While
+     `bufferingRef` is set, the window keydown listener captures every printable
+     key into `pendingBufferRef` (which already holds the conjuring char, so the
+     flush REPLACES and never double-seeds it); the field's own rAF flush drains
+     the buffer in order the instant it has focus. Correctness never depends on
+     the gap being short — the buffer holds however many keys arrive. */
+  const bufferingRef = useRef(false);
+  const pendingBufferRef = useRef("");
   useEffect(() => {
     typingRef.current = typed !== null;
   }, [typed]);
@@ -2407,6 +2418,11 @@ export default function Vigil() {
     setTyped(null);
     setGhost("");
     typingRef.current = false;
+    /* Disarm the mount-gap buffer on any cancel (Escape, blur, a voice press
+       superseding a half-conjured line) so it never strands the surface with a
+       stuck window that swallows the next cold keystroke. */
+    bufferingRef.current = false;
+    pendingBufferRef.current = "";
     const el = inputRef.current;
     if (el) {
       try {
@@ -2444,19 +2460,49 @@ export default function Vigil() {
       setTyped(firstChar);
       setGhost(""); /* one char is too short to complete — abstain */
       typingRef.current = true;
+      /* Arm the mount-gap buffer, pre-seeded with the conjuring char, so every
+         key struck before the field can focus is captured (see the window
+         keydown listener), then drained here in order the moment it has focus. */
+      pendingBufferRef.current = firstChar;
+      bufferingRef.current = true;
       requestAnimationFrame(() => {
         const el = inputRef.current;
         if (!el) return;
+        /* A cancel (voice press, blur) may have disarmed the window before the
+           field mounted — then there is nothing to drain and no line to fill. */
+        if (!bufferingRef.current) return;
+        /* Close the buffer window and drain it into the field, in order. The
+           buffer already holds the conjuring char, so we REPLACE the value
+           (never append) — the seed is present exactly once, no duplication. */
+        const buffered = pendingBufferRef.current;
+        bufferingRef.current = false;
+        pendingBufferRef.current = "";
         try {
           el.focus();
-          const n = el.value.length;
-          el.setSelectionRange(n, n);
+          if (buffered !== el.value) {
+            /* Ghost/autocomplete computes against the FINAL flushed line, never
+               a stale partial. One char is too short to complete → abstain. */
+            setTyped(buffered);
+            setGhost(buffered.length > 1 ? computeGhost(buffered, false) : "");
+            requestAnimationFrame(() => {
+              const node = inputRef.current;
+              if (!node) return;
+              try {
+                node.setSelectionRange(buffered.length, buffered.length);
+              } catch {
+                /* ignore */
+              }
+            });
+          } else {
+            const n = el.value.length;
+            el.setSelectionRange(n, n);
+          }
         } catch {
           /* ignore */
         }
       });
     },
-    [retireAnswer, loadRoster, loadAssist]
+    [retireAnswer, loadRoster, loadAssist, computeGhost]
   );
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
@@ -2637,6 +2683,36 @@ export default function Vigil() {
   useEffect(() => {
     if (!TYPING_ENABLED) return undefined;
     const onDocKeyDown = (e) => {
+      /* MOUNT-GAP BUFFER: the line was conjured but the field hasn't taken focus
+         yet. Catch every key here so a fast typist loses nothing between the
+         conjuring keystroke and the field mounting+focusing. */
+      if (bufferingRef.current) {
+        /* IME/composition: never swallow it — let the field own the session
+           cleanly once it has focus (composition can't target an unfocused
+           node anyway). */
+        if (e.isComposing || e.keyCode === 229) return;
+        /* A modifier chord is a shortcut, not text — never buffer or block it. */
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === "Escape") {
+          /* Cancel the conjure and discard the buffer. */
+          e.preventDefault();
+          bufferingRef.current = false;
+          pendingBufferRef.current = "";
+          cancelTyping();
+          return;
+        }
+        if (e.key === "Backspace") {
+          e.preventDefault();
+          pendingBufferRef.current = pendingBufferRef.current.slice(0, -1);
+          return;
+        }
+        /* Any single printable char (space included — mid-sentence now). */
+        if (e.key && e.key.length === 1) {
+          e.preventDefault();
+          pendingBufferRef.current += e.key;
+        }
+        return;
+      }
       if (typingRef.current) return;
       if (!canTypeRef.current) return;
       if (e.isComposing || e.keyCode === 229) return;
@@ -2657,7 +2733,7 @@ export default function Vigil() {
     };
     document.addEventListener("keydown", onDocKeyDown);
     return () => document.removeEventListener("keydown", onDocKeyDown);
-  }, [beginTyping]);
+  }, [beginTyping, cancelTyping]);
 
   /* A voice reach supersedes an open typed line: the instant a press opens the
      mic (holding), any half-formed typed question dissolves, so the two ask
