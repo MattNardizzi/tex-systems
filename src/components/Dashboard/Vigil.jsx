@@ -13,6 +13,7 @@ import {
   texSpeakSynced,
   texSpeakSequence,
   stopSpeaking,
+  isSpeaking,
   unlockVoice,
   prewarmPresence,
   playPresenceAck,
@@ -858,6 +859,15 @@ const IGNITE_LINE_CAP_MS = 20_000;
    "Tex speaks only answers, zero audible filler", so this beat is SEEN, not heard. */
 const HERE_LINE = "Here.";
 const HERE_LINE_MS = 2_000;
+/* How long an unsolicited held card owns the glass before it recedes on its
+   own. The decision stays HELD — nothing is sealed by time — but the surface
+   returns to silence: on a live estate holds arrive continuously, and a card
+   that stands until resolved means the surface is never at rest again. */
+const HELD_CARD_LINGER_MS = 10_000;
+/* How soon a deferred held announce re-checks the voice. A spoken line runs
+   ~6–10s; checking a few times inside that window voices the deferred hold
+   promptly without ever barging it over the line mid-air. */
+const ANNOUNCE_RETRY_MS = 4_000;
 
 /* ----------------------------- TYPE TO WRITE -----------------------------
    The specialist path: the dead-mic / can't-speak / exact-token case. You do
@@ -1078,6 +1088,17 @@ export default function Vigil() {
      re-announced (no nagging, no loop on every vigil frame). Keyed on the same
      dismissKey the card uses (decision id / calibration proposal id). */
   const lastSpokenHeldIdRef = useRef(null);
+  /* Every held SENTENCE Tex has voiced this session. A live estate mints the
+     same ask over and over (an agent retrying its one risky action), and every
+     retry is a NEW id — an id-keyed guard alone re-voices the identical words
+     on every fresh hold, which the operator hears as Tex stuck repeating
+     himself. Words already spoken carry no new information: identical
+     sentences are consumed silently; a DIFFERENT ask always voices. */
+  const spokenHeldSentencesRef = useRef(new Set());
+  /* The deferred-announce retry: when a hold lands while a line is mid-air,
+     the announce waits (never barges Tex over Tex) and re-checks shortly. */
+  const announceRetryRef = useRef(null);
+  const [announceTick, setAnnounceTick] = useState(0);
   /* Pending boundary for the resolve mutation. React 18.3 stable: useTransition
      (not useOptimistic, which is React 19) marks the write as non-urgent so
      the optimistic dismiss stays responsive. */
@@ -1098,6 +1119,15 @@ export default function Vigil() {
 
   const liveDecision = humanDecisionLive || null;
   const state = deriveState(liveDecision, snapshot);
+
+  /* A HUMAN hold is on the glass — a decision (single or aggregate) waiting on
+     the operator's seal, as opposed to a calibration proposal. This is the
+     gate for the COUNT-FIRST presentation below: the card leads with how many
+     decisions wait, never with one decision's card while others hide behind
+     it. */
+  const humanHold = Boolean(
+    state === "held" && liveDecision && !isCalibration(liveDecision)
+  );
 
   /* TYPE TO WRITE — the transient typed line. `typed` is null at rest (nothing
      mounted on desktop, latent on touch) and a string while a question forms.
@@ -1311,6 +1341,25 @@ export default function Vigil() {
      with the same three acts the held card carries. Belongs to the CURRENT
      answer; cleared with it. */
   const [heldRows, setHeldRows] = useState(null);
+  /* The COUNT behind the held card — every decision actually waiting, read
+     from the same /held sink the walk resolves (one queue, one truth). null
+     while the read is on the wire (the card holds back a beat — silence,
+     never a flash); an empty list means /held could not speak or holds
+     nothing walkable, and the card falls back to the single-decision
+     presentation the frame itself carries. The summary is a posture, never a
+     gate that can hide a real hold. */
+  const [heldWaiting, setHeldWaiting] = useState(null);
+  /* The rows the walk will actually show, live-filtered as seals land this
+     session (bumpDismissed re-renders us), so the count the card speaks can
+     never disagree with the queue behind the act. */
+  const heldWaitingLive = heldWaiting
+    ? heldWaiting.filter((r) => !dismissedRef.current.has(r.decision_id))
+    : null;
+  const heldWaitingCount = heldWaitingLive ? heldWaitingLive.length : 0;
+  const heldWaitingLine =
+    heldWaitingCount === 1
+      ? "1 held decision is waiting for you."
+      : `${heldWaitingCount} held decisions are waiting for you.`;
   const answerTimer = useRef(null);
   /* Generation token for the spoken answer — bumped each time a new answer is
      spoken, so a superseded answer's (streamed) playback resolution can't fire
@@ -1544,16 +1593,80 @@ export default function Vigil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  /* ---------------- The held card's linger ----------------
+     An unsolicited hold owns the glass only for a breath: HELD_CARD_LINGER_MS
+     after the card is alone and readable, it RECEDES on its own. The decision
+     stays HELD — it keeps its place in the queue and the counts, the deciding
+     wash keeps breathing its weight, and nothing is ever sealed by time — but
+     the surface returns to rest instead of standing occupied forever on an
+     estate that raises holds continuously. The next NEW hold pops fresh with
+     its own linger; the operator can always pull the queue back ("show the
+     held decisions"). The clock runs only while the card is actually readable:
+     an overlay (answer, span stack, verification, a typed line) or a live
+     press pauses it. */
+  const [heldReceded, setHeldReceded] = useState(null);
+  /* The key whose announce has SETTLED — voiced to its natural end, or
+     consumed silently (words already spoken, muted voice). The linger clock
+     may only start once this matches the standing card: a hold pending
+     behind the day-one episode (or behind a line still mid-air) has not had
+     its moment yet, and receding it early would swallow the announce — the
+     card would be born invisible the instant the episode ends. */
+  const [announcedKey, setAnnouncedKey] = useState(null);
+  const heldLingerTimer = useRef(null);
+  useEffect(() => {
+    if (heldLingerTimer.current) {
+      clearTimeout(heldLingerTimer.current);
+      heldLingerTimer.current = null;
+    }
+    if (state !== "held" || !dismissKey) return undefined;
+    /* The card is not on the glass during the day-one episode (the door, the
+       mapping, the spoken count own the surface end-to-end) — the same guards
+       the announce obeys. A clock that ran here would recede a card that was
+       never readable. */
+    if (ignitionDoorOpen || mapping || spoken?.kind === "ignite")
+      return undefined;
+    /* The COUNT-FIRST summary (and the walk it opens) never recedes: how many
+       decisions wait IS the vigil's at-rest truth, and a returning operator
+       must find it standing, not faded. The linger clock belongs only to the
+       presentations that predate it — a calibration proposal, or the fallback
+       single card when /held could not speak. */
+    if (humanHold && (heldWaiting === null || heldWaitingCount > 0))
+      return undefined;
+    if (heldReceded === dismissKey) return undefined; /* already receded */
+    if (answer || spanAnswer || verifying || typed !== null || holding)
+      return undefined; /* card not readable — the clock starts when it is */
+    /* The announce comes first: the clock starts only after this hold's
+       announce has settled (spoken to the end, or consumed silently), so a
+       deferred announce is never orphaned by its own card receding — and the
+       voice never narrates a card that has already left the glass. */
+    if (announcedKey !== dismissKey) return undefined;
+    heldLingerTimer.current = setTimeout(() => {
+      heldLingerTimer.current = null;
+      morphSurface(() => setHeldReceded(dismissKey));
+    }, HELD_CARD_LINGER_MS);
+    return () => {
+      if (heldLingerTimer.current) {
+        clearTimeout(heldLingerTimer.current);
+        heldLingerTimer.current = null;
+      }
+    };
+  }, [state, dismissKey, answer, spanAnswer, verifying, typed, holding, heldReceded, humanHold, heldWaiting, heldWaitingCount, announcedKey, ignitionDoorOpen, mapping, spoken]);
+
   /* ---------------- A held decision speaks first, unprompted ----------------
      A HELD decision is one of the only two surfaces allowed to break the
      silence at rest (the other is "Tex is down"). When a NEW one arrives, Tex
      voices its held sentence ONCE, on its own, the instant it lands — the same
      line the card already renders, so the spoken and the written hold agree.
 
-     Said exactly once per held id: lastSpokenHeldIdRef records the dismissKey
-     Tex has already announced, so this can never re-fire on a later /v1/vigil
-     frame for the same hold (no nag, no loop). A different held id speaks
-     fresh. Gated to a settled surface — never over the operator's turn
+     Said once per held id AND once per SENTENCE: lastSpokenHeldIdRef stops a
+     re-fire on a later /v1/vigil frame for the same hold, and
+     spokenHeldSentencesRef stops a re-voice when a NEW id carries words Tex
+     has already said this session (a live estate mints the same ask over and
+     over; repeating it is noise, not information — the card and the queue
+     still carry every hold). A different ask speaks fresh — but never OVER a
+     line mid-air: if the voice is busy the announce DEFERS and retries,
+     because a barge-in restart is heard as Tex stuttering over himself.
+     Gated to a settled surface — never over the operator's turn
      (holding), a question round-trip (thinking/verifying), or a dead wire
      (alive). A dismissed hold is already filtered out of liveDecision, so it
      cannot be re-announced. The card itself carries the same sentence, and the
@@ -1584,10 +1697,70 @@ export default function Vigil() {
     if (answer || spanAnswer) return;
     if (dismissedRef.current.has(dismissKey)) return;
     if (lastSpokenHeldIdRef.current === dismissKey) return;
+    /* The card already receded — voicing it now would speak a line the glass
+       no longer shows. Consume the id silently; the queue carries it. */
+    if (heldReceded === dismissKey) {
+      lastSpokenHeldIdRef.current = dismissKey;
+      setAnnouncedKey(dismissKey);
+      return;
+    }
+    /* COUNT-FIRST: while the /held count is on the wire the card holds back,
+       and the announce waits WITH it (heldWaiting is a dep) — the voice and
+       the glass must speak the same line. Mid-walk the moving frame stays
+       quiet too (each seal re-points the wire's freshest hold; announcing
+       every step over an operator already deciding is nagging, not
+       information) — the id is NOT consumed, so a queue that finishes with
+       fresh holds still waiting announces the new count then. */
+    if (humanHold && heldWaiting === null) return;
+    if (humanHold && heldRows?.length) return;
+    const sentence =
+      humanHold && heldWaitingCount > 0
+        ? heldWaitingLine
+        : spokenHeldLine(liveDecision);
+    /* Words already spoken this session: a fresh id, but nothing new to say.
+       Consume silently — the card renders it; only a different ask voices.
+       The announce is settled at once, so the card's linger clock starts. */
+    if (spokenHeldSentencesRef.current.has(sentence)) {
+      lastSpokenHeldIdRef.current = dismissKey;
+      setAnnouncedKey(dismissKey);
+      return;
+    }
+    /* Never barge Tex over Tex: a line is mid-air, so this announce would
+       supersede it mid-word — the restart-stutter heard as an echo. Defer
+       and retry; the id is NOT consumed, so the announce is deferred, never
+       dropped. */
+    if (isSpeaking()) {
+      if (!announceRetryRef.current) {
+        announceRetryRef.current = setTimeout(() => {
+          announceRetryRef.current = null;
+          setAnnounceTick((t) => t + 1);
+        }, ANNOUNCE_RETRY_MS);
+      }
+      return;
+    }
     lastSpokenHeldIdRef.current = dismissKey;
-    texSpeak(spokenHeldLine(liveDecision));
+    spokenHeldSentencesRef.current.add(sentence);
+    /* The announce SETTLES when its playback ends (texSpeak resolves on the
+       natural end, a supersede, or at once when muted) — only then does the
+       card's linger clock start, so the voice can never outlive the card. The
+       key is captured: by resolution a newer hold may own the glass, and its
+       clock must wait for its own announce. */
+    const spokenKey = dismissKey;
+    texSpeak(sentence).then(() => setAnnouncedKey(spokenKey));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, dismissKey, alive, holding, thinking, verifying, ignitionDoorOpen, mapping, spoken, answer, spanAnswer]);
+  }, [state, dismissKey, alive, holding, thinking, verifying, ignitionDoorOpen, mapping, spoken, answer, spanAnswer, heldReceded, announceTick, humanHold, heldWaiting, heldWaitingCount, heldRows]);
+  /* The deferral retry dies with the surface: a pending tick on an unmounted
+     Vigil would set state into the void. Re-registration is free — any dep
+     change re-evaluates the announce, and a still-busy voice re-arms it. */
+  useEffect(
+    () => () => {
+      if (announceRetryRef.current) {
+        clearTimeout(announceRetryRef.current);
+        announceRetryRef.current = null;
+      }
+    },
+    []
+  );
 
   /* ---------------- The wordless reach: "Here." ---------------- */
   /* You held the surface and said nothing. Not an error — a check-in.
@@ -1896,34 +2069,60 @@ export default function Vigil() {
       });
   }, []);
 
-  /* The aggregate hold — the wire's fallback card when the vigil counts holds
-     but carries no single resolvable decision ("N actions are waiting on your
-     decision.", id: null). A sentence you cannot act on is not a card, so the
-     moment it lands the REAL rows are fetched and rise beneath it, each
-     sealing its own decision — never one blind act over the whole queue.
-     Epoch-guarded like the ask path: a turn taken while the fetch is in
-     flight discards it. */
-  const aggregateHold = Boolean(
-    state === "held" &&
-      liveDecision &&
-      !liveDecision.id &&
-      !isCalibration(liveDecision)
-  );
+  /* COUNT-FIRST — the moment ANY human hold takes the glass (a single
+     decision or the wire's aggregate fallback alike), the real queue is read
+     from GET /v1/surface/discovery/held. The card then leads with how many
+     decisions wait ("N held decisions are waiting for you." + See held
+     decisions), never with one decision's card while others hide behind it;
+     the walk (HeldRowsList) rises only on the operator's act. Re-read as the
+     wire's freshest hold moves (each seal lands a new frame), so the count
+     never drifts from the rows the walk will show. Fail-open: a silent /held
+     yields an empty list and the card falls back to the single-decision
+     presentation the frame itself carries — only rows a seal can resolve
+     (decision_id) are counted, so the sentence never promises a walk it
+     cannot take. */
   useEffect(() => {
-    if (!aggregateHold) return;
-    const myEpoch = askEpochRef.current;
+    if (!humanHold) {
+      setHeldWaiting(null);
+      return undefined;
+    }
+    let cancelled = false;
     listHeldDecisions(watchTenant)
       .then((res) => {
-        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+        if (cancelled) return;
         const rows = (res?.held || []).filter(
-          (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
+          (r) => r?.decision_id && !dismissedRef.current.has(r.decision_id)
         );
-        if (rows.length) morphSurface(() => setHeldRows(rows));
+        morphSurface(() => setHeldWaiting(rows));
       })
       .catch(() => {
-        /* Silent. The sentence still tells the truth; the rows are depth. */
+        if (!cancelled) setHeldWaiting([]);
       });
-  }, [aggregateHold, watchTenant]);
+    return () => {
+      cancelled = true;
+    };
+  }, [humanHold, dismissKey, watchTenant]);
+
+  /* The walk finished (every walked row rests on its confirmed seal or its
+     keep-holding line) while FRESH decisions the walk never carried are
+     waiting — the card returns to the summary, never a stale resting seal
+     standing over new holds. The fresh count then announces itself through
+     the standing announce effect. */
+  useEffect(() => {
+    if (!humanHold || !heldRows?.length || !heldWaiting) return;
+    const settled = heldRows.every(
+      (r) => r.sealedVerdict === "held" || r.sealedAnchor
+    );
+    if (!settled) return;
+    const walked = new Set(heldRows.map((r) => r.decision_id));
+    const fresh = heldWaiting.some(
+      (r) =>
+        !walked.has(r.decision_id) &&
+        !dismissedRef.current.has(r.decision_id)
+    );
+    if (!fresh) return;
+    morphSurface(() => setHeldRows(null));
+  }, [humanHold, heldRows, heldWaiting]);
 
   /* The clean slate — the ONE ask the surface answers itself, never the
      backend: "refresh" (or "clear", "new topic", …) wipes the trail, the
@@ -3112,6 +3311,23 @@ export default function Vigil() {
 
   const decision = liveDecision;
 
+  /* Which presentation the held card leads with. Calibration proposals keep
+     their own card ("card"). A human hold is COUNT-FIRST: "pending" holds the
+     card back the beat the /held count is on the wire (silence, never a
+     flash); "summary" is the return posture — the count line + See held
+     decisions; "queue" is the walk itself (HeldRowsList), risen by the act or
+     already mid-walk; "card" is the fallback when /held could not speak —
+     the single-decision card the frame itself carries, exactly as before. */
+  const heldMode = !humanHold
+    ? "card"
+    : heldWaiting === null
+    ? "pending"
+    : heldRows?.length
+    ? "queue"
+    : heldWaitingCount > 0
+    ? "summary"
+    : "card";
+
   /* The day-one door owns the surface until it is crossed — the session-scoped
      threshold, deferring to a faltering chain (you don't greet over a broken
      witness) and yielding to the mapping state the instant Begin is pressed. */
@@ -3128,11 +3344,17 @@ export default function Vigil() {
   const deciding =
     (doorOpen && awake && manifestoDone) ||
     /* The held card breathes only when it carries a pressable act — the
-       aggregate fallback (no id, no proposal) defers to its rows below. */
+       count-first summary's See held decisions counts (a choice waits behind
+       it); the pending beat and the actless fallback (no id, no proposal)
+       do not. */
     (!doorOpen &&
       !mapping &&
       state === "held" &&
-      Boolean(decision?.id || isCalibration(decision)) &&
+      Boolean(
+        isCalibration(decision) ||
+          heldMode === "summary" ||
+          (heldMode === "card" && decision?.id)
+      ) &&
       !sealed) ||
     Boolean(heldRows?.some((row) => row.decision_id && !row.sealedVerdict));
 
@@ -3584,12 +3806,51 @@ export default function Vigil() {
         spoken?.kind !== "ignite" &&
         state === "held" &&
         decision &&
+        heldMode !== "pending" &&
         !sealed && (
         <div
           className={`tex-held${
-            answer || spanAnswer || verifying || typed !== null ? " is-receded" : ""
+            answer ||
+            spanAnswer ||
+            verifying ||
+            typed !== null ||
+            (dismissKey != null && heldReceded === dismissKey)
+              ? " is-receded"
+              : ""
           }`}
         >
+          {heldMode === "queue" ? (
+            /* The walk — the queue the summary counted, one decision at a
+               time (HeldRowsList: the progress line, the three acts, the seal
+               beat between). Hidden while an answer overlays the glass: the
+               answer block renders the same list, never both at once. */
+            !answer &&
+            !spanAnswer && (
+              <HeldRowsList rows={heldRows} onResolve={resolveHeldRow} />
+            )
+          ) : heldMode === "summary" ? (
+            /* COUNT-FIRST — the return posture. A returning operator is told
+               how many decisions wait, and one act opens the walk. The
+               decisions themselves stay one press away, so the count reads
+               alone — never one decision's card with the rest hiding behind
+               it. */
+            <>
+              <p className="tex-held-sentence">{heldWaitingLine}</p>
+              <div className="tex-acts">
+                <button
+                  type="button"
+                  data-act="see"
+                  className="tex-act"
+                  onClick={() =>
+                    morphSurface(() => setHeldRows(heldWaitingLive))
+                  }
+                >
+                  See held decisions
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
           {/* WHO & WHAT — when the wire attaches the agent and its actual ask,
               the card leads with them: the agent as a chrome label, the agent's
               own ask (quoted — reported speech, never Tex's voice) in the
@@ -3637,7 +3898,7 @@ export default function Vigil() {
               stored decision id or a calibration proposal. The aggregate
               fallback ("N actions are waiting…", id: null) gets NO acts: one
               blind act over a whole queue would seal nothing and lie about
-              it. Its real rows rise below instead, each with its own seal. */}
+              it. */}
           {(decision?.id || isCalibration(decision)) && (
             <div className="tex-acts">
               <button
@@ -3666,11 +3927,7 @@ export default function Vigil() {
               </button>
             </div>
           )}
-          {/* The aggregate hold's queue — the rows the sentence counted. Hidden
-              while an answer overlays the glass: the answer block (plain or
-              span) renders the same list, never both at once. */}
-          {!decision?.id && !isCalibration(decision) && !answer && !spanAnswer && (
-            <HeldRowsList rows={heldRows} onResolve={resolveHeldRow} />
+            </>
           )}
           {/* The reached handle — the one thing the card may hold. On a
               calibration hold it's the proposed change; on a decision it's the
@@ -3687,7 +3944,7 @@ export default function Vigil() {
               </span>
             </div>
           )}
-          {heldCertifiedWatermark(heldHold(decision)) && (
+          {heldMode === "card" && heldCertifiedWatermark(heldHold(decision)) && (
             <p className="tex-held-cert" aria-hidden="true">
               {heldCertifiedWatermark(heldHold(decision))}
             </p>

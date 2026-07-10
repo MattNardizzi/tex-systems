@@ -475,6 +475,17 @@ export function stopSpeaking() {
   _supersede();
 }
 
+/* Whether Tex's voice is mid-line RIGHT NOW, on any playback path (WebAudio
+   source, chunked stream, <audio> fallback, or a playback await standing).
+   For callers whose line does NOT deserve to win a barge-in (an unprompted
+   announce): check this and DEFER instead of calling texSpeak into a playing
+   line — a supersede mid-word is heard as Tex stuttering over himself.
+   Lines that must win (a fresh answer to the operator's own ask) keep
+   superseding as before. */
+export function isSpeaking() {
+  return Boolean(_activeSource || _activeStream || _activeAudio || _activeEnd);
+}
+
 /* ================================================================== */
 /* The presence brain — an INSTANT, content-free acknowledgment.        */
 /*                                                                     */
