@@ -352,8 +352,9 @@ function HeldRowsList({ rows, onResolve }) {
      timer fallback and no locally-invented value: until the wire hands back the
      sealed anchor the number is not yet known, so the seal screen shows the
      honest computing mark (MappingMark) and never asserts a number the evidence
-     chain didn't record. Once the real anchor arrives it locks ONE time — the
-     ScrambleSeal lock-in fires on the anchor's arrival, not on a clock. */
+     chain didn't record. Once the real anchor arrives the sealed record swaps
+     in ONE time on the anchor's arrival, not on a clock — shown statically here
+     (the scramble-lock hero is reserved for the dedicated seal surface). */
   useEffect(() => {
     if (!isSeal || !current) return;
     if (landTarget && landTarget.key === currentKey) return; /* already decided */
@@ -420,11 +421,12 @@ function HeldRowsList({ rows, onResolve }) {
         /* The seal screen — the resolving decision alone on the glass. For a
            verdict seal the line does NOT claim "Sealed" until the backend's real
            anchor has arrived (target): while the wire computes it, the line reads
-           a calm pending "Sealing…" and the mapping mark scrambles (no number is
-           asserted). The moment the true anchor is known the line flips to
-           "Sealed." and the ScrambleSeal locks onto it, ONCE — the lock-in fires
-           on the anchor's arrival, never on a timer. Rests a beat, then the queue
-           morphs to the next decision. */
+           a calm pending "Sealing…" and the mapping mark runs its one bounded
+           pass (no number is asserted). The moment the true anchor is known the
+           line flips to "Sealed." and the sealed anchor SWAPS IN STATICALLY — a
+           quiet state change, not a per-row ceremony. The full scramble-lock hero
+           stays on the dedicated seal surface; the walk must never re-fire it.
+           Rests a beat, then the queue morphs to the next decision. */
         <div className="tex-held-seal" key={`${currentKey}-seal`} role="status">
           <p className="tex-held-seal-line">
             {current.sealedVerdict === "held"
@@ -436,10 +438,19 @@ function HeldRowsList({ rows, onResolve }) {
               : "Sealed. You refused it."}
           </p>
           {isSeal ? (
-            target && SEAL_ANCHOR_RE.test(target) ? (
-              <SealAnchor hash={target} />
-            ) : target && SEALED_NUMBER_RE.test(target) ? (
-              <ScrambleSeal value={target} className="tex-seal-anchor" />
+            target &&
+            (SEAL_ANCHOR_RE.test(target) || SEALED_NUMBER_RE.test(target)) ? (
+              /* The walk states its sealed anchor STATICALLY — a quiet swap-in
+                 at the standard state register, no per-row scramble. The full
+                 scramble-lock hero (SealAnchor / ScrambleSeal) belongs ONLY to
+                 the dedicated seal surface; a multi-row walk must not re-fire it.
+                 aria carries the plain value. */
+              <p
+                className="tex-seal-anchor tex-seal-anchor--static"
+                aria-label={target}
+              >
+                {target}
+              </p>
             ) : (
               <MappingMark />
             )
@@ -559,12 +570,13 @@ function HeldRowsList({ rows, onResolve }) {
 
 /* ------------------------------------------------------------------ */
 /* The deliberation mark — what Tex shows while it weighs the answer    */
-/* against what it can prove. Not a borrowed dot: a nascent sha256,     */
-/* still searching. Six hex glyphs in the seal's own voice (Geist Mono, */
-/* the quietest ink), scrambling on a calm, throttled cadence that reads*/
-/* as weighing — never a frantic buffer — then clearing the instant the */
-/* answer takes the glass and the real seal surfaces. One object, two   */
-/* moments: this is the seal, a breath before it exists.                */
+/* against what it can prove. Not a borrowed dot, not a spinner: a       */
+/* nascent sha256 held STILL. Six hex glyphs in the seal's own voice     */
+/* (Geist Mono, the quietest ink), frozen the instant the pause opens    */
+/* and clearing the instant the answer takes the glass and the real seal */
+/* surfaces. It does not churn for the round-trip — stillness reads as   */
+/* weighing. One object, two moments: this is the seal, a breath before  */
+/* it exists.                                                            */
 /* ------------------------------------------------------------------ */
 const DELIBERATION_HEX = "0123456789abcdef";
 const DELIBERATION_LEN = 6;
@@ -577,22 +589,13 @@ function randomHexRun() {
 }
 
 function DeliberationMark() {
-  const [glyphs, setGlyphs] = useState(randomHexRun);
-  useEffect(() => {
-    /* Respect reduced motion: hold a still fragment, no scramble. */
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return undefined;
-    }
-    /* Throttled to ~96ms — deliberate, not a buffer. The interval lives only
-       while the mark is mounted (thinking/verifying), so it starts and stops
-       with the pause itself. */
-    const id = setInterval(() => setGlyphs(randomHexRun()), 96);
-    return () => clearInterval(id);
-  }, []);
+  /* Six hex glyphs in the seal's own voice, minted ONCE on mount and held STILL
+     at low ink. Feedback is telepathic — the mark is on the glass the instant
+     the pause opens — but it does NOT animate for the round-trip: no scramble,
+     no breathe, no interval clock. Stillness is the register; the real seal's
+     char-lock is the only motion Tex earns. (Frozen for every viewer alike, so
+     reduced motion needs no special path here.) */
+  const [glyphs] = useState(randomHexRun);
   return (
     <span className="tex-deliberation-mark" aria-hidden="true">
       {glyphs}
