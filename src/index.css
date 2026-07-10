@@ -48,6 +48,16 @@
   --tex-paper-3: #f2f2f2;
   --tex-paper-edge: #f8f8f8; /* the far fall-off of the overhead light — felt, not seen */
 
+  /* ── The one licensed hue. ────────────────────────────────────────────
+     The SINGLE non-neutral value permitted anywhere in the product, and it
+     is licensed for exactly ONE state: FALTERING (the integrity-failure
+     confession, "Don't trust me until this is resolved"). One hue, one
+     meaning, one state. It must never appear in deciding, held, seal, or any
+     resting surface. A cold desaturated slate — hsl(207°, 6%, 36%) — so even
+     the confession stays nearly neutral. Any faltering wash/tint derives from
+     THIS hue angle (see Vigil.css .tex-field--faltering). Do not add a second. */
+  --tex-cold: #565c61; /* faltering ONLY — rgb(86,92,97) ≈ hsl(207°,6%,36%), ~6.8:1 on white */
+
   /* ── Motion — weighty and inevitable, never bouncy. ──
      A confident expo decelerate for things that arrive; a symmetric ease
      for things that breathe. Statements arrive slowly (they are being
@@ -161,8 +171,11 @@ a {
         falling off to the faintest neutral grey at the lower corners, so
         the surface reads as lit from above rather than flat-filled.
 
-   Faltering and a pending decision (is-deciding) keep their own cold
-   pallor and so are excluded. */
+   Faltering carries its own COLD pallor and a pending decision (is-deciding)
+   carries its own strictly-NEUTRAL breath; both drive background-color via
+   their own animation, so both are excluded here (a lit-paper background-image
+   would sit in front of and mask that animated fill). The two washes differ
+   only in hue: faltering is cold (the one license), deciding is zero-hue. */
 body .tex-field:not(.tex-field--faltering):not(.is-deciding) {
   min-height: 100vh;
   background-color: var(--tex-paper);

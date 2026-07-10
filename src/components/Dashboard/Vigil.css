@@ -854,11 +854,13 @@
   max-width: 21em;
 }
 /* Faltering — Tex confessing its evidence chain broke. It spends the one license
-   the doctrine grants (no alarm colour): the statement loses ink-conviction,
-   dropping to a dimmed neutral as the surface dims around it. Still legible at
-   display size — the words must be read — but visibly drained of authority. */
+   the doctrine grants: the confession is the ONLY place the cold hue may show, so
+   the statement drops from full ink to --tex-cold (#565c61). Still legible at
+   display size — the words must be read (~6.8:1 on white) — but drained of
+   ink-conviction and now carrying the cold, so the surface and the voice confess
+   in the same single hue. This is the only licensed use of --tex-cold as text. */
 .tex-voice-line--falter {
-  color: #707070;
+  color: var(--tex-cold);
 }
 
 /* ------------------------------------------------------------------ */
@@ -938,14 +940,17 @@
   }
 }
 
-/* The pallor — a COLD neutral dimming, never a warm tint. Two states earn
-   it: FALTERING (Tex's own integrity failed) and DECIDING (a choice rests
-   with the human — Begin at the door, Approve on the held card, an
-   unresolved held row). The surface dims a hair and back on an uneven
-   period so it never resolves into a calm loop; the weight is in the
-   dimming, not in any colour. */
-.tex-field--faltering,
-.tex-field.is-deciding {
+/* THE COLD PALLOR — faltering ONLY. This is the one place a wash may carry the
+   licensed hue. The surface dims a hair and back on an uneven period so it never
+   resolves into a calm loop; the weight is in the dimming, but the TINT is the
+   confession. Derivation: --tex-cold is #565c61 ≈ hsl(207°, 6%, 36%); the wash
+   keeps that 207° hue angle and takes it to a high-lightness / low-chroma pale
+   (~hsl(207°, 12%, 93%) → #eaeef1). We set the hex directly rather than mixing
+   --tex-cold into white, because at ~93% L a naive srgb mix of a 6%-chroma slate
+   collapses the hue to a sub-1-bit bias (the old #eeeeef bug) and says nothing;
+   raising chroma at the pale value is what lets the cold actually READ while
+   still staying a "tilt-the-screen-to-see-it" whisper (R<G<B, a 7-value spread). */
+.tex-field--faltering {
   background-color: var(--tex-paper);
   animation: tex-field-pallor 3100ms var(--tex-ease-inout) infinite;
 }
@@ -954,7 +959,29 @@
     background-color: #ffffff;
   }
   50% {
-    background-color: #eeeeef;
+    background-color: #eaeef1; /* --tex-cold hue (207°) @ ~hsl(207°,12%,93%) */
+  }
+  100% {
+    background-color: #ffffff;
+  }
+}
+
+/* DECIDING — a choice rests with the human (Begin at the door, the held card's
+   acts, an unresolved held row). It earns the SAME breathing surface as faltering
+   (never a badge, never a spinner — the weight sits in the surface itself), but it
+   must NOT borrow the cold hue: the one licensed hue means faltering and nothing
+   else. So deciding dims to a strictly NEUTRAL grey (R=G=B, zero hue) of the same
+   magnitude as the cold wash — the neutral twin. Identical breath, no confession. */
+.tex-field.is-deciding {
+  background-color: var(--tex-paper);
+  animation: tex-field-deciding 3100ms var(--tex-ease-inout) infinite;
+}
+@keyframes tex-field-deciding {
+  0% {
+    background-color: #ffffff;
+  }
+  50% {
+    background-color: #eeeeee; /* strictly neutral (R=G=B) twin of the cold wash */
   }
   100% {
     background-color: #ffffff;
@@ -997,10 +1024,17 @@
   .tex-field.is-listening .tex-listen::before {
     opacity: 0.28;
   }
-  .tex-field--faltering,
+  /* Static resting washes when motion is off — the breath can't play, so each
+     state holds its wash a touch lighter than its animated peak. Faltering keeps
+     the cold hue (--tex-cold @ ~hsl(207°,13%,94.5%) → #eef1f4); deciding holds the
+     strictly-neutral twin (#f1f1f1). Same split as the animated pair above. */
+  .tex-field--faltering {
+    animation: none;
+    background-color: #eef1f4; /* --tex-cold hue (207°), static */
+  }
   .tex-field.is-deciding {
     animation: none;
-    background-color: #f1f1f2;
+    background-color: #f1f1f1; /* strictly neutral (R=G=B), static */
   }
   .tex-door-line,
   .tex-door-line--hold {
