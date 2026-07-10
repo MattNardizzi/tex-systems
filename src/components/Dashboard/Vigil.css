@@ -1556,6 +1556,57 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* The at-rest whisper — the ONE resident hint that the silent glass can  */
+/* be reached, surfaced only after a long stillness. The quietest register */
+/* in the system: uppercase, widely tracked (+0.28em), ink-faint, and      */
+/* STATIC — it never breathes or pulses (that province belongs to the      */
+/* breath and the seal). A whisper, not a pilot light. It eases in on the   */
+/* statement-rise clock and dissolves a rung faster on any activity — the   */
+/* direction-dependent timing lives in the two `transition` declarations.  */
+/* ------------------------------------------------------------------ */
+.tex-rest-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: 90vw;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--tex-ink-faint);
+  pointer-events: none;
+  opacity: 0;
+  /* Hidden state carries the EXIT clock — 420ms, a rung under the enter. */
+  transition: opacity 420ms var(--tex-ease);
+}
+.tex-rest-hint.is-shown {
+  opacity: 1;
+  /* Shown state carries the ENTER clock — the slow, calm statement-rise fade. */
+  transition: opacity var(--tex-rise) var(--tex-ease);
+}
+/* On touch the write glyph already resides at the very bottom; lift the
+   whisper clear of it so the two never overlap. */
+.tex-rest-hint--touch {
+  bottom: 84px;
+}
+@media (max-width: 480px) {
+  .tex-rest-hint {
+    font-size: 10px;
+    letter-spacing: 0.24em;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tex-rest-hint,
+  .tex-rest-hint.is-shown {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* The operator's own question, receded above the answer it produced — */
 /* smaller, fainter, still theirs. The first step of the trail.         */
 /* ------------------------------------------------------------------ */
