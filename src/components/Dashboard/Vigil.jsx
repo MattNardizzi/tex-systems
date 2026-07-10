@@ -868,8 +868,9 @@ const MANIFESTO_BEATS = [1_200, 1_500];
    the brief pause that makes a declaration land without stalling the arc. */
 const MANIFESTO_BREATH_MS = 400;
 /* How long a line takes to dissolve out (kept in sync with the tex-door-leave
-   animation in Vigil.css). */
-const MANIFESTO_LEAVE_MS = 560;
+   animation in Vigil.css — --tex-t5, one rung under the manifesto's --tex-rise
+   entrance per the exit-runs-faster rule). */
+const MANIFESTO_LEAVE_MS = 420;
 /* The handover line ("The weight is mine now.") cycles out of nothing — it
    arrives and stays. With the voice muted it has no spoken duration to hold on,
    so this is its silence-floor hold: long enough that the line LANDS and breathes

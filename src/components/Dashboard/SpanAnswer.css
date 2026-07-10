@@ -27,7 +27,7 @@
   align-items: center;
   gap: 1em;
   width: 100%;
-  animation: tex-voice-rise 760ms var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-t4) var(--tex-ease) both;
 }
 
 .tex-span-line {
@@ -68,7 +68,7 @@
   font-variant-numeric: tabular-nums;
   word-break: break-all;
   max-width: 30em;
-  animation: tex-object-rise var(--tex-rise) var(--tex-ease) both;
+  animation: tex-object-rise var(--tex-t4) var(--tex-ease) both;
 }
 
 @media (max-width: 480px) {

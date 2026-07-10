@@ -55,10 +55,21 @@
   --tex-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --tex-ease-micro: cubic-bezier(0.32, 0.72, 0, 1);
   --tex-ease-inout: cubic-bezier(0.76, 0, 0.24, 1);
+  /* DURATION LADDER (TEX_UI_LANGUAGE law). Nearly all UI lives in t3/t4; a hard
+     400ms ceiling governs anything the user triggers and waits on, and exits run
+     one rung faster than their enter. --tex-rise is the ONE licensed exception —
+     a declared statement entrance, spent ONLY on the day-one door manifesto; the
+     seal's own hash-lock cadence (SealAnchor) is the other. Everything else is so
+     fast it is felt, not seen. */
+  --tex-t1: 120ms; /* micro: press, hover, colour blink */
+  --tex-t2: 180ms; /* small enter / exit */
+  --tex-t3: 240ms; /* standard: line, label, row, state, focus */
+  --tex-t4: 320ms; /* full surface / overlay / a View-Transition morph */
+  --tex-t5: 420ms; /* large / page-level ceiling (non-seal) */
   /* Entrances arrive on an expo decelerate — slow enough to feel declared,
      never the dated 1000ms+ drift. Micro-interactions stay under the 200ms
      instantaneity ceiling so a press feels physical, not animated. */
-  --tex-rise: 760ms;
+  --tex-rise: 760ms; /* a declared statement entrance — door manifesto ONLY */
   --tex-micro: 180ms;
 
   /* Rhythm — 4px base. */
