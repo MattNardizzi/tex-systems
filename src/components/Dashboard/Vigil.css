@@ -285,8 +285,8 @@
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
-  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
-  transition: opacity 420ms var(--tex-ease);
+  animation: tex-rise var(--tex-t4) var(--tex-ease) both;
+  transition: opacity var(--tex-t3) var(--tex-ease);
 }
 .tex-held.is-receded {
   animation: none;
@@ -308,7 +308,7 @@
   line-height: 1.62;
   letter-spacing: 0.004em;
   color: var(--tex-ink-soft);
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 200ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 200ms both;
 }
 
 /* WHO & WHAT — the agent behind a hold and its actual ask. The agent is the
@@ -326,7 +326,7 @@
   text-indent: 0.28em;
   text-transform: uppercase;
   color: var(--tex-ink-mute);
-  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) both;
 }
 .tex-held-excerpt {
   margin: 0;
@@ -338,7 +338,7 @@
   letter-spacing: -0.006em;
   color: var(--tex-ink);
   text-wrap: balance;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) both;
 }
 .tex-held-tex-line {
   margin: 1.5em 0 0;
@@ -350,7 +350,7 @@
   letter-spacing: -0.002em;
   color: var(--tex-ink-soft);
   text-wrap: balance;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 200ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 200ms both;
 }
 
 /* The hold, made legible. The TYPE line is an instrument label; the
@@ -362,7 +362,7 @@
   flex-direction: column;
   align-items: center;
   margin-top: 2.4em;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 350ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 350ms both;
 }
 .tex-held-type {
   margin: 0;
@@ -408,7 +408,7 @@
   text-transform: lowercase;
   color: var(--tex-ink-mute);
   opacity: 0.7;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 620ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 620ms both;
 }
 
 /* ------------------------------------------------------------------ */
@@ -427,7 +427,7 @@
   justify-content: center;
   gap: 14px;
   margin-top: 3em;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 460ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 460ms both;
 }
 .tex-act {
   display: inline-flex;
@@ -499,7 +499,7 @@
   text-transform: uppercase;
   color: var(--tex-ink-mute);
   opacity: 0.62;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 900ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 900ms both;
 }
 
 /* ------------------------------------------------------------------ */
@@ -550,7 +550,7 @@
 }
 /* The dissolve — duration kept in sync with MANIFESTO_LEAVE_MS in Vigil.jsx. */
 .tex-door-line.is-leaving {
-  animation: tex-door-leave 560ms var(--tex-ease-inout) both;
+  animation: tex-door-leave var(--tex-t5) var(--tex-ease-inout) both;
 }
 /* The final line — the handover — only arrives; it does not leave. */
 .tex-door-line--hold {
@@ -601,7 +601,7 @@
   animation: none;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 760ms var(--tex-ease);
+  transition: opacity var(--tex-t4) var(--tex-ease);
 }
 /* The door's one act inverts — a WHITE key with black text, not the black
    fill the held card uses. The white key is itself the paper-pinned figure:
@@ -691,7 +691,7 @@
    then the placeholder confesses "not the word" over an empty field. */
 .tex-passcode-field.is-wrong {
   border-bottom-color: var(--tex-ink);
-  animation: tex-passcode-shake 420ms var(--tex-ease-inout);
+  animation: tex-passcode-shake var(--tex-t3) var(--tex-ease-inout);
 }
 .tex-passcode-field.is-wrong::placeholder {
   color: var(--tex-ink-soft);
@@ -732,7 +732,7 @@
      as bottom-heavy in the empty field. Matches the held card's -2vh lift so
      the seal lands where the card it replaces sat. */
   transform: translateY(-3vh);
-  animation: tex-rise 900ms var(--tex-ease) both;
+  animation: tex-rise var(--tex-t5) var(--tex-ease) both;
 }
 /* The verdict — in the INSTRUMENT register, not Tex's voice. A small tracked
    uppercase tag with its mark, one family with the credibility tier: the word is
@@ -865,7 +865,7 @@
 .tex-voice-line {
   text-align: center;
   max-width: 16em;
-  animation: tex-rise 760ms var(--tex-ease) both;
+  animation: tex-rise var(--tex-t4) var(--tex-ease) both;
 }
 /* "Here." — one calm word at full voice size, tracked a touch tighter the
    way a single large word wants. */
@@ -916,8 +916,8 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
   word-break: break-all;
-  animation: tex-object-rise var(--tex-rise) var(--tex-ease) both,
-    tex-object-fade 420ms var(--tex-ease) 5400ms both;
+  animation: tex-object-rise var(--tex-t4) var(--tex-ease) both,
+    tex-object-fade var(--tex-t3) var(--tex-ease) 5400ms both;
 }
 @keyframes tex-object-rise {
   from {
@@ -951,7 +951,7 @@
 .tex-object--in-presence .tex-object-value {
   font-size: clamp(12px, 1.3vw, 14px);
   color: var(--tex-ink-soft);
-  animation: tex-object-rise 420ms var(--tex-ease) both;
+  animation: tex-object-rise var(--tex-t3) var(--tex-ease) both;
 }
 /* On a narrow screen a 64-char hash would break-all into a ragged 3 lines with
    an orphaned character. Drop the size and tighten so it settles into two even
@@ -1028,7 +1028,7 @@
 /* The voice line is centred with a translate, so its rise can't also use
    translateY; give it an opacity-only rise. */
 .tex-voice .tex-voice-line {
-  animation: tex-voice-rise var(--tex-rise) var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-t4) var(--tex-ease) both;
 }
 @keyframes tex-voice-rise {
   from {
@@ -1102,7 +1102,7 @@
   color: var(--tex-ink);
 }
 .tex-voice-line--answer.is-leaving {
-  animation: tex-object-fade 420ms var(--tex-ease) both;
+  animation: tex-object-fade var(--tex-t3) var(--tex-ease) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .tex-word {
@@ -1132,7 +1132,7 @@
   letter-spacing: 0;
   color: var(--tex-ink-faint);
   pointer-events: none;
-  animation: tex-voice-rise 420ms var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-t3) var(--tex-ease) both;
   transition: color 240ms var(--tex-ease);
 }
 .tex-heard.is-settled {
@@ -1160,7 +1160,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  animation: tex-voice-rise var(--tex-rise) var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-t3) var(--tex-ease) both;
 }
 /* A nascent sha256, held STILL — the seal's own voice (Geist Mono, the quietest
    ink), a hex fragment frozen in place. Monospace holds every glyph on the same
@@ -1203,10 +1203,10 @@
 .tex-presence-line {
   line-height: 1.08;
   max-width: 16em;
-  animation: tex-voice-rise 760ms var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-t4) var(--tex-ease) both;
 }
 .tex-presence-line.is-leaving {
-  animation: tex-object-fade 420ms var(--tex-ease) both;
+  animation: tex-object-fade var(--tex-t3) var(--tex-ease) both;
 }
 
 /* The credibility tier — the gate's REAL verdict, ink only. The tiers read
@@ -1224,10 +1224,10 @@
   font-size: clamp(9px, 0.92vw, 10.5px);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 160ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 160ms both;
 }
 .tex-tier.is-leaving {
-  animation: tex-object-fade 420ms var(--tex-ease) both;
+  animation: tex-object-fade var(--tex-t3) var(--tex-ease) both;
 }
 .tex-tier-mark {
   width: 7px;
@@ -1276,10 +1276,10 @@
   gap: 12px;
   margin: 2em 0 0;
   pointer-events: auto;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 280ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 280ms both;
 }
 .tex-evidence.is-leaving {
-  animation: tex-object-fade 420ms var(--tex-ease) both;
+  animation: tex-object-fade var(--tex-t3) var(--tex-ease) both;
   pointer-events: none;
 }
 .tex-claim {
@@ -1361,7 +1361,7 @@
   margin: 2.4em auto 0;
   padding: 0 24px;
   text-align: left;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 220ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 220ms both;
 }
 .tex-roster-list {
   margin: 0;
@@ -1495,7 +1495,7 @@
   justify-content: center;
   max-width: 100%;
   padding: 0 24px;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) both;
 }
 .tex-line-row--latent {
   padding: 0;
@@ -1616,7 +1616,7 @@
   line-height: 1.4;
   letter-spacing: 0;
   color: var(--tex-ink-mute);
-  animation: tex-voice-rise 420ms var(--tex-ease) both;
+  animation: tex-voice-rise var(--tex-t3) var(--tex-ease) both;
 }
 
 /* Once a conversation is RUNNING (a trail above, or held rows below), the
@@ -1676,7 +1676,7 @@
   align-items: center;
   gap: 0.3em;
   font-size: clamp(15px, 1.7vw, 19px);
-  animation: tex-trail-rise 420ms var(--tex-ease) both;
+  animation: tex-trail-rise var(--tex-t3) var(--tex-ease) both;
 }
 /* Depth: the further above the living turn, the smaller and quieter. */
 .tex-trail-item:nth-last-child(1) {
@@ -1738,7 +1738,7 @@
   max-width: 36em;
   margin: 2.4em 0 0;
   pointer-events: auto;
-  animation: tex-rise var(--tex-rise) var(--tex-ease) 280ms both;
+  animation: tex-rise var(--tex-t3) var(--tex-ease) 280ms both;
 }
 .tex-held-row {
   display: flex;
