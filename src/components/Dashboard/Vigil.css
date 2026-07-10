@@ -1,13 +1,14 @@
 /* ============================================================
    Vigil — the entire product surface.  "Etched Light."
 
-   One voice (Michroma), one ink ladder, one light. At rest the
+   One voice (Inter, worn 300–500), one ink ladder, one light. At rest the
    surface is silence — empty lit white. Tex speaks only when it has
    something for you. The whole surface is the ask gesture: press and
    hold anywhere.
 
    Hierarchy is carried by SIZE × TRACKING × INK-VALUE × CASE, never by
-   weight — Michroma has one weight. Monumental statements track tight
+   weight — Inter's weight axis is worn sparingly, 300–500, never the lead.
+   Monumental statements track tight
    and sit at full ink; supporting lines step down the ink ladder; the
    chrome lives in the instrument register — tiny, uppercase, widely
    tracked. Colour appears once or never: only a faltering breath, and
@@ -36,124 +37,6 @@
      field runs full-bleed and an outset ring would clip off-viewport. */
   outline: 1px solid var(--tex-ink-hair-2);
   outline-offset: -3px;
-}
-
-/* ------------------------------------------------------------------ */
-/* THE OPERATING FRAME — the structural chrome that turns an empty white */
-/* surface into a made instrument: corner identity, one live status, and */
-/* hairline rules framing the content band. Pointer-transparent so the    */
-/* hold-anywhere gesture passes through. Achromatic, surgical, quiet.     */
-/* ------------------------------------------------------------------ */
-.tex-frame {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-}
-.tex-frame-label {
-  position: absolute;
-  font-family: var(--tex-display);
-  font-size: 10px;
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.tex-frame-tl {
-  top: 38px;
-  left: 46px;
-  color: var(--tex-ink);
-}
-.tex-frame-tr {
-  top: 38px;
-  right: 46px;
-  letter-spacing: 0.3em;
-  color: var(--tex-ink-mute);
-}
-.tex-frame-bl {
-  bottom: 36px;
-  left: 46px;
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  letter-spacing: 0.28em;
-  color: var(--tex-ink-soft);
-}
-.tex-frame-br {
-  bottom: 36px;
-  right: 46px;
-  font-family: var(--tex-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: none;
-  color: var(--tex-ink-mute);
-}
-/* The one living element on the whole surface — a slow breath. */
-.tex-frame-live {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--tex-ink);
-  animation: tex-breathe 3400ms var(--tex-ease-inout) infinite;
-}
-@keyframes tex-breathe {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-/* The faltering breath goes arrhythmic — the live light stutters as the
-   chain breaks (still ink, no colour). */
-.tex-field--faltering .tex-frame-live {
-  animation-duration: 1700ms;
-}
-.tex-frame-rule {
-  position: absolute;
-  left: 46px;
-  right: 46px;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.05);
-}
-.tex-frame-rule--top {
-  top: 70px;
-}
-.tex-frame-rule--bot {
-  bottom: 64px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tex-frame-live {
-    animation: none;
-    opacity: 0.7;
-  }
-}
-/* On a narrow screen the frame tightens to the edges and sheds the rules +
-   the long context label, keeping just identity / status / build marker. */
-@media (max-width: 640px) {
-  .tex-frame-tl,
-  .tex-frame-tr {
-    top: 26px;
-  }
-  .tex-frame-bl,
-  .tex-frame-br {
-    bottom: 24px;
-  }
-  .tex-frame-tl {
-    left: 24px;
-  }
-  .tex-frame-br {
-    right: 24px;
-  }
-  .tex-frame-bl {
-    left: 24px;
-  }
-  .tex-frame-tr,
-  .tex-frame-rule {
-    display: none;
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -356,7 +239,7 @@
 /* The hold, made legible. The TYPE line is an instrument label; the
    QUESTION — the single pivotal fact — sits apart at mid-ink, the eye's
    landing point. A hairline above the question sets it off as the thing
-   that matters, with no italic (Michroma has none) and no colour. */
+   that matters, with no italic (the one voice is worn upright only) and no colour. */
 .tex-held-hold {
   display: flex;
   flex-direction: column;
@@ -418,7 +301,7 @@
 /* must never be dressed as the one a tired human clicks by reflex.         */
 /* Approve earns the ink fill only on deliberate engagement (hover / focus).*/
 /* The product's ONE filled-at-rest act is the day-one door's Begin.        */
-/* All set in the instrument register: uppercase Michroma, widely tracked.  */
+/* All set in the instrument register: uppercase Inter, widely tracked.     */
 /* ------------------------------------------------------------------ */
 .tex-acts {
   display: flex;
@@ -1211,7 +1094,7 @@
 
 /* The credibility tier — the gate's REAL verdict, ink only. The tiers read
    apart by their mark's form and their ink value, never by a colour ramp.
-   The instrument register: uppercase Michroma, widely tracked. */
+   The instrument register: uppercase Inter, widely tracked. */
 .tex-tier {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1352,124 +1235,6 @@
   .tex-presence-line,
   .tex-tier,
   .tex-evidence {
-    animation: none;
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* The discovered ROSTER — the inventory Tex gained at Begin.           */
-/* ------------------------------------------------------------------ */
-.tex-roster {
-  position: relative;
-  width: 100%;
-  max-width: min(92vw, 42rem);
-  margin: 2.4em auto 0;
-  padding: 0 24px;
-  text-align: left;
-  animation: tex-rise var(--tex-t3) var(--tex-ease) 220ms both;
-}
-.tex-roster-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: min(48vh, 24rem);
-  overflow-y: auto;
-}
-/* A grid, not a flex row: CSS grid auto-columns size to the widest cell across
-   ALL rows, so STATE and PLANE form true aligned columns (the flex version left
-   ragged interior edges). On mobile the row reflows — name on top, status +
-   plane beneath it — the same reflow the held button row does, so a long plane
-   label can never clip or open a per-row scrollbar. */
-.tex-roster-row {
-  display: grid;
-  /* Fixed STATE + PLANE columns (each row is its own grid, so auto-sizing would
-     ragged-edge per row) — fixed tracks give true aligned columns down the list,
-     name takes the rest. */
-  grid-template-columns: minmax(0, 1fr) 5em 14em;
-  grid-template-areas: "name state plane";
-  align-items: baseline;
-  column-gap: 1.4em;
-  padding: 1.05em 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-.tex-roster-row:last-child {
-  border-bottom: 0;
-}
-.tex-roster-name {
-  grid-area: name;
-  min-width: 0;
-  font-family: var(--tex-display);
-  font-size: clamp(15px, 1.55vw, 19px);
-  letter-spacing: -0.012em;
-  color: var(--tex-ink);
-}
-.tex-roster-state {
-  grid-area: state;
-  font-family: var(--tex-display);
-  font-size: clamp(8.5px, 0.85vw, 10px);
-  letter-spacing: 0.14em;
-  color: var(--tex-ink-mute);
-  text-transform: uppercase;
-}
-@media (max-width: 640px) {
-  .tex-roster-row {
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "name name"
-      "state plane";
-    row-gap: 0.6em;
-    column-gap: 1em;
-  }
-  .tex-roster-state,
-  .tex-plane-badge {
-    justify-self: start;
-  }
-}
-/* The per-row ENFORCEMENT-PLANE badge — ink only, read apart by ink value
-   and a small lead mark, never a colour ramp. */
-.tex-plane-badge {
-  grid-area: plane;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-  font-family: var(--tex-display);
-  font-size: clamp(8px, 0.82vw, 9.5px);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--tex-ink-mute);
-}
-.tex-plane-badge:empty {
-  display: none;
-}
-.tex-plane-badge::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  border: 1px solid currentColor;
-  background: transparent;
-}
-.tex-plane-badge--decide-only {
-  color: var(--tex-ink-mute);
-}
-.tex-plane-badge--credential-enforced {
-  color: var(--tex-ink-soft);
-}
-.tex-plane-badge--credential-enforced::before {
-  background: currentColor;
-  opacity: 0.55;
-}
-.tex-plane-badge--in-path-blocking {
-  color: var(--tex-ink);
-}
-.tex-plane-badge--in-path-blocking::before {
-  background: currentColor;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tex-roster {
     animation: none;
   }
 }
@@ -1635,13 +1400,14 @@
   color: var(--tex-ink-faint);
   pointer-events: none;
   opacity: 0;
-  /* Hidden state carries the EXIT clock — 420ms, a rung under the enter. */
-  transition: opacity 420ms var(--tex-ease);
+  /* Hidden state carries the EXIT clock — one rung under the enter. */
+  transition: opacity var(--tex-t3) var(--tex-ease);
 }
 .tex-rest-hint.is-shown {
   opacity: 1;
-  /* Shown state carries the ENTER clock — the slow, calm statement-rise fade. */
-  transition: opacity var(--tex-rise) var(--tex-ease);
+  /* Shown state carries the ENTER clock — a whisper obeys the ladder (t4);
+     --tex-rise is licensed only for the door's declared statements. */
+  transition: opacity var(--tex-t4) var(--tex-ease);
 }
 /* On touch the write glyph already resides at the very bottom; lift the
    whisper clear of it so the two never overlap. */

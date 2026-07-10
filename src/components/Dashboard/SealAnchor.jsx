@@ -25,6 +25,11 @@ const SEAL_TICK_MS = 33; /* scramble flicker cadence */
 const SEAL_DEEP_LAG_MS = 180; /* lock (mid ink) → deepen (true ink) */
 const SEAL_LEAD_IN_MS = 600; /* the number is seen computing before it locks */
 
+/* The seal-settle easing, as a Web Animations literal. WAAPI easing can't read a
+   CSS custom property, so this MUST stay byte-identical to --tex-ease in
+   index.css (cubic-bezier(0.16, 1, 0.3, 1)) — change the two together. */
+export const TEX_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+
 const isHexChar = (ch) => /[0-9a-f]/i.test(ch);
 
 /* The shared engine. Fills `row` with one span per character and runs the
@@ -95,7 +100,7 @@ function runScrambleLock(row, rawTarget) {
             ],
             {
               duration: SEAL_SETTLE_MS,
-              easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+              easing: TEX_EASE,
               fill: "both",
             }
           );
