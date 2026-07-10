@@ -1,5 +1,6 @@
 import { useState } from "react";
 import SpokenLine from "./SpokenLine";
+import { TIER_LABEL, TIER_GLOSS } from "../../lib/presence";
 import "./SpanAnswer.css";
 
 /**
@@ -37,15 +38,9 @@ import "./SpanAnswer.css";
  * wire; unarmed (undefined) means no act, e.g. an empty queue.
  */
 
-/* The one honest gloss per tier — chrome ABOUT the answer, never its meaning
-   (the meaning is the span text itself, spoken). Mirrors lib/presence.js so the
-   two answer surfaces read the same. */
-const TIER_LABEL = { SEALED: "sealed", DERIVED: "derived", ABSTAIN: "abstained" };
-const TIER_GLOSS = {
-  SEALED: "grounded in a sealed fact",
-  DERIVED: "derived from sealed facts",
-  ABSTAIN: "unproven — Tex won't claim it",
-};
+/* TIER_LABEL / TIER_GLOSS — the one honest gloss per tier (chrome ABOUT the
+   answer, never its meaning) — are imported from lib/presence above, the single
+   source both answer surfaces (this one and the spoken presence) share. */
 
 const normTier = (v) => {
   const t = String(v || "").toUpperCase();
