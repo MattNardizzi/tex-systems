@@ -665,7 +665,7 @@ export function prewarmSpeak(text, prosody) {
    starts so the next line is ready before it is needed. Falls back to the plain
    stream (real voice, no highlight) on 503 / decode failure — never authoring or
    altering the sealed text. */
-async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, warmed } = {}) {
+async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, warmed, onAudioStart } = {}) {
   /* Voice deactivated — no audio. Report "did not play" so a sequence advances
      on its silence floor and texSpeakTimed still fires onEnd; the words are
      already on the glass (SpokenLine renders full ink with no active word). */
@@ -778,7 +778,13 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, wa
         }
       };
       src.start(startAt);
-      if (prefetchNext) _primePrefetch(prefetchNext); // warm N+1 the moment N starts
+      /* First audible sound of this line — the caller can now take the glass in
+         sync with the voice (the answer surfaces exactly as Tex begins to
+         speak, never silent-and-finished ahead of it). */
+      if (onAudioStart) onAudioStart();
+      // warm N+1 the moment N starts; a {text,prosody} pair carries the next
+      // line's own tone (spans), a bare string keeps the neutral opener default.
+      if (prefetchNext) _primePrefetch(prefetchNext.text || prefetchNext, prefetchNext.prosody);
       _activeRaf = requestAnimationFrame(tick);
     });
 
@@ -820,7 +826,7 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, wa
 /* audio was ever scheduled (endpoint missing/unconfigured/unreachable) */
 /* so the caller can drop to the full-clip timed path with nothing lost.*/
 /* ================================================================== */
-async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
+async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody, onAudioStart, prefetchNext } = {}) {
   if (!VOICE_ENABLED) return false;
   const ctx = _ctx();
   if (!ctx) return "fallback";
@@ -927,6 +933,10 @@ async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
       startAt = ctx.currentTime + START_PAD_S;
       nextAt = startAt;
       _activeRaf = requestAnimationFrame(tick);
+      /* First scheduled chunk = the line's first audible word. Let the caller
+         surface the answer here, and warm the next line while this one plays. */
+      if (onAudioStart) onAudioStart();
+      if (prefetchNext) _primePrefetch(prefetchNext.text || prefetchNext, prefetchNext.prosody);
     }
     /* An underrun (a chunk landing after its seam already passed) starts late.
        Advance nextAt from where this chunk ACTUALLY starts — advancing from the
@@ -1076,7 +1086,10 @@ async function _speakStreamTimedOne(text, myEpoch, { onWord, prosody } = {}) {
    full-clip timed path, then the plain stream (voice, no highlight), then
    honest silence — one call, the whole degradation chain. onWord(index)
    drives the glass (-1 clears); onEnd fires only on a natural end. */
-export async function texSpeakSynced(text, { onWord, onEnd, prosody } = {}) {
+export async function texSpeakSynced(
+  text,
+  { onWord, onEnd, prosody, onAudioStart, prefetchNext } = {}
+) {
   if (!text) return;
   /* Muted → no claim on the voice (see texSpeak); onEnd still fires at once,
      exactly as the muted degradation chain always resolved, and nothing
@@ -1104,12 +1117,20 @@ export async function texSpeakSynced(text, { onWord, onEnd, prosody } = {}) {
   const myEpoch = _supersede();
   let owned = false;
   if (!warmed && !_streamTimedDead && Date.now() >= _streamTimedRetryAt) {
-    const r = await _speakStreamTimedOne(text, myEpoch, { onWord, prosody });
+    const r = await _speakStreamTimedOne(text, myEpoch, {
+      onWord,
+      prosody,
+      onAudioStart,
+      prefetchNext,
+    });
     owned = r !== "fallback";
   }
   if (!owned) {
     if (myEpoch !== _epoch) return;
-    await _speakTimedOne(text, myEpoch, { onWord, prosody, warmed });
+    /* onAudioStart fires once, at whichever path first schedules audio — the
+       stream path only reaches here after scheduling nothing (fallback), so it
+       has not fired it yet. */
+    await _speakTimedOne(text, myEpoch, { onWord, prosody, warmed, onAudioStart, prefetchNext });
   }
   if (myEpoch !== _epoch) return;
   if (onEnd) onEnd();

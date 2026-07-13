@@ -30,9 +30,13 @@ export function useSystemState(tenantId) {
   const [snapshot, setSnapshot] = useState(null);
   const intervalRef = useRef(null);
   const cancelledRef = useRef(false);
+  /* The last committed snapshot, serialized, so an identical 30s poll never
+     re-renders (a full re-render could land mid-morph). Mirrors useVigil. */
+  const lastJsonRef = useRef(null);
 
   useEffect(() => {
     cancelledRef.current = false;
+    lastJsonRef.current = null;
 
     /* Same posture as the vigil: nothing to read until a real directory is
        connected. No tenant → no poll. */
@@ -46,9 +50,16 @@ export function useSystemState(tenantId) {
     const tick = async () => {
       try {
         const next = await getSystemState();
-        if (!cancelledRef.current) {
-          setSnapshot(next);
-        }
+        if (cancelledRef.current || next == null) return;
+        /* Render only on genuine change. generated_at is a fresh stamp on every
+           body, so it is stripped before comparing — otherwise identical truth
+           re-rendered every 30s and this dedup never fired. Nothing renders the
+           stamp; the newest full object still lands whenever the truth moves. */
+        const { generated_at: _stamp, ...truth } = next;
+        const json = JSON.stringify(truth);
+        if (json === lastJsonRef.current) return;
+        lastJsonRef.current = json;
+        setSnapshot(next);
       } catch (_err) {
         /* Silent. The last good snapshot stays in state. */
       }

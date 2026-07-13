@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import SpokenLine from "./SpokenLine";
 import { TIER_LABEL, TIER_GLOSS } from "../../lib/presence";
 import "./SpanAnswer.css";
@@ -61,8 +61,9 @@ function spanAnchor(span, exhibitsByHandle) {
 }
 
 /* One span, one line: the voice-register text, its tier tag, and (SEALED only)
-   the PROOF affordance that reveals the sealed anchor in the id register. */
-function Span({ span, anchor, wordOffset, activeWord }) {
+   the PROOF affordance that reveals the sealed anchor in the id register.
+   Memoized — a pure receipt of one sealed span. */
+const Span = memo(function Span({ span, anchor, wordOffset, activeWord }) {
   const [open, setOpen] = useState(false);
   const tier = normTier(span?.verdict);
   const isAbstain = tier === "ABSTAIN";
@@ -124,9 +125,9 @@ function Span({ span, anchor, wordOffset, activeWord }) {
       )}
     </div>
   );
-}
+});
 
-export default function SpanAnswer({
+function SpanAnswer({
   answer,
   question,
   answerWord = -1,
@@ -191,3 +192,7 @@ export default function SpanAnswer({
     </div>
   );
 }
+
+/* Memoized — the whole span stack is a pure render of a sealed AnswerResponse;
+   only `answerWord` changes while the voice walks the spans. */
+export default memo(SpanAnswer);

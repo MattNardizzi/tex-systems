@@ -161,6 +161,13 @@ const TRAIL_MAX = 4; /* prior turns kept on the glass; older ones let go */
    before it clears — the same window a fast re-ask must beat to keep its answer. */
 const ANSWER_LEAVE_MS = 240;
 
+/* The PENDING word index: the answer has mounted but the voice has not begun,
+   so SpokenLine holds every word faint (word 0 included). The line then
+   brightens strictly forward as the voice reaches each word — never the
+   bright-then-dim reverse ink of mounting at full ink and dimming the tail the
+   instant word 0 lights. (SpokenLine treats any value <= -2 as pending.) */
+const WORD_PENDING = -2;
+
 /* Return to silence. When nothing is asked of Tex and no hand is on the glass
    for this long, the surface dissolves back to empty white — the resting state
    the whole product is built around. It is the PASSIVE twin of Escape: the same
@@ -365,7 +372,7 @@ const HELD_HOLD_BEAT_MS = 1300;
    the real anchor (or the decision's own id if the wire stays silent). Used
    under a held-ask answer and under the aggregate held card alike — one queue,
    one truth. */
-function HeldRowsList({ rows, onResolve }) {
+const HeldRowsList = memo(function HeldRowsList({ rows, onResolve }) {
   const list = (rows || []).filter((row) => row.decision_id);
   const keyOf = (row, i) => row.decision_id || `${row.agent_id || "hold"}-${i}`;
 
@@ -615,7 +622,7 @@ function HeldRowsList({ rows, onResolve }) {
       )}
     </div>
   );
-}
+});
 
 /* ==================================================================
    Vigil — the entire product surface. Live.
@@ -687,13 +694,15 @@ function HeldRowsList({ rows, onResolve }) {
    of machine truth — Tex itself, holding the beat while it weighs the answer
    against what it can prove. All motion lives in CSS, so reduced-motion users
    get a still, faint T for free. */
-function DeliberationMark() {
+/* A propless breathing initial — memoized so it is never re-created while an
+   answer's word clock ticks the monolith beside it. */
+const DeliberationMark = memo(function DeliberationMark() {
   return (
     <span className="tex-deliberation-mark" aria-hidden="true">
       T
     </span>
   );
-}
+});
 
 /* The generic hold sentence — the posture-true fallback Tex uses when the wire
    carries no typed sentence of its own. Named so the who/what card can tell an
@@ -1701,7 +1710,14 @@ export default function Vigil() {
      when Tex abstains, and any claims you can reach into for their evidence.
      { text, tier, tierReason, claims, proof } | null. */
   const [answer, setAnswer] = useState(null);
+  /* The lit word (0-based), -1 = finished/full ink, WORD_PENDING = mounted but
+     not yet voiced (every word faint, so the line reveals strictly forward). */
   const [answerWord, setAnswerWord] = useState(-1);
+  /* True once the voice has lit a real word this turn: it separates the leading
+     onWord(-1) (before word 0 — hold PENDING, stay faint) from the trailing
+     onWord(-1) (line finished — resolve to full ink). Without it the answer
+     would flash full-bright the instant it mounts, then dim its unspoken tail. */
+  const answerLitRef = useRef(false);
   const [answerLeaving, setAnswerLeaving] = useState(false);
   /* The FLUID-TRUTH span answer, when VITE_TEX_SPANS is on: the whole
      AnswerResponse (spans + exhibits) plus the question that produced it. Null at
@@ -1823,6 +1839,19 @@ export default function Vigil() {
      replaced it. */
   const askEpochRef = useRef(0);
 
+  /* The in-flight ask's cancel handle (typed reach). A superseding reach — a new
+     typed line, a voice press, a refresh — aborts it, so a request the operator
+     has already moved past stops consuming the single backend worker and its
+     answer's TTS is never queued behind a dead one. The voice path (endHold) has
+     always minted its own controller; this brings the typed path to parity. */
+  const askAbortRef = useRef(null);
+  const abortAsk = useCallback(() => {
+    if (askAbortRef.current) {
+      try { askAbortRef.current.abort(); } catch {}
+      askAbortRef.current = null;
+    }
+  }, []);
+
   /* Day-one wake — the wake gesture exists ONLY to satisfy browser autoplay: the
      first reach unlocks audio so Tex can speak the manifesto. With the voice muted
      (VOICE_ENABLED false) there is nothing to unlock, so the opener begins on its
@@ -1864,31 +1893,62 @@ export default function Vigil() {
        thinking/verifying flags clear INSIDE the morph (clearing them any
        earlier unmounts the mark before the old snapshot is captured — a
        pop), and a stale epoch applies nothing: the VT callback runs a frame
-       late, and a reach landing in that gap owns the surface. */
+       late, and a reach landing in that gap owns the surface.
+
+       `pending` mounts every word faint (the voiced case), so the line only
+       ever brightens FORWARD as the voice reaches each word — never the
+       reverse-ink flash of mounting full-bright and dimming the unspoken tail. */
     const myEpoch = askEpochRef.current;
-    morphSurface(() => {
-      if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
-      answerRef.current = next;
-      setSpoken(null);
-      setThinking(false);
-      setVerifying(false);
-      setAnswerLeaving(false);
-      setAnswerWord(-1);
-      setAnswer(next);
-      /* Only one answer surface shows: a plain answer retires any span stack. */
-      spanAnswerRef.current = null;
-      setSpanAnswer(null);
-    });
+    let surfaced = false;
+    const takeGlass = (pending) => {
+      if (surfaced) return;
+      surfaced = true;
+      morphSurface(() => {
+        if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
+        answerRef.current = next;
+        setSpoken(null);
+        setThinking(false);
+        setVerifying(false);
+        setAnswerLeaving(false);
+        answerLitRef.current = false;
+        setAnswerWord(pending ? WORD_PENDING : -1);
+        setAnswer(next);
+        /* Only one answer surface shows: a plain answer retires any span stack. */
+        spanAnswerRef.current = null;
+        setSpanAnswer(null);
+      });
+    };
     answerEpochRef.current += 1; /* supersede any stale playback of a prior answer */
-    /* Forward the gate's verdict token so the ANSWER is spoken in-tier. Only
-       gate verdicts get a token — the opener / "Here." / a falter stay NEUTRAL
-       (a non-verdict line voiced as if it were assured/uncertain would be
-       dishonest). onWord drives the in-step highlight off the audio clock;
-       -1 (cleared / no timing available) renders the line at full ink. */
+
+    if (!VOICE_ENABLED) {
+      /* Muted (today's prod): no voice to sync to — the answer lands at once,
+         at full ink, exactly as it always has. */
+      takeGlass(false);
+      texSpeakSynced(text, { prosody: presence.prosodyToken });
+      return;
+    }
+
+    /* Voiced: DEFER the morph to the first audible word (onAudioStart), so the
+       deliberation mark keeps breathing until text and voice arrive together —
+       the answer never sits silent and finished-looking ahead of its own voice.
+       onWord then reveals it strictly forward; a trailing onWord(-1) resolves to
+       full ink only once a real word has lit. If the voice never sounds (cold or
+       dead backend → honest silence), the answer still surfaces at full ink when
+       the speech promise resolves — never stranded on a breathing mark.
+       Forward the gate's verdict token so the ANSWER is spoken in-tier (only gate
+       verdicts get a token; the opener / "Here." / a falter stay NEUTRAL). */
     texSpeakSynced(text, {
-      onWord: (i) => setAnswerWord(i),
       prosody: presence.prosodyToken,
-    });
+      onAudioStart: () => takeGlass(true),
+      onWord: (i) => {
+        if (i >= 0) {
+          answerLitRef.current = true;
+          setAnswerWord(i);
+        } else {
+          setAnswerWord(answerLitRef.current ? -1 : WORD_PENDING);
+        }
+      },
+    }).finally(() => takeGlass(false));
   }, []);
 
   /* Take the surface with a FLUID-TRUTH span answer (VITE_TEX_SPANS only).
@@ -1941,22 +2001,33 @@ export default function Vigil() {
     /* Speak the spans one after another, each with its own prosody token. The
        word index is global across the concatenation, so it advances by the
        running offset of all prior spans' words. */
+    /* prosody === lowercase verdict per the contract; prefer the span's own
+       token, fall back to the verdict lowercased. */
+    const spanProsody = (span) =>
+      span?.prosody || (span?.verdict ? String(span.verdict).toLowerCase() : null);
+
     (async () => {
       let wordOffset = 0;
-      for (const span of spans) {
+      for (let k = 0; k < spans.length; k += 1) {
         if (myEpoch !== askEpochRef.current) return; /* a fresh reach won */
+        const span = spans[k];
         const text = span?.text || "";
         const tokens = text.split(/\s+/).filter(Boolean).length;
         const base = wordOffset;
         if (text) {
-          /* prosody === lowercase verdict per the contract; prefer the span's
-             own token, fall back to the verdict lowercased. A superseded span
-             returns early inside the engine and our epoch check ends the loop. */
-          const prosody =
-            span?.prosody || (span?.verdict ? String(span.verdict).toLowerCase() : null);
+          /* A superseded span returns early inside the engine and our epoch
+             check ends the loop. Warm span k+1's audio the instant span k
+             begins to sound, in ITS OWN tier's tone, so the voice never goes
+             silent paying a fresh TTS connect between spans. */
+          const nextSpan = spans[k + 1];
+          const nextText = nextSpan?.text || "";
+          const prefetchNext = nextText
+            ? { text: nextText, prosody: spanProsody(nextSpan) || "" }
+            : undefined;
           // eslint-disable-next-line no-await-in-loop
           await texSpeakSynced(text, {
-            prosody,
+            prosody: spanProsody(span),
+            prefetchNext,
             onWord: (i) => {
               if (myEpoch === askEpochRef.current) setAnswerWord(base + i);
             },
@@ -2550,6 +2621,8 @@ export default function Vigil() {
      NOTHING that waits for a human seal — a held decision stays held. */
   const refreshSurface = useCallback(() => {
     askEpochRef.current += 1;
+    /* Clean slate: let any ask in flight die stale AND stop it on the wire. */
+    abortAsk();
     clearLineTimer();
     /* The presence-beat wedge-guard (see beginHold): the "Here." and ignite
        count dissolves ride the lineTimer cleared above, so a refresh must
@@ -2565,7 +2638,7 @@ export default function Vigil() {
     setThinking(false);
     setVerifying(false);
     setHeard("");
-  }, [clearAnswer]);
+  }, [clearAnswer, abortAsk]);
 
   const listenerRef = useRef(null);
   /* The browser's own speech recognizer — the real hold-to-speak. Separate from
@@ -2700,6 +2773,9 @@ export default function Vigil() {
       setHeard("");
       /* Supersede any ask still in flight: this press owns the surface now. */
       askEpochRef.current += 1;
+      /* A voice reach also cancels a pending TYPED ask on the wire, so its
+         answer can't queue TTS behind this press. */
+      abortAsk();
       /* A fresh hold is a fresh turn: no bet from a previous gesture may leak
          into this one — and none may keep running server-side either. */
       abandonBet();
@@ -2763,7 +2839,7 @@ export default function Vigil() {
         });
       }
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, retireAnswer, onAskPartial]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, retireAnswer, onAskPartial, abortAsk]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -3123,6 +3199,9 @@ export default function Vigil() {
      the leaf, off this render, so priming them never re-renders the monolith.) */
   const onTypingBegin = useCallback(() => {
     askEpochRef.current += 1;
+    /* This new line owns the surface: cancel any ask still on the wire so it
+       stops loading the single worker (the epoch already voids its answer). */
+    abortAsk();
     clearLineTimer();
     setSealed(null);
     /* The presence-beat wedge-guard, exactly as in beginHold: the "Here." and
@@ -3134,7 +3213,7 @@ export default function Vigil() {
     stopSpeaking();
     setHeard("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [retireAnswer]);
+  }, [retireAnswer, abortAsk]);
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
      (playPresenceAck → /v1/ask → derivePresence → surfaceAnswer), then dissolve.
@@ -3155,12 +3234,18 @@ export default function Vigil() {
     /* Latest-wins: if another reach takes the surface while this question is
        on the wire, its answer dies stale instead of surfacing (see endHold). */
     const myEpoch = askEpochRef.current;
+    /* Mirror the voice path: mint a cancel handle for THIS ask (replacing any
+       prior one, which onTypingBegin already aborted) so a superseding reach can
+       actually stop the request, not just void its answer. */
+    abortAsk();
+    const askCtrl = new AbortController();
+    askAbortRef.current = askCtrl;
 
     /* The proven voice/typed round-trip, unchanged — extracted so the span
        pipeline can fall back to it verbatim (byte-identical flow) when
        /v1/answer is not mounted yet, and so a flag-off build runs exactly this. */
     const runAskTex = () =>
-      askTex(q, watchTenant, lastExchangeRef.current)
+      askTex(q, watchTenant, lastExchangeRef.current, askCtrl.signal)
         .then((res) => {
           if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
           /* verifying clears inside surfaceAnswer's morph (see endHold). */
@@ -3193,7 +3278,7 @@ export default function Vigil() {
        route can never leave the surface silent. With the flag OFF this branch is
        dead and runAskTex is the whole path — byte-identical to before. */
     if (SPANS_ENABLED) {
-      askAnswer(q, watchTenant, lastExchangeRef.current)
+      askAnswer(q, watchTenant, lastExchangeRef.current, askCtrl.signal)
         .then((res) => {
           if (myEpoch !== askEpochRef.current) return; /* superseded — stay quiet */
           const spans = Array.isArray(res?.spans) ? res.spans : [];
@@ -3224,7 +3309,7 @@ export default function Vigil() {
     }
 
     runAskTex();
-  }, [refreshSurface, watchTenant, surfaceAnswer, surfaceSpanAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows]);
+  }, [refreshSurface, watchTenant, surfaceAnswer, surfaceSpanAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows, abortAsk]);
 
   /* ---------------- Resolving a held decision ----------------
      A held decision is not approved by a spoken "maybe" — it is sealed by a

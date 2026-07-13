@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 /* ------------------------------------------------------------------ */
 /* The nascent anchor — the mapping state's working mark. Not a         */
@@ -22,7 +22,9 @@ const MAPPING_TICK_MS = 90; /* scramble cadence — calm, kin to the deliberatio
 const MAPPING_SWEEP_MS = 1100; /* ONE bounded left→right read (≤ the 1200ms ceiling), then rest */
 const MAPPING_WAVE = 5; /* cells held legible under the read head */
 
-export default function MappingMark() {
+/* Takes no props and runs its own rAF clock — a pure leaf. Memoized so a parent
+   re-render (a per-word answer tick) never tears down and re-mounts its sweep. */
+function MappingMark() {
   const rowRef = useRef(null);
 
   useEffect(() => {
@@ -109,3 +111,5 @@ export default function MappingMark() {
     <p className="tex-seal-anchor tex-mapping-anchor" ref={rowRef} aria-hidden="true" />
   );
 }
+
+export default memo(MappingMark);
