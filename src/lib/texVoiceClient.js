@@ -671,7 +671,7 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, wa
      already on the glass (SpokenLine renders full ink with no active word). */
   if (!VOICE_ENABLED) return false;
   const ctx = _ctx();
-  if (!ctx) return _speakStreamOne(text, myEpoch, prosody);
+  if (!ctx) return _speakStreamOne(text, myEpoch, prosody, onAudioStart);
   await _ensureRunning(ctx);
   if (myEpoch !== _epoch) return false;
 
@@ -705,7 +705,7 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, wa
        error (e.g. ElevenLabs off but Kokoro up) DOES fall back — the stream path
        is itself deadline-bounded, so it cannot hang either. */
     if (err && err.name === "AbortError") return false;
-    return _speakStreamOne(text, myEpoch, prosody);
+    return _speakStreamOne(text, myEpoch, prosody, onAudioStart);
   } finally {
     if (myEpoch === _epoch) _activeAbort = null;
   }
@@ -805,7 +805,7 @@ async function _speakTimedOne(text, myEpoch, { onWord, prefetchNext, prosody, wa
     return natural === true;
   } catch {
     if (myEpoch !== _epoch) return false;
-    return _speakStreamOne(text, myEpoch, prosody); // decode/playback failure → plain voice
+    return _speakStreamOne(text, myEpoch, prosody, onAudioStart); // decode/playback failure → plain voice
   }
 }
 
@@ -1138,7 +1138,7 @@ export async function texSpeakSynced(
 
 /* Play one line through the universal <audio> stream (real voice, no highlight).
    Returns true on a natural end at the current epoch, false otherwise. */
-async function _speakStreamOne(text, myEpoch, prosody) {
+async function _speakStreamOne(text, myEpoch, prosody, onAudioStart) {
   /* Voice deactivated — no <audio> stream. Report "did not play"; the line's
      text is already on the glass and clears on its own timer. */
   if (!VOICE_ENABLED) return false;
@@ -1146,10 +1146,21 @@ async function _speakStreamOne(text, myEpoch, prosody) {
   let played = false;
   let watchdog = null;
   let audio = null;
+  let announced = false;
   try {
     audio = new Audio();
     audio.src = speakStreamUrl(text, prosody); // proxied GET → streamed audio body
     audio.preload = "auto";
+    /* Plain voice carries no word timing, so a deferred surface waiting on
+       onAudioStart would otherwise wait forever and hide the answer behind the
+       breathing mark for the whole utterance. Fire it at the first audible
+       frame, marked untimed so the caller lands the text at full ink — there
+       are no word ticks coming to brighten it forward. */
+    audio.onplaying = () => {
+      if (announced || myEpoch !== _epoch) return;
+      announced = true;
+      if (onAudioStart) onAudioStart({ untimed: true });
+    };
     _activeAudio = audio;
     const ended = new Promise((resolve) => {
       _activeEnd = resolve;
@@ -1185,6 +1196,7 @@ async function _speakStreamOne(text, myEpoch, prosody) {
       try {
         audio.onended = null;
         audio.onerror = null;
+        audio.onplaying = null;
         audio.pause();
         audio.src = "";
       } catch {}

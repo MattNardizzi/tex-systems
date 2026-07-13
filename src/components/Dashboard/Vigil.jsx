@@ -1957,7 +1957,10 @@ export default function Vigil() {
        verdicts get a token; the opener / "Here." / a falter stay NEUTRAL). */
     texSpeakSynced(text, {
       prosody: presence.prosodyToken,
-      onAudioStart: () => takeGlass(true),
+      /* The timed paths fire onAudioStart bare → pending mount, words brighten
+         forward. The plain-voice fallback fires it { untimed: true } — it has
+         no word ticks coming, so the text lands at full ink with the voice. */
+      onAudioStart: (info) => takeGlass(!(info && info.untimed)),
       onWord: (i) => {
         if (i >= 0) {
           answerLitRef.current = true;
@@ -1966,7 +1969,14 @@ export default function Vigil() {
           setAnswerWord(answerLitRef.current ? -1 : WORD_PENDING);
         }
       },
-    }).finally(() => takeGlass(false));
+    }).finally(() => {
+      takeGlass(false);
+      /* A voice that surfaced pending but died before its first word tick must
+         not strand the answer faint — resolve any straggling pending ink. */
+      if (myEpoch === askEpochRef.current) {
+        setAnswerWord((w) => (w === WORD_PENDING ? -1 : w));
+      }
+    });
   }, []);
 
   /* Take the surface with a FLUID-TRUTH span answer (VITE_TEX_SPANS only).
