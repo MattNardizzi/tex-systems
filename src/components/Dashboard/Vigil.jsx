@@ -22,7 +22,6 @@ import {
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
 import SpanAnswer from "./SpanAnswer";
-import DeliberationMark from "./DeliberationMark";
 import { askAnswer, isRouteAbsent } from "../../lib/answers";
 import MappingMark from "./MappingMark";
 import SealAnchor, {
@@ -646,6 +645,18 @@ function HeldRowsList({ rows, onResolve }) {
 /* answer takes the glass and the real seal surfaces. One object, two   */
 /* moments: this is the seal, a breath before it exists.                */
 /* ------------------------------------------------------------------ */
+/* The deliberation mark — Tex's own initial, present and breathing. A single
+   capital T in the voice register (Inter Light): not a spinner, not a fragment
+   of machine truth — Tex itself, holding the beat while it weighs the answer
+   against what it can prove. All motion lives in CSS, so reduced-motion users
+   get a still, faint T for free. */
+function DeliberationMark() {
+  return (
+    <span className="tex-deliberation-mark" aria-hidden="true">
+      T
+    </span>
+  );
+}
 
 /* The generic hold sentence — the posture-true fallback Tex uses when the wire
    carries no typed sentence of its own. Named so the who/what card can tell an

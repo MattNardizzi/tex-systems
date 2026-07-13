@@ -1064,95 +1064,34 @@
   pointer-events: none;
   animation: tex-voice-rise var(--tex-t3) var(--tex-ease) both;
 }
-/* Tex's initial, thinking — one capital T in the voice register (Inter
-   Light), built in layers on a single SVG so the letter reads as a thing
-   being FABRICATED: an engraved hairline outline that is always there, ink
-   segments travelling the glyph's own edge at constant machine speed (the
-   etcher writing the T while Tex weighs the answer), T-shaped pulses
-   radiating outward and thinning to nothing, and the filled letter breathing
-   underneath. Four states of one glyph, all achromatic. */
+/* Tex's initial, thinking — a single capital T in the voice register (Inter
+   Light, the only face Tex itself wears). Ink gathers and thins on a slow,
+   even breath with a hair of scale riding the same rhythm: presence weighing
+   an answer, not a spinner. One glyph, one motion, achromatic. */
 .tex-deliberation-mark {
-  width: clamp(64px, 8vw, 96px);
-  height: auto;
-  overflow: visible;
-}
-.tex-deliberation-mark text {
   font-family: var(--tex-display);
   font-weight: 300;
-  font-size: 92px;
-  text-anchor: middle;
-  dominant-baseline: central;
-}
-/* The engraving — the letterform exists before the ink does. */
-.tex-delib-ghost {
-  fill: none;
-  stroke: rgba(0, 0, 0, 0.1);
-  stroke-width: 1;
-}
-/* The echo — a letter-shaped pulse, presence radiating. Two copies on the
-   same 2.8s breath, half a cycle apart, so the surface is never quite still
-   and never busy. */
-.tex-delib-echo {
-  fill: none;
-  stroke: rgba(0, 0, 0, 0.28);
-  stroke-width: 0.6;
-  opacity: 0;
-  transform-origin: 80px 80px;
-  animation: tex-delib-echo 2800ms var(--tex-ease) infinite;
-}
-.tex-delib-echo--late {
-  animation-delay: -1400ms;
-}
-@keyframes tex-delib-echo {
-  0% {
-    opacity: 0.45;
-    transform: scale(1);
-  }
-  85%,
-  100% {
-    opacity: 0;
-    transform: scale(1.22);
-  }
-}
-/* The etcher — ink segments marching the glyph's edge. Constant speed on
-   purpose: a machine writing, not a UI easing. The dash period (18+118)
-   equals the offset travel, so the loop is seamless. */
-.tex-delib-trace {
-  fill: none;
-  stroke: rgba(0, 0, 0, 0.55);
-  stroke-width: 0.9;
-  stroke-linecap: round;
-  stroke-dasharray: 18 118;
-  animation: tex-delib-march 2400ms linear infinite;
-}
-@keyframes tex-delib-march {
-  to {
-    stroke-dashoffset: -136;
-  }
-}
-/* The ink — the T itself, breathing under the fabrication. */
-.tex-delib-ink {
-  fill: var(--tex-ink);
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1;
+  color: var(--tex-ink);
   animation: tex-deliberate 2800ms var(--tex-ease-inout) infinite;
 }
 @keyframes tex-deliberate {
   0%,
   100% {
-    opacity: 0.22;
+    opacity: 0.3;
+    transform: scale(0.99);
   }
   50% {
-    opacity: 0.55;
+    opacity: 0.82;
+    transform: scale(1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .tex-deliberation {
     animation: none;
   }
-  .tex-delib-echo,
-  .tex-delib-trace {
-    display: none;
-  }
-  .tex-delib-ink {
+  .tex-deliberation-mark {
     animation: none;
     opacity: 0.7;
   }
