@@ -18,6 +18,8 @@ import "./gallery.css";
 import SpokenLine from "../components/Dashboard/SpokenLine";
 import SealAnchor from "../components/Dashboard/SealAnchor";
 import MappingMark from "../components/Dashboard/MappingMark";
+import ProofReceipt from "../components/Dashboard/ProofReceipt";
+import SpanAnswer from "../components/Dashboard/SpanAnswer";
 
 /* Mock anchor — a true 64-char sha256 shape, so the seal harness exercises
    the same lock the live card runs on a real anchor. */
@@ -110,9 +112,9 @@ const SURFACES = {
         <p className="tex-held-cert" aria-hidden="true">
           certified hold · band [0.31, 0.34]
         </p>
-        <p className="tex-held-ask" aria-hidden="true">
-          press and hold anywhere to ask Tex about it
-        </p>
+        <button type="button" data-act="ask-held" className="tex-held-ask">
+          Hold to ask Tex about it
+        </button>
       </div>
     ),
   },
@@ -177,9 +179,31 @@ const SURFACES = {
             <span className="tex-claim-cue" aria-hidden="true">proof</span>
           </button>
         </div>
-        <div className="tex-object tex-object--in-presence" role="status">
-          <span className="tex-object-value">{HASH}</span>
-        </div>
+        <ProofReceipt
+          value={HASH}
+          kind="hash"
+          claim="Two hundred and six agents are under seal."
+        />
+      </div>
+    ),
+  },
+  "span-proof": {
+    label: "06a · span answer — proof interaction",
+    node: (
+      <div className="tex-presence">
+        <SpanAnswer
+          question="How many agents are under seal?"
+          answer={{
+            spans: [
+              {
+                text: "Two hundred and six agents are under seal.",
+                verdict: "SEALED",
+                anchor_sha256: HASH,
+              },
+            ],
+            exhibits: [],
+          }}
+        />
       </div>
     ),
   },
@@ -277,6 +301,7 @@ const STATUS = {
   ignite: "Watching",
   falter: "Chain broken",
   "presence-sealed": "Watching",
+  "span-proof": "Watching",
   "presence-derived": "Watching",
   "presence-abstain": "Watching",
   object: "Watching",
@@ -305,9 +330,16 @@ function Frame({ status }) {
 function Screen({ id }) {
   const s = SURFACES[id];
   if (!s) return null;
+  const fieldClass = [
+    "tex-field",
+    s.faltering && "tex-field--faltering",
+    id === "held" && "tex-field--held",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <section
-      className={"tex-field" + (s.faltering ? " tex-field--faltering" : "")}
+      className={fieldClass}
       data-gallery={id}
       style={{ cursor: "default" }}
     >

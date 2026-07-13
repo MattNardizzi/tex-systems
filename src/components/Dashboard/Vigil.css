@@ -374,7 +374,10 @@
 }
 
 .tex-held-ask {
-  margin: 4em 0 0;
+  min-height: 44px;
+  margin: 3em 0 0;
+  padding: 0 8px;
+  border-bottom: 1px solid transparent;
   font-family: var(--tex-display);
   font-size: clamp(9px, 0.9vw, 10.5px);
   letter-spacing: 0.24em;
@@ -383,6 +386,20 @@
   color: var(--tex-ink-mute);
   opacity: 0.62;
   animation: tex-rise var(--tex-t3) var(--tex-ease) 900ms both;
+  transition:
+    opacity var(--tex-t1) var(--tex-ease-micro),
+    color var(--tex-t1) var(--tex-ease-micro),
+    border-color var(--tex-t1) var(--tex-ease-micro);
+}
+.tex-held-ask:hover,
+.tex-held-ask:focus-visible {
+  color: var(--tex-ink);
+  border-bottom-color: var(--tex-ink-hair-2);
+  opacity: 1;
+}
+.tex-held-ask:focus-visible {
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -530,77 +547,6 @@
   opacity: 0.5;
   cursor: default;
   pointer-events: none;
-}
-
-/* ------------------------------------------------------------------ */
-/* The Begin passcode — the velvet rope. A lean, centered field in the  */
-/* id register (mono), an underline its only chrome, sitting in the     */
-/* door's reserved act slot beneath the manifesto next to Continue. A   */
-/* wrong word shakes it once and clears; nothing else about the calm    */
-/* surface moves.                                                       */
-/* ------------------------------------------------------------------ */
-.tex-passcode {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-.tex-passcode-field {
-  width: min(58vw, 15em);
-  padding: 0.55em 0.2em;
-  border: none;
-  border-bottom: 1px solid var(--tex-ink-hair-2);
-  border-radius: 0;
-  background: transparent;
-  color: var(--tex-ink);
-  font-family: var(--tex-mono);
-  font-size: clamp(13px, 1.3vw, 16px);
-  letter-spacing: 0.14em;
-  text-align: center;
-  caret-color: var(--tex-ink);
-  transition: border-color var(--tex-micro) var(--tex-ease-micro);
-}
-.tex-passcode-field::placeholder {
-  color: var(--tex-ink-faint);
-  letter-spacing: 0.2em;
-  text-transform: lowercase;
-}
-.tex-passcode-field:focus {
-  outline: none;
-  border-bottom-color: var(--tex-ink);
-}
-/* A wrong word — the underline firms to full ink and the field shakes once,
-   then the placeholder confesses "not the word" over an empty field. */
-.tex-passcode-field.is-wrong {
-  border-bottom-color: var(--tex-ink);
-  animation: tex-passcode-shake var(--tex-t3) var(--tex-ease-inout);
-}
-.tex-passcode-field.is-wrong::placeholder {
-  color: var(--tex-ink-soft);
-}
-@keyframes tex-passcode-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-5px);
-  }
-  40% {
-    transform: translateX(5px);
-  }
-  60% {
-    transform: translateX(-3px);
-  }
-  80% {
-    transform: translateX(3px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tex-passcode-field.is-wrong {
-    animation: none;
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -876,8 +822,8 @@
 
 /* THE BREATH ITSELF — one compositable overlay, shared by both washes.
    Animating background-color on the 100vh field forced a full-viewport
-   MAIN-THREAD repaint every frame, re-blended through the fixed soft-light
-   grain, for as long as any hold stood — with a live estate, almost always;
+   MAIN-THREAD repaint every frame for as long as any hold stood — with a live
+   estate, almost always;
    the single largest steady-state paint cost on the surface. The identical
    breath as the wash tint at animated OPACITY over the white paper
    (α·tint + (1−α)·white IS the old keyframe interpolation, same easing, same
@@ -1377,7 +1323,8 @@
   caret-color: transparent;
   animation: none;
 }
-/* The one resident concession on touch: a single tiny, static hairline. */
+/* The one resident concession on touch: a literal, quiet TYPE mark. The old
+   14×1px hairline was elegant only after someone already knew what it meant. */
 .tex-write-glyph {
   position: absolute;
   left: 50%;
@@ -1400,11 +1347,15 @@
   outline-offset: 3px;
 }
 .tex-write-glyph::before {
-  content: "";
-  width: 14px;
-  height: 1px;
-  background: var(--tex-ink);
-  opacity: 0.18;
+  content: "type";
+  font-family: var(--tex-display);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  text-transform: uppercase;
+  color: var(--tex-ink-mute);
+  opacity: 0.72;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1691,4 +1642,130 @@
   line-height: 1.4;
   color: var(--tex-ink);
   text-wrap: balance;
+}
+
+/* ------------------------------------------------------------------ */
+/* SMALL-SCREEN DECISION SAFETY                                        */
+/* A held decision may contain authored copy of unpredictable length.   */
+/* On a narrow screen it becomes a calm, scroll-safe reading surface;   */
+/* touch scrolling over the card is protected in Vigil.jsx, and the     */
+/* explicit hold-to-ask act preserves the voice reach without making a  */
+/* swipe accidentally open the microphone.                              */
+/* ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .tex-claim {
+    min-height: 44px;
+  }
+
+  .tex-field--held {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+  }
+
+  .tex-held {
+    min-height: 100%;
+    max-width: 100%;
+    justify-content: center;
+    padding:
+      max(54px, calc(env(safe-area-inset-top) + 30px))
+      20px
+      max(54px, calc(env(safe-area-inset-bottom) + 30px));
+    transform: none;
+    touch-action: pan-y;
+  }
+
+  .tex-held-sentence {
+    font-size: 22px;
+    line-height: 1.3;
+  }
+
+  .tex-held-detail {
+    margin-top: 1.2em;
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
+  .tex-held-agent {
+    margin-bottom: 0.9em;
+  }
+
+  .tex-held-excerpt {
+    font-size: 22px;
+    line-height: 1.32;
+  }
+
+  .tex-held-tex-line {
+    margin-top: 1em;
+    font-size: 14px;
+  }
+
+  .tex-held-hold {
+    margin-top: 24px;
+  }
+
+  .tex-held-question {
+    margin-top: 14px;
+    padding-top: 14px;
+    font-size: 24px;
+    line-height: 1.3;
+  }
+
+  .tex-held .tex-acts {
+    width: min(100%, 19rem);
+    margin-top: 24px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tex-held .tex-act {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .tex-held-cert {
+    margin-top: 18px;
+    font-size: 9.5px;
+  }
+
+  .tex-held-ask {
+    margin-top: 18px;
+  }
+
+  .tex-held-row {
+    padding: 1.1em 0;
+  }
+
+  .tex-held-row-ask {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+/* A proof is a stable reading state, not a transient overlay. When a receipt
+   opens, let the answer and receipt flow together and scroll on short screens. */
+.tex-field:has(.tex-proof-receipt) {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+.tex-field:has(.tex-proof-receipt) .tex-presence {
+  position: relative;
+  left: auto;
+  top: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(56px, calc(env(safe-area-inset-top) + 28px));
+  padding-bottom: max(56px, calc(env(safe-area-inset-bottom) + 28px));
+  transform: none;
+  justify-content: center;
 }

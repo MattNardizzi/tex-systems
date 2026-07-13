@@ -1,5 +1,6 @@
 import { useState } from "react";
 import SpokenLine from "./SpokenLine";
+import ProofReceipt from "./ProofReceipt";
 import { TIER_LABEL, TIER_GLOSS } from "../../lib/presence";
 import "./SpanAnswer.css";
 
@@ -116,9 +117,12 @@ function Span({ span, anchor, wordOffset, activeWord }) {
             </span>
           </button>
           {open && (
-            <p className="tex-span-anchor" role="status" aria-live="polite">
-              {anchor}
-            </p>
+            <ProofReceipt
+              value={anchor}
+              kind="hash"
+              claim={span?.text}
+              onClose={() => setOpen(false)}
+            />
           )}
         </div>
       )}

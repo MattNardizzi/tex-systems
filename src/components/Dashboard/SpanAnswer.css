@@ -49,41 +49,33 @@
   letter-spacing: 0;
 }
 
-/* The sealed anchor, revealed under a SEALED span's PROOF affordance. The id
-   register: Geist Mono, tabular, break-anywhere so the full 64-char digest is
-   copyable and never elided — the one thing the glass may hold. */
+/* The stable proof receipt sits under the SEALED span. Its typography and copy
+   controls live in ProofReceipt.css; this wrapper only keeps it aligned with the
+   span that produced it. */
 .tex-span-proof {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.9em;
+  width: 100%;
+  pointer-events: auto;
 }
-.tex-span-anchor {
-  margin: 0;
-  font-family: var(--tex-mono);
-  font-size: clamp(11px, 1.2vw, 13px);
-  letter-spacing: 0.04em;
-  line-height: 1.6;
-  color: var(--tex-ink-2);
-  font-variant-numeric: tabular-nums;
-  word-break: break-all;
-  max-width: 30em;
-  animation: tex-object-rise var(--tex-t4) var(--tex-ease) both;
+
+/* SpanAnswer lives inside .tex-presence, whose prose is deliberately pointer-
+   transparent so the field can remain the hold-to-ask target. These are the
+   two explicit reaches inside that prose, so return pointer ownership to them. */
+.tex-span-answer .tex-claim--held {
+  pointer-events: auto;
 }
 
 @media (max-width: 480px) {
   .tex-span-answer {
     gap: 1.8em;
   }
-  .tex-span-anchor {
-    font-size: 11px;
-    letter-spacing: 0.02em;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tex-span,
-  .tex-span-anchor {
+  .tex-span {
     animation: none;
   }
 }

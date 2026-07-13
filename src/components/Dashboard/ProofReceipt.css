@@ -1,0 +1,135 @@
+.tex-proof-receipt {
+  width: min(86vw, 36rem);
+  margin: 2.2em auto 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--tex-ink-hair-2);
+  display: grid;
+  gap: 14px;
+  color: var(--tex-ink);
+  text-align: left;
+  pointer-events: auto;
+  animation: tex-proof-open var(--tex-t4) var(--tex-ease) both;
+}
+
+.tex-proof-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.tex-proof-title,
+.tex-proof-kind,
+.tex-proof-actions button {
+  font-family: var(--tex-display);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.tex-proof-title {
+  color: var(--tex-ink);
+}
+
+.tex-proof-kind {
+  color: var(--tex-ink-mute);
+  text-align: right;
+}
+
+.tex-proof-claim {
+  margin: 2px 0 0;
+  max-width: 34em;
+  font-size: clamp(13px, 1.25vw, 15px);
+  line-height: 1.45;
+  color: var(--tex-ink-soft);
+}
+
+.tex-proof-value {
+  display: block;
+  margin: 0;
+  padding: 13px 0;
+  border-top: 1px solid var(--tex-ink-hair);
+  border-bottom: 1px solid var(--tex-ink-hair);
+  font-family: var(--tex-mono);
+  font-size: clamp(11px, 1.1vw, 12.5px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: 0.035em;
+  color: var(--tex-ink-2);
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.tex-proof-actions {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.tex-proof-actions button {
+  min-height: 44px;
+  padding: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--tex-ink-soft);
+  transition:
+    color var(--tex-t1) var(--tex-ease-micro),
+    border-color var(--tex-t1) var(--tex-ease-micro);
+}
+
+.tex-proof-actions button:hover,
+.tex-proof-actions button:focus-visible {
+  color: var(--tex-ink);
+  border-bottom-color: var(--tex-ink);
+}
+
+.tex-proof-actions button:focus-visible {
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
+}
+
+.tex-proof-copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes tex-proof-open {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .tex-proof-receipt {
+    width: 100%;
+    margin-top: 1.7em;
+  }
+
+  .tex-proof-head {
+    gap: 14px;
+  }
+
+  .tex-proof-value {
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-proof-receipt {
+    animation: none;
+  }
+}

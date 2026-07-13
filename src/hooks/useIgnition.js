@@ -110,7 +110,7 @@ export function useIgnition() {
       /* status.ignited===true  → door never opens, land on the live vigil.
          status.ignited===false → honest first-ever run, the full ceremony.
          The contract guarantees the boolean; anything else is treated as the
-         first-run door (which is passcode-gated regardless). */
+         first-run door (the preview passphrase has already been crossed). */
       setDown(false);
       setIgnited(status?.ignited === true);
       return true;

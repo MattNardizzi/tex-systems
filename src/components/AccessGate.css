@@ -1,0 +1,204 @@
+.tex-access {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: max(32px, env(safe-area-inset-top)) 24px
+    max(32px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 105% at 43% -8%, #ffffff 0%, #fdfdfd 62%, #f8f8f8 100%);
+  color: var(--tex-ink);
+}
+
+.tex-access-threshold {
+  width: min(100%, 31rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: tex-access-arrive var(--tex-t5) var(--tex-ease) both;
+}
+
+.tex-access-mark,
+.tex-access-kicker,
+.tex-access-instruction,
+.tex-access-error {
+  margin: 0;
+}
+
+.tex-access-mark {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+}
+
+.tex-access-kicker {
+  margin-top: 22px;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  text-transform: uppercase;
+  color: var(--tex-ink-mute);
+}
+
+.tex-access h1 {
+  margin: 44px 0 0;
+  max-width: 12em;
+  font-family: var(--tex-display);
+  font-size: clamp(30px, 4.6vw, 46px);
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.tex-access-instruction {
+  margin-top: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tex-ink-soft);
+}
+
+.tex-access-form {
+  width: min(100%, 21rem);
+  margin-top: 42px;
+  display: grid;
+  justify-items: stretch;
+}
+
+.tex-access-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tex-access-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1px solid var(--tex-ink-hair-2);
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tex-ink);
+  font-family: var(--tex-mono);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  caret-color: var(--tex-ink);
+  transition: border-color var(--tex-t2) var(--tex-ease-micro);
+}
+
+.tex-access-input::placeholder {
+  color: var(--tex-ink-faint);
+  letter-spacing: 0.18em;
+}
+
+.tex-access-input:focus {
+  border-bottom-color: var(--tex-ink);
+}
+
+.tex-access-input.is-wrong {
+  border-bottom-color: var(--tex-ink);
+  animation: tex-access-shake var(--tex-t3) var(--tex-ease-inout);
+}
+
+.tex-access-submit {
+  min-height: 48px;
+  margin-top: 20px;
+  border: 1px solid var(--tex-ink);
+  border-radius: 999px;
+  background: var(--tex-ink);
+  color: var(--tex-paper);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  text-transform: uppercase;
+  transition:
+    transform var(--tex-t1) var(--tex-ease-micro),
+    background var(--tex-t1) var(--tex-ease-micro),
+    color var(--tex-t1) var(--tex-ease-micro);
+}
+
+.tex-access-submit:hover,
+.tex-access-submit:focus-visible {
+  background: var(--tex-paper);
+  color: var(--tex-ink);
+}
+
+.tex-access-submit:focus-visible {
+  outline: 1px solid var(--tex-ink-hair-2);
+  outline-offset: 3px;
+}
+
+.tex-access-submit:active {
+  transform: scale(0.985);
+}
+
+.tex-access-error {
+  min-height: 18px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--tex-ink-soft);
+  opacity: 0;
+  transition: opacity var(--tex-t2) var(--tex-ease);
+}
+
+.tex-access-error.is-shown {
+  opacity: 1;
+}
+
+@keyframes tex-access-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tex-access-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+@media (max-width: 480px) {
+  .tex-access h1 {
+    margin-top: 38px;
+    font-size: 32px;
+  }
+
+  .tex-access-form {
+    margin-top: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-access-threshold,
+  .tex-access-input.is-wrong {
+    animation: none;
+  }
+}

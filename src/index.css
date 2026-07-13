@@ -7,9 +7,9 @@
    first, weight last. Every glyph carries the same hairline stroke,
    as if the whole interface were laser-etched. (Michroma is retired.)
 
-   The palette is strictly achromatic: pure white paper, a neutral ink
+   The palette is strictly achromatic: pure white glass, a neutral ink
    ladder, nothing tinted — no blue cast, no warm cast, ever. Depth comes
-   from one faint overhead light and a whisper of grain, never from colour.
+   from one faint overhead light, never from colour.
    The only hue the surface may ever show is the cold pallor of a faltering
    breath, and even that stays neutral.
    ============================================================ */
@@ -112,29 +112,6 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* GRAIN — one global, luminance-only microtexture over the whole surface.
-   A desaturated fractal-noise tile at a hair of opacity, composited via
-   soft-light so it adds texture WITHOUT darkening or tinting (soft-light of a
-   ~50% grey is a no-op; only the noise variance shows). It kills gradient
-   banding on 8-bit panels and gives the white a paper-like tactility that
-   reads as premium. pointer-events:none so it never intercepts the hold. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  mix-blend-mode: soft-light;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-}
-@media (prefers-reduced-motion: reduce) {
-  body::after {
-    opacity: 0.4;
-  }
-}
-
 button {
   font-family: inherit;
   cursor: pointer;
@@ -170,17 +147,11 @@ a {
   }
 }
 
-/* ── The light + the grain ───────────────────────────────────────────
-   The full-screen vigil surface (.tex-field) is the sheet of glass. It
-   carries two stacked background layers, blended into the white:
-
-     1. GRAIN — a desaturated fractal-noise tile (saturate 0 → guaranteed
-        neutral, no colour specks), at a hair of opacity. It kills the
-        banding a flat gradient would show and gives the white a faint
-        tactile, premium texture — paper, not a void.
-     2. LIGHT — one soft overhead light: pure white at the top-centre,
-        falling off to the faintest neutral grey at the lower corners, so
-        the surface reads as lit from above rather than flat-filled.
+/* ── The light ───────────────────────────────────────────────────────
+   The full-screen vigil surface (.tex-field) is one sheet of backlit glass.
+   A single overhead light falls from pure white at the top-centre to the
+   faintest neutral grey at the lower corners. The old global noise texture is
+   deliberately gone: one material, one light, no decorative compositing layer.
 
    Faltering carries its own COLD pallor and a pending decision (is-deciding)
    carries its own strictly-NEUTRAL breath; both breathe a tint overlay

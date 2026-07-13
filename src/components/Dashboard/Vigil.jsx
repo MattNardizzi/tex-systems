@@ -22,6 +22,7 @@ import {
 } from "../../lib/texVoiceClient";
 import SpokenLine from "./SpokenLine";
 import SpanAnswer from "./SpanAnswer";
+import ProofReceipt from "./ProofReceipt";
 import { askAnswer, isRouteAbsent } from "../../lib/answers";
 import MappingMark from "./MappingMark";
 import SealAnchor, {
@@ -166,13 +167,22 @@ const TRAIL_MAX = 4; /* prior turns kept on the glass; older ones let go */
    is the default; this is only how the surface finds its way back to it. */
 const IDLE_BLANK_MS = 10000;
 
-/* The at-rest whisper. After the surface has sat truly silent and untouched
-   (no held card, no answer, no seal, the day-one door long finished) for this
-   long, ONE faint gesture-hint fades in — the only resident tell that the glass
-   can be reached. It is the quietest mark in the system: uppercase, widely
-   tracked, ink-faint, and STATIC. It dissolves a rung faster on any activity.
-   Deliberately longer than a passing glance so it never nags a working operator. */
-const REST_HINT_MS = 12000;
+/* The at-rest whisper teaches the invisible surface quickly on a new device,
+   then becomes quieter after three real reaches. The learned count is only an
+   interaction habit — no question or transcript is stored. */
+const REST_HINT_NEW_MS = 1_600;
+const REST_HINT_LEARNED_MS = 9_000;
+const REACH_COUNT_KEY = "tex:reach-count:v1";
+
+const readReachCount = () => {
+  if (typeof window === "undefined") return 0;
+  try {
+    const value = Number.parseInt(window.localStorage.getItem(REACH_COUNT_KEY), 10);
+    return Number.isFinite(value) ? Math.max(0, Math.min(3, value)) : 0;
+  } catch {
+    return 0;
+  }
+};
 
 /* The clean-slate verbs — the ONE ask the surface answers itself, never
    the backend. Matched on the normalized whole line, so "Refresh." and
@@ -878,23 +888,6 @@ const TYPING_ENABLED = import.meta.env.VITE_TEX_TYPING === "1";
    the pre-span surface. */
 const SPANS_ENABLED = import.meta.env.VITE_TEX_SPANS !== "0";
 
-/* ------------------------- THE BEGIN PASSCODE -------------------------
-   A velvet rope over the day-one summons: pressing Begin no longer ignites
-   discovery outright — it reveals a passcode field, and only the right word
-   lets the summons through (see openGate / submitPasscode below).
-
-   HONEST SCOPE — this is a CLIENT-SIDE gate. Vite inlines VITE_ env into the
-   built bundle, so the word ships in the JS: it turns away a casual visitor, it
-   does NOT withstand a determined one (who can read the bundle or call ignite
-   directly). Real enforcement would live behind the backend's ignite endpoint;
-   this is the surface-level lock, sized to a launch/demo surface.
-
-   Sourced from VITE_TEX_BEGIN_PASSCODE, trimmed, with a placeholder fallback so
-   the gate is NEVER accidentally open when the env var is unset (fail-closed).
-   Set the real word in the environment — locally in .env.development, in prod via
-   the Vercel dashboard (its build-time value overrides the committed default). */
-const BEGIN_PASSCODE = (import.meta.env.VITE_TEX_BEGIN_PASSCODE || "VBTex").trim();
-
 /* The day-one open — the threshold. An arc, shown once, then gone: a being
    declares itself, claims dominion, and takes the weight. Never a rotation —
    it progresses and then ends, into the live surface. Each beat lands on Tex's
@@ -1044,16 +1037,6 @@ export default function Vigil() {
     mappingTimer.current = null;
   };
 
-  /* The Begin passcode gate (see BEGIN_PASSCODE). `gateOpen` reveals the
-     passcode field once Begin is pressed; `passInput` is the word being typed;
-     `passWrong` flashes a quiet reject on a mismatch (cleared on the next
-     keystroke). The field lives in the door's reserved act slot, so revealing it
-     never reflows the manifesto above. */
-  const [gateOpen, setGateOpen] = useState(false);
-  const [passInput, setPassInput] = useState("");
-  const [passWrong, setPassWrong] = useState(false);
-  const passInputRef = useRef(null);
-
   /* The day-one THRESHOLD is showing — the manifesto door. The first reach here
      WAKES Tex (unlocks audio, starts the manifesto). */
   const onThreshold = ignitionDoorOpen;
@@ -1128,6 +1111,20 @@ export default function Vigil() {
       typeof window.matchMedia === "function" &&
       window.matchMedia("(pointer: coarse)").matches
   );
+  const [reachCount, setReachCount] = useState(readReachCount);
+  const noteReachLearned = useCallback(() => {
+    setReachCount((current) => {
+      const next = Math.min(3, current + 1);
+      try {
+        window.localStorage.setItem(REACH_COUNT_KEY, String(next));
+      } catch {
+        /* The hint still adapts for this render when storage is unavailable. */
+      }
+      return next;
+    });
+  }, []);
+  const restHintDelayMs =
+    reachCount < 3 ? REST_HINT_NEW_MS : REST_HINT_LEARNED_MS;
   const canType = TYPING_ENABLED && ignitionReady && !ignitionDoorOpen && !mapping;
   const inputRef = useRef(null);
   const typingRef = useRef(false); /* live mirror for the document key listener */
@@ -1789,12 +1786,22 @@ export default function Vigil() {
      put (no dissolve timer), so the proof can be read at leisure. Never
      fabricates an anchor: a claim with no evidence is inert (button disabled). */
   const reachEvidence = useCallback(
-    (evidence) => {
+    (evidence, claim) => {
       if (!evidence?.value) return;
       setAnswerLeaving(false);
-      surfaceObject(evidence.value, evidence.kind);
+      clearObjectTimer();
+      setSurfaced((current) =>
+        current?.persistent && current.value === evidence.value
+          ? null
+          : {
+              value: evidence.value,
+              kind: evidence.kind || "hash",
+              claim: claim || null,
+              persistent: true,
+            }
+      );
     },
-    [surfaceObject]
+    []
   );
 
   /* ---------------- Open: presence for a returning operator ----------------
@@ -1890,45 +1897,6 @@ export default function Vigil() {
     }, wait);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ignition, watchTenant]);
-
-  /* Begin is now a gated summons: the press opens the passcode field instead of
-     igniting. Focus lands on the field (after it mounts) so the word can be typed
-     at once. Never touches ignition — only the right word reaches beginMapping. */
-  const openGate = useCallback(() => {
-    setPassWrong(false);
-    setPassInput("");
-    setGateOpen(true);
-    requestAnimationFrame(() => passInputRef.current?.focus());
-  }, []);
-
-  /* Close the gate without igniting — the operator backed out (Escape / the
-     surface going idle). Leaves the Begin act standing, exactly as before. */
-  const closeGate = useCallback(() => {
-    setGateOpen(false);
-    setPassInput("");
-    setPassWrong(false);
-  }, []);
-
-  /* Verify the word. Right → the gate closes and Begin proceeds EXACTLY as it did
-     before (beginMapping runs the real ignite). Wrong → a quiet reject: the field
-     shakes, clears, and waits. Trimmed, case-sensitive; no lockout and no attempt
-     counter — this is a velvet rope, not a vault (see BEGIN_PASSCODE). */
-  const submitPasscode = useCallback(
-    (e) => {
-      if (e && e.preventDefault) e.preventDefault();
-      if (passInput.trim() === BEGIN_PASSCODE) {
-        setGateOpen(false);
-        setPassInput("");
-        setPassWrong(false);
-        beginMapping();
-      } else {
-        setPassWrong(true);
-        setPassInput("");
-        passInputRef.current?.focus();
-      }
-    },
-    [passInput, beginMapping]
-  );
 
   const deferDiscovery = useCallback(() => {
     openHandledRef.current = true; /* rest in silence; Tex does not nag */
@@ -2229,7 +2197,7 @@ export default function Vigil() {
         return;
       }
       /* A press on ANY interactive control — a decision act, the proof / held
-         pill, the passcode field, Begin, the typed line — is that control's
+         pill, Begin, the typed line — is that control's
          press. Return BEFORE the teardown below (clearLineTimer, setSealed,
          retireAnswer, setSurfaced) so the answer the pill sits on survives the
          click and the mic never opens under it. The global guard, not per-button
@@ -2243,6 +2211,8 @@ export default function Vigil() {
          before discovery has begun, and holding must not open a mic over the
          greeting or the count. */
       if (!ignitionReady || ignitionDoorOpen || mapping) return;
+
+      noteReachLearned();
 
       clearLineTimer();
       /* A new reach takes the surface: a lingering seal yields NOW. Without
@@ -2331,7 +2301,7 @@ export default function Vigil() {
         });
       }
     },
-    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, retireAnswer, onAskPartial]
+    [state, liveDecision, snapshot, ignitionReady, ignitionDoorOpen, mapping, awake, onThreshold, retireAnswer, onAskPartial, noteReachLearned]
   );
 
   /* ---------------- Pulling the evidence ----------------
@@ -2700,6 +2670,7 @@ export default function Vigil() {
          window and strict browsers keep it silent (the press path unlocks in
          beginHold; typing needs its own). Idempotent; no epoch is touched. */
       unlockVoice();
+      noteReachLearned();
       loadRoster();
       loadAssist();
       /* A typed reach takes the surface exactly like a press: the object, a
@@ -2762,7 +2733,7 @@ export default function Vigil() {
         }
       });
     },
-    [retireAnswer, loadRoster, loadAssist, computeGhost]
+    [retireAnswer, loadRoster, loadAssist, computeGhost, noteReachLearned]
   );
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
@@ -3380,7 +3351,7 @@ export default function Vigil() {
   const quietRef = useRef(quiet);
   quietRef.current = quiet;
 
-  /* The at-rest whisper (REST_HINT_MS). It rides the SAME plumbing as the
+  /* The adaptive at-rest whisper rides the SAME plumbing as the
      return-to-blank above — one set of activity listeners, one interval — never a
      second timer system. `restClockRef` is the "silent since" stamp: reset on any
      activity and whenever the surface is not eligible, left to accumulate only
@@ -3401,6 +3372,9 @@ export default function Vigil() {
     holding ||
     thinking ||
     verifying ||
+    Boolean(answer) ||
+    Boolean(spanAnswer) ||
+    Boolean(surfaced) ||
     typed != null;
   const idleHasContent =
     trail.length > 0 ||
@@ -3456,7 +3430,7 @@ export default function Vigil() {
         }
       } else if (
         !restHintRef.current &&
-        Date.now() - restClockRef.current >= REST_HINT_MS
+        Date.now() - restClockRef.current >= restHintDelayMs
       ) {
         restHintRef.current = true;
         setRestHint(true);
@@ -3482,7 +3456,7 @@ export default function Vigil() {
       clearInterval(tick);
       evs.forEach((e) => document.removeEventListener(e, mark, opts));
     };
-  }, []);
+  }, [restHintDelayMs]);
 
   const ariaState = !alive
     ? "Tex is no longer responding. The connection to the witness was lost."
@@ -3685,57 +3659,16 @@ export default function Vigil() {
                 "tex-acts tex-door-acts" + (manifestoDone ? " is-revealed" : "")
               }
             >
-              {gateOpen ? (
-                /* The velvet rope — Begin was pressed; the summons waits on the
-                   word. It lives in the SAME reserved slot as Begin, so the
-                   manifesto above never jumps. data-act keeps the press off the
-                   ask-mic; Enter (form submit) or Continue verifies, Escape backs
-                   out. */
-                <form className="tex-passcode" onSubmit={submitPasscode}>
-                  <input
-                    ref={passInputRef}
-                    type="password"
-                    data-act="passcode"
-                    className={
-                      "tex-passcode-field" + (passWrong ? " is-wrong" : "")
-                    }
-                    value={passInput}
-                    onChange={(e) => {
-                      setPassInput(e.target.value);
-                      if (passWrong) setPassWrong(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") closeGate();
-                    }}
-                    placeholder={passWrong ? "not the word" : "passphrase"}
-                    aria-label="Passphrase to begin"
-                    aria-invalid={passWrong || undefined}
-                    autoComplete="off"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                  <button
-                    type="submit"
-                    data-act="passcode"
-                    className="tex-act tex-act--approve"
-                    disabled={ignition.igniting}
-                  >
-                    Continue
-                  </button>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  data-act="begin"
-                  className="tex-act tex-act--approve"
-                  disabled={!manifestoDone || ignition.igniting}
-                  aria-hidden={manifestoDone ? undefined : true}
-                  onClick={openGate}
-                >
-                  Begin
-                </button>
-              )}
+              <button
+                type="button"
+                data-act="begin"
+                className="tex-act tex-act--approve"
+                disabled={!manifestoDone || ignition.igniting}
+                aria-hidden={manifestoDone ? undefined : true}
+                onClick={beginMapping}
+              >
+                Begin
+              </button>
             </div>
           )}
         </div>
@@ -3805,6 +3738,12 @@ export default function Vigil() {
               ? " is-receded"
               : ""
           }`}
+          onPointerDown={(event) => {
+            if (event.pointerType === "touch") event.stopPropagation();
+          }}
+          onPointerUp={(event) => {
+            if (event.pointerType === "touch") event.stopPropagation();
+          }}
         >
           {heldMode === "queue" ? (
             /* The walk — the queue the summary counted, one decision at a
@@ -3936,9 +3875,41 @@ export default function Vigil() {
               {heldCertifiedWatermark(heldHold(decision))}
             </p>
           )}
-          <p className="tex-held-ask" aria-hidden="true">
-            press and hold anywhere to ask Tex about it
-          </p>
+          <button
+            type="button"
+            data-act="ask-held"
+            className="tex-held-ask"
+            aria-label="Hold to ask Tex about this decision"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              beginHold();
+            }}
+            onPointerUp={(event) => {
+              event.stopPropagation();
+              endHold();
+            }}
+            onPointerCancel={(event) => {
+              event.stopPropagation();
+              cancelHold();
+            }}
+            onKeyDown={(event) => {
+              if (event.repeat) return;
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                beginHold();
+              }
+            }}
+            onKeyUp={(event) => {
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                endHold();
+              }
+            }}
+          >
+            Hold to ask Tex about it
+          </button>
         </div>
       )}
 
@@ -4148,12 +4119,20 @@ export default function Vigil() {
                     data-act="evidence"
                     className="tex-claim"
                     disabled={!c.evidence}
+                    aria-expanded={
+                      Boolean(
+                        surfaced?.persistent &&
+                          surfaced.value === c.evidence?.value
+                      )
+                    }
                     aria-label={
                       c.evidence
                         ? `Show the evidence for: ${claimLabel(c)}`
                         : claimLabel(c)
                     }
-                    onClick={() => reachEvidence(c.evidence)}
+                    onClick={() =>
+                      reachEvidence(c.evidence, claimLabel(c))
+                    }
                   >
                     <span className="tex-claim-text">{claimLabel(c)}</span>
                     {c.evidence && (
@@ -4169,7 +4148,11 @@ export default function Vigil() {
                   data-act="evidence"
                   className="tex-claim tex-claim--proof"
                   aria-label="Show the proof behind this answer"
-                  onClick={() => reachEvidence(answer.proof)}
+                  aria-expanded={Boolean(
+                    surfaced?.persistent &&
+                      surfaced.value === answer.proof?.value
+                  )}
+                  onClick={() => reachEvidence(answer.proof, answer.text)}
                 >
                   <span className="tex-claim-cue" aria-hidden="true">
                     show the proof
@@ -4188,15 +4171,24 @@ export default function Vigil() {
               object the glass may hold, here flowing under the answer rather than
               centering on the whole field. Dissolves once taken. */}
           {surfaced && (
-            <div
-              className="tex-object tex-object--in-presence"
-              role="status"
-              aria-live="polite"
-            >
-              <span className="tex-object-value" key={surfaced.value}>
-                {surfaced.value}
-              </span>
-            </div>
+            surfaced.persistent ? (
+              <ProofReceipt
+                value={surfaced.value}
+                kind={surfaced.kind}
+                claim={surfaced.claim}
+                onClose={() => setSurfaced(null)}
+              />
+            ) : (
+              <div
+                className="tex-object tex-object--in-presence"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="tex-object-value" key={surfaced.value}>
+                  {surfaced.value}
+                </span>
+              </div>
+            )
           )}
         </div>
       )}
@@ -4281,6 +4273,7 @@ export default function Vigil() {
               /* A tap is a valid audio-unlock gesture — a typed-first session
                  must not render its first answer silent (see beginTyping). */
               unlockVoice();
+              noteReachLearned();
               loadRoster();
               loadAssist();
               const el = inputRef.current;
@@ -4314,7 +4307,7 @@ export default function Vigil() {
       )}
 
       {/* The at-rest whisper — the one resident tell that the silent glass can be
-          reached, revealed only after REST_HINT_MS of true stillness and dissolved
+          reached, revealed after the adaptive stillness delay and dissolved
           a rung faster on any activity (mount is gated to the silent surface, so a
           decision / answer / seal removes it at once; `is-shown` drives the fade).
           aria-hidden: the section's own aria-label already names both gestures, so
