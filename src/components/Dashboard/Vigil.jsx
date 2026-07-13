@@ -638,35 +638,22 @@ function HeldRowsList({ rows, onResolve }) {
 
 /* ------------------------------------------------------------------ */
 /* The deliberation mark — what Tex shows while it weighs the answer    */
-/* against what it can prove. Not a borrowed dot, not a spinner: a       */
-/* nascent sha256 held STILL. Six hex glyphs in the seal's own voice     */
-/* (Geist Mono, the quietest ink), frozen the instant the pause opens    */
-/* and clearing the instant the answer takes the glass and the real seal */
-/* surfaces. It does not churn for the round-trip — stillness reads as   */
-/* weighing. One object, two moments: this is the seal, a breath before  */
-/* it exists.                                                            */
+/* against what it can prove. Not a borrowed dot: a nascent sha256,     */
+/* still searching. Six hex glyphs in the seal's own voice (Geist Mono, */
+/* the quietest ink), scrambling on a calm, throttled cadence that reads*/
+/* as weighing — never a frantic buffer — then clearing the instant the */
+/* answer takes the glass and the real seal surfaces. One object, two   */
+/* moments: this is the seal, a breath before it exists.                */
 /* ------------------------------------------------------------------ */
-const DELIBERATION_HEX = "0123456789abcdef";
-const DELIBERATION_LEN = 6;
-function randomHexRun() {
-  let s = "";
-  for (let i = 0; i < DELIBERATION_LEN; i++) {
-    s += DELIBERATION_HEX[(Math.random() * 16) | 0];
-  }
-  return s;
-}
-
+/* The deliberation mark — Tex's own initial, present and breathing. A single
+   capital T in the voice register (Inter Light): not a spinner, not a fragment
+   of machine truth — Tex itself, holding the beat while it weighs the answer
+   against what it can prove. All motion lives in CSS, so reduced-motion users
+   get a still, faint T for free. */
 function DeliberationMark() {
-  /* Six hex glyphs in the seal's own voice, minted ONCE on mount and held STILL
-     at low ink. Feedback is telepathic — the mark is on the glass the instant
-     the pause opens — but it does NOT animate for the round-trip: no scramble,
-     no breathe, no interval clock. Stillness is the register; the real seal's
-     char-lock is the only motion Tex earns. (Frozen for every viewer alike, so
-     reduced motion needs no special path here.) */
-  const [glyphs] = useState(randomHexRun);
   return (
     <span className="tex-deliberation-mark" aria-hidden="true">
-      {glyphs}
+      T
     </span>
   );
 }

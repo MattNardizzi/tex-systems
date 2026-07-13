@@ -120,7 +120,9 @@ const SURFACES = {
     label: "04 · deliberation",
     node: (
       <div className="tex-deliberation" role="status">
-        <span className="tex-deliberation-mark" aria-hidden="true" />
+        <span className="tex-deliberation-mark" aria-hidden="true">
+          T
+        </span>
       </div>
     ),
   },

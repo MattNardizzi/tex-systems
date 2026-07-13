@@ -1050,10 +1050,8 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* The gate-verification pause — a single STILL ink mark. Not a spinner:  */
-/* Tex weighing the answer against proof. It appears the instant the      */
-/* pause opens (telepathic) but never animates for the round-trip; the    */
-/* container's one entrance rise is the only motion.                      */
+/* The gate-verification pause — a single ink mark breathing on a slow,  */
+/* even rhythm. Not a spinner: Tex weighing the answer against proof.    */
 /* ------------------------------------------------------------------ */
 .tex-deliberation {
   position: absolute;
@@ -1066,23 +1064,36 @@
   pointer-events: none;
   animation: tex-voice-rise var(--tex-t3) var(--tex-ease) both;
 }
-/* A nascent sha256, held STILL — the seal's own voice (Geist Mono, the quietest
-   ink), a hex fragment frozen in place. Monospace holds every glyph on the same
-   advance, so the run reads as one exact mark. The trailing tracking is absorbed
-   by an equal lead so the mark reads centred. It does not breathe or scramble:
-   the real seal's char-lock is the only motion Tex earns. */
+/* Tex's initial, thinking — a single capital T in the voice register (Inter
+   Light, the only face Tex itself wears). Ink gathers and thins on a slow,
+   even breath with a hair of scale riding the same rhythm: presence weighing
+   an answer, not a spinner. One glyph, one motion, achromatic. */
 .tex-deliberation-mark {
-  font-family: var(--tex-mono);
-  font-weight: 500;
-  font-size: clamp(14px, 2vw, 19px);
-  letter-spacing: 0.34em;
-  padding-left: 0.34em;
-  color: var(--tex-ink-faint);
-  white-space: nowrap;
+  font-family: var(--tex-display);
+  font-weight: 300;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1;
+  color: var(--tex-ink);
+  animation: tex-deliberate 2800ms var(--tex-ease-inout) infinite;
+}
+@keyframes tex-deliberate {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.99);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .tex-deliberation {
     animation: none;
+  }
+  .tex-deliberation-mark {
+    animation: none;
+    opacity: 0.7;
   }
 }
 
