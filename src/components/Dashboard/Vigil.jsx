@@ -157,6 +157,10 @@ function morphSurface(apply) {
 /* ------------------------------------------------------------------ */
 const TRAIL_MAX = 4; /* prior turns kept on the glass; older ones let go */
 
+/* One standard beat (--tex-t3) the retiring answer fades on its is-leaving path
+   before it clears — the same window a fast re-ask must beat to keep its answer. */
+const ANSWER_LEAVE_MS = 240;
+
 /* Return to silence. When nothing is asked of Tex and no hand is on the glass
    for this long, the surface dissolves back to empty white — the resting state
    the whole product is built around. It is the PASSIVE twin of Escape: the same
@@ -336,10 +340,11 @@ const heldRowTime = (row) => {
 };
 
 /* The seal screen: how long a resolved decision rests alone on the glass —
-   the verdict line, then its sealed number scrambling and LOCKING onto the real
-   anchor — before the queue morphs to the next. Long enough to watch the number
-   land (the scramble-lock's own lead-in + stagger + settle) and hold a beat. */
-const HELD_SEAL_BEAT_MS = 2600;
+   the verdict line and its sealed anchor — before the queue morphs to the next.
+   The walk swaps the anchor in STATICALLY (the scramble-lock hero is reserved for
+   the dedicated seal surface), so this is a READ beat: long enough to register the
+   number that just landed and hold, not the unplayed scramble timeline. */
+const HELD_SEAL_BEAT_MS = 1500;
 /* Keep-holding seals nothing to a verdict, so there is no number to land — the
    line alone rests a shorter beat before the next decision. */
 const HELD_HOLD_BEAT_MS = 1300;
@@ -1428,7 +1433,30 @@ export default function Vigil() {
       };
       setTrail((t) => [...t, entry].slice(-TRAIL_MAX));
     }
-    clearAnswer();
+    /* Revive the designed dissolve: the plain answer does not hard-cut — it fades
+       on its is-leaving path (tex-object-fade, --tex-t3) as its trail copy rises
+       above it, then clears. Only the plain-answer surface carries is-leaving, so
+       a standing SPAN turn (no fade wired) still clears at once. The deferred
+       clear is gated by answerEpochRef — surfaceAnswer bumps it when a new turn
+       takes the glass — so a fast re-ask inside the leave beat is never clobbered
+       by this turn's pending clear. */
+    if (!a?.text) {
+      clearAnswer();
+      return;
+    }
+    clearAnswerTimer();
+    setAnswerLeaving(true);
+    /* The retire path's live mirrors drop NOW (the DOM stays up on `answer`
+       state through the fade) so a second retire inside the leave beat finds
+       nothing standing and can't re-push this turn into the trail. */
+    answerRef.current = null;
+    spanAnswerRef.current = null;
+    const leavingEpoch = answerEpochRef.current;
+    answerTimer.current = setTimeout(() => {
+      answerTimer.current = null;
+      if (answerEpochRef.current !== leavingEpoch) return; /* a new turn took the glass */
+      clearAnswer();
+    }, ANSWER_LEAVE_MS);
   }, [clearAnswer]);
 
   /* Generation token for the ASK round-trip — the request-level twin of
@@ -2430,7 +2458,11 @@ export default function Vigil() {
     }
     holdPointerRef.current = null;
     holdActiveRef.current = false;
-    setHolding(false);
+    /* The gesture guard (holdActiveRef) is released instantly above; the visible
+       `holding` state — the listening orb — clears one beat later, INSIDE the
+       release morph, so the orb dissolves into the deliberation mark (Tex taking
+       the floor) instead of hard-snapping to nothing. The no-recognizer path
+       below has no mark to rise into, so it clears the orb plainly. */
 
     /* The spoken question comes from the browser's own recognizer (the voice
        gateway is muted); fall back to the gateway listener if it somehow opened.
@@ -2458,6 +2490,7 @@ export default function Vigil() {
     /* No recognizer opened (unsupported / denied). The gesture still happened,
        so a silent reach is answered and a held reach pulls the proof. */
     if (!capture) {
+      setHolding(false); /* no mark to rise into — retire the orb plainly */
       if (reachInHeld) pullEvidence(liveDecision);
       else if (reachInSilence) sayHere();
       return;
@@ -2485,7 +2518,15 @@ export default function Vigil() {
       }
     }
 
-    setThinking(true);
+    /* The floor changes hands: the listening orb retires and the deliberation
+       mark rises in ONE crossfade (--tex-t4), not two un-cross-faded motions at
+       the instant of release. Both flags flip inside the same morph callback so
+       there is no frame where the orb has snapped away before the mark arrives.
+       Reduced motion / no-VT falls back to an instant apply, as everywhere. */
+    morphSurface(() => {
+      setHolding(false);
+      setThinking(true);
+    });
     capture
       .stop()
       .then((transcript) => {
