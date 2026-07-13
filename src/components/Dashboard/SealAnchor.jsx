@@ -92,7 +92,11 @@ function runScrambleLock(row, rawTarget) {
         cell.textContent = target[i];
         cell.classList.add("is-locked");
         if (cell.animate) {
-          cell.animate(
+          /* Promote the cell to the compositor ONLY for the 140ms settle, then
+             release — a per-cell will-change that never outlives its animation,
+             so nothing is left resident on the sealed glass. */
+          cell.style.willChange = "transform";
+          const settle = cell.animate(
             [
               { transform: "translateY(3px) scale(1)" },
               { transform: "translateY(0) scale(1.04)", offset: 0.6 },
@@ -104,6 +108,11 @@ function runScrambleLock(row, rawTarget) {
               fill: "both",
             }
           );
+          const release = () => {
+            cell.style.willChange = "";
+          };
+          if (settle.finished) settle.finished.then(release, release);
+          else settle.onfinish = release;
         }
         deepTimers.push(
           setTimeout(() => {

@@ -72,6 +72,14 @@
   max-width: 30em;
   animation: tex-object-rise var(--tex-t4) var(--tex-ease) both;
 }
+/* Dismiss is no longer a hard cut: drop the entrance animation (its forwards
+   fill would pin opacity at 1) and fade the receipt out over one --tex-t2 before
+   it unmounts — the reveal eased in, the dismiss eases out. */
+.tex-span-anchor.is-closing {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--tex-t2) var(--ease-settle);
+}
 
 @media (max-width: 480px) {
   .tex-span-answer {
@@ -87,5 +95,9 @@
   .tex-span,
   .tex-span-anchor {
     animation: none;
+  }
+  /* The dismiss snaps instead of fading — the receipt still leaves. */
+  .tex-span-anchor.is-closing {
+    transition: none;
   }
 }

@@ -168,13 +168,35 @@
   padding: 0 24px;
   text-align: center;
   transform: translateY(-2vh);
-  animation: tex-rise var(--tex-t4) var(--tex-ease) both;
-  transition: opacity var(--tex-t3) var(--tex-ease);
+  /* ONE system, not two. The card used to carry both `animation: tex-rise both`
+     AND an opacity transition; toggling `.is-receded` set `animation: none`, so
+     every RETURN from an overlay reverted the animation property and RESTARTED
+     tex-rise from its 0% keyframe — a full second entrance the operator already
+     saw, while the opacity transition fought it. Now the one-time entrance rides
+     @starting-style (opacity + an 8px rise, once, on true mount) and the
+     recede/return rides ONLY opacity — so coming back is a calm fade, never a
+     re-rise. Transform is transitioned solely for that entrance; recede never
+     touches it, so it never animates on return. */
+  transition:
+    opacity var(--tex-t3) var(--ease-settle),
+    transform var(--tex-t4) var(--ease-settle);
+}
+@starting-style {
+  .tex-held {
+    opacity: 0;
+    transform: translateY(calc(-2vh + 8px));
+  }
 }
 .tex-held.is-receded {
-  animation: none;
   opacity: 0;
   pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No enter/return animation: the entrance value applies at once and the
+     recede is an instant opacity swap. */
+  .tex-held {
+    transition: none;
+  }
 }
 .tex-held-sentence {
   max-width: 15em;
@@ -900,6 +922,13 @@
   z-index: -1;
   pointer-events: none;
   opacity: 0;
+  /* The wash breathes opacity continuously and the pseudo exists ONLY while the
+     wash is up, so the hint is scoped, never resident on a resting surface. It
+     promotes the breath to the compositor so that when `deciding`/`faltering`
+     clears inside a morph the wash DISSOLVES with the snapshot instead of
+     popping off mid-breath. The clears already ride existing morphSurface-
+     wrapped state changes (surfaceAnswer, setHeldRows, setSealed). */
+  will-change: opacity;
   animation: tex-field-wash 3100ms var(--tex-ease-inout) infinite;
 }
 .tex-field--faltering::after {
@@ -1597,7 +1626,18 @@
   align-items: center;
   gap: 0.3em;
   font-size: clamp(15px, 1.7vw, 19px);
+  /* tex-trail-rise stays transform-ONLY (its `both` fill then pins only
+     transform); ALL opacity — the depth-shift between ink rungs as items slot
+     up, and a new item's fade from 0 — runs through this one transition. Adding
+     opacity to the keyframe instead would forwards-pin it and mask the very
+     depth settle we want. One property, one system. */
   animation: tex-trail-rise var(--tex-t3) var(--tex-ease) both;
+  transition: opacity var(--tex-t3) var(--ease-settle);
+}
+@starting-style {
+  .tex-trail-item {
+    opacity: 0;
+  }
 }
 /* Depth: the further above the living turn, the smaller and quieter. */
 .tex-trail-item:nth-last-child(1) {
@@ -1644,6 +1684,10 @@
   .tex-line-row,
   .tex-held-list {
     animation: none;
+  }
+  /* Depth and new-item fade snap to their resolved ink instead of settling. */
+  .tex-trail-item {
+    transition: none;
   }
   /* The keyboard-lift, the freeze ease-back, and the ghost fade all snap instead
      of animating — the line still centers and the ghost still shows, unanimated. */

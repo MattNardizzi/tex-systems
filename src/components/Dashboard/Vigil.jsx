@@ -117,6 +117,7 @@ const normalizeAsk = (s) =>
 /* own ladder: new state in at 240ms, old state out one rung faster.   */
 /* ------------------------------------------------------------------ */
 let morphInFlight = false;
+let morphInFlightFinished = null; /* the running transition's vt.finished */
 function morphSurface(apply) {
   if (
     typeof document === "undefined" ||
@@ -141,11 +142,28 @@ function morphSurface(apply) {
   const vt = document.startViewTransition(() => {
     flushSync(apply);
   });
+  morphInFlightFinished = vt.finished.catch(() => {});
   vt.finished
     .catch(() => {})
     .finally(() => {
       morphInFlight = false;
+      morphInFlightFinished = null;
     });
+}
+
+/* Held rows are DEPTH under a standing answer, and the answer's own morph is
+   already running when the rows resolve (the ask path races them under 320ms).
+   Surfacing them mid-morph tears them into the running crossfade; landing them
+   instantly (morphSurface's decline path) pops them in with no fade. So a held-
+   row surfacing WAITS for the in-flight morph to finish, then morphs in on its
+   own — the rows settle after the answer, never into it. With no morph running
+   it is just morphSurface. */
+function morphHeldRows(apply) {
+  if (morphInFlight && morphInFlightFinished) {
+    morphInFlightFinished.then(() => morphSurface(apply));
+    return;
+  }
+  morphSurface(apply);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2455,7 +2473,7 @@ export default function Vigil() {
         const rows = (res?.held || []).filter(
           (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
         );
-        if (rows.length) morphSurface(() => setHeldRows(rows));
+        if (rows.length) morphHeldRows(() => setHeldRows(rows));
       })
       .catch(() => {
         /* Silent. The sentence already told the truth; the rows are depth. */
@@ -2474,7 +2492,7 @@ export default function Vigil() {
     const live = (rows || []).filter(
       (r) => !(r?.decision_id && dismissedRef.current.has(r.decision_id))
     );
-    if (live.length) morphSurface(() => setHeldRows(live));
+    if (live.length) morphHeldRows(() => setHeldRows(live));
   }, []);
 
   const maybeSurfaceHeldRows = useCallback(

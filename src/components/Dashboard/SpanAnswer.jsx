@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import SpokenLine from "./SpokenLine";
 import { TIER_LABEL, TIER_GLOSS } from "../../lib/presence";
 import "./SpanAnswer.css";
@@ -63,8 +63,43 @@ function spanAnchor(span, exhibitsByHandle) {
 /* One span, one line: the voice-register text, its tier tag, and (SEALED only)
    the PROOF affordance that reveals the sealed anchor in the id register.
    Memoized — a pure receipt of one sealed span. */
+/* The receipt fades for one small beat before it unmounts — long enough to
+   dissolve, short enough to stay a dismiss. Kept in step with the --tex-t2
+   opacity transition on .tex-span-anchor.is-closing. */
+const PROOF_CLOSE_MS = 180;
+
 const Span = memo(function Span({ span, anchor, wordOffset, activeWord }) {
   const [open, setOpen] = useState(false);
+  /* The revealed anchor holds one --tex-t2 fade on dismiss instead of a hard
+     one-frame removal — the reveal was already eased, now the dismiss is too. */
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef(null);
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    []
+  );
+  const toggleProof = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    if (open && !closing) {
+      /* Begin the fade, then unmount once it has played. */
+      setClosing(true);
+      closeTimer.current = setTimeout(() => {
+        setOpen(false);
+        setClosing(false);
+        closeTimer.current = null;
+      }, PROOF_CLOSE_MS);
+    } else {
+      /* Open, or catch a mid-close reveal back to steady. */
+      setClosing(false);
+      setOpen(true);
+    }
+  };
+  const proofShown = open && !closing;
   const tier = normTier(span?.verdict);
   const isAbstain = tier === "ABSTAIN";
 
@@ -112,18 +147,24 @@ const Span = memo(function Span({ span, anchor, wordOffset, activeWord }) {
             type="button"
             data-act="evidence"
             className="tex-claim tex-claim--proof"
-            aria-expanded={open}
+            aria-expanded={proofShown}
             aria-label={
-              open ? "Hide the sealed anchor" : "Show the proof behind this line"
+              proofShown
+                ? "Hide the sealed anchor"
+                : "Show the proof behind this line"
             }
-            onClick={() => setOpen((v) => !v)}
+            onClick={toggleProof}
           >
             <span className="tex-claim-cue" aria-hidden="true">
-              {open ? "hide the proof" : "show the proof"}
+              {proofShown ? "hide the proof" : "show the proof"}
             </span>
           </button>
           {open && (
-            <p className="tex-span-anchor" role="status" aria-live="polite">
+            <p
+              className={`tex-span-anchor${closing ? " is-closing" : ""}`}
+              role="status"
+              aria-live="polite"
+            >
               {anchor}
             </p>
           )}
