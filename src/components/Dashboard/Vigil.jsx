@@ -421,8 +421,9 @@ function HeldRowsList({ rows, onResolve }) {
      sealed anchor the number is not yet known, so the seal screen shows the
      honest computing mark (MappingMark) and never asserts a number the evidence
      chain didn't record. Once the real anchor arrives the sealed record swaps
-     in ONE time on the anchor's arrival, not on a clock — shown statically here
-     (the scramble-lock hero is reserved for the dedicated seal surface). */
+     in ONE time on the anchor's arrival, not on a clock — rendered statically for
+     a multi-row walk, or as the scramble-lock hero for a single-decision queue
+     (which IS the dedicated seal surface); either way decided once, at render. */
   useEffect(() => {
     if (!isSeal || !current) return;
     if (landTarget && landTarget.key === currentKey) return; /* already decided */
@@ -491,10 +492,13 @@ function HeldRowsList({ rows, onResolve }) {
            anchor has arrived (target): while the wire computes it, the line reads
            a calm pending "Sealing…" and the mapping mark runs its one bounded
            pass (no number is asserted). The moment the true anchor is known the
-           line flips to "Sealed." and the sealed anchor SWAPS IN STATICALLY — a
-           quiet state change, not a per-row ceremony. The full scramble-lock hero
-           stays on the dedicated seal surface; the walk must never re-fire it.
-           Rests a beat, then the queue morphs to the next decision. */
+           line flips to "Sealed." and the sealed anchor arrives — SWAPPED IN
+           STATICALLY for a MULTI-row walk (a quiet state change, not a per-row
+           ceremony), or COMPUTED ONTO THE GLASS as the scramble-lock hero for a
+           single-decision queue (see below). The full hero stays reserved for the
+           dedicated seal surface; a multi-row walk must never re-fire it — but a
+           one-row queue IS that surface. Rests a beat, then the queue morphs to
+           the next decision. */
         <div className="tex-held-seal" key={`${currentKey}-seal`} role="status">
           <p className="tex-held-seal-line">
             {current.sealedVerdict === "held"
@@ -512,17 +516,45 @@ function HeldRowsList({ rows, onResolve }) {
                  at the standard state register, no per-row scramble. The full
                  scramble-lock hero (SealAnchor / ScrambleSeal) belongs ONLY to
                  the dedicated seal surface; a multi-row walk must not re-fire it.
-                 aria carries the plain value. */
-              <p
-                className="tex-seal-anchor tex-seal-anchor--static"
-                aria-label={target}
-              >
-                {target}
-              </p>
+                 A single-decision queue (total === 1) IS the dedicated seal
+                 surface, so it earns the hero: the real 64-hex anchor computes
+                 itself and locks. A multi-row walk still never re-fires it — it
+                 keeps the quiet static swap-in. aria carries the plain value. */
+              total === 1 && SEAL_ANCHOR_RE.test(target) ? (
+                <SealAnchor hash={target} />
+              ) : (
+                <p
+                  className="tex-seal-anchor tex-seal-anchor--static"
+                  aria-label={target}
+                >
+                  {target}
+                </p>
+              )
             ) : (
               <MappingMark />
             )
           ) : null}
+          {/* The seal's provenance, quiet in the instrument register (Geist,
+             tracked, muted — the same voice the pq line uses on the dedicated
+             seal surface): who resolved the hold, and that the record is signed.
+             Both are additive — a legacy row without these fields renders exactly
+             as before. HONESTY LAW: the words "post-quantum" appear ONLY when the
+             signature is genuinely post_quantum; a classical signature reads a
+             plain "sealed · <alg>". Shown only for a real verdict seal, never a
+             keep-holding beat (keep-holding is not a seal). */}
+          {isSeal && current.sealedResolvedBy && (
+            <p className="tex-seal-sig">
+              resolved by&nbsp;{current.sealedResolvedBy}
+            </p>
+          )}
+          {isSeal && current.sealedSignature && (
+            <p className="tex-seal-sig">
+              {current.sealedSignature.post_quantum
+                ? "post-quantum sealed"
+                : "sealed"}
+              &nbsp;·&nbsp;{current.sealedSignature.algorithm}
+            </p>
+          )}
         </div>
       ) : (
         <div className="tex-held-row" key={currentKey}>
@@ -877,6 +909,12 @@ const TYPING_ENABLED = import.meta.env.VITE_TEX_TYPING === "1";
    flag off every span branch below is dead and behavior is byte-identical to
    the pre-span surface. */
 const SPANS_ENABLED = import.meta.env.VITE_TEX_SPANS !== "0";
+
+/* The operator identity sealed into every human act (POST /seal → resolved_by).
+   Defaults to the neutral "operator"; a build can name the seated operator with
+   VITE_TEX_RESOLVER so the sealed record — and the walk's "resolved by" line —
+   carries who actually resolved the hold. One source for both seal call sites. */
+const TEX_RESOLVER = import.meta.env.VITE_TEX_RESOLVER || "operator";
 
 /* ------------------------- THE BEGIN PASSCODE -------------------------
    A velvet rope over the day-one summons: pressing Begin no longer ignites
@@ -2023,17 +2061,28 @@ export default function Vigil() {
           : rows
       )
     );
-    sealDecision(id, { verdict, resolvedBy: "operator" })
+    sealDecision(id, { verdict, resolvedBy: TEX_RESOLVER })
       .then((res) => {
         const anchor = res?.anchor_sha256;
         if (!anchor) throw new Error("seal returned no anchor");
-        /* Sealed for real — now suppress the wire card and lock the true anchor. */
+        /* Sealed for real — now suppress the wire card and lock the true anchor.
+           Capture the seal's provenance too (additively): who the record names as
+           resolver and its post-quantum signature, so the walk's seal screen can
+           state them beneath the anchor. Legacy responses without these fields
+           leave them null and the lines simply don't render. */
         dismissedRef.current.add(id);
         bumpDismissed((n) => n + 1);
         setHeldRows((rows) =>
           rows
             ? rows.map((r) =>
-                r.decision_id === id ? { ...r, sealedAnchor: anchor } : r
+                r.decision_id === id
+                  ? {
+                      ...r,
+                      sealedAnchor: anchor,
+                      sealedResolvedBy: res.resolved_by || null,
+                      sealedSignature: res.pq_signature || null,
+                    }
+                  : r
               )
             : rows
         );
@@ -3120,7 +3169,7 @@ export default function Vigil() {
         /* No melt-to-silence timer yet: the seal stays computing on the glass
            until the wire answers, so the surface never dissolves a pending seal
            into silence (which would read as a completed act). */
-        sealDecision(decision.id, { verdict, resolvedBy: "operator" })
+        sealDecision(decision.id, { verdict, resolvedBy: TEX_RESOLVER })
           .then((res) => {
             const anchor = res?.anchor_sha256;
             if (!anchor) throw new Error("seal returned no anchor");
