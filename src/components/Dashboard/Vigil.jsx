@@ -4451,11 +4451,15 @@ export default function Vigil() {
             >
               <span className="tex-tier-mark" aria-hidden="true" />
               <span className="tex-tier-label">{TIER_LABEL[answer.tier]}</span>
-              <span className="tex-tier-gloss">
-                {answer.tier === TIER.ABSTAIN
-                  ? answer.tierReason || TIER_GLOSS[answer.tier]
-                  : TIER_GLOSS[answer.tier]}
-              </span>
+              {/* The tier word is the claim; its gloss is self-narration the
+                  surface can hold back — visible only on ABSTAIN, where it
+                  carries the WHY. Sighted + aria read the same law as the
+                  span answers. */}
+              {answer.tier === TIER.ABSTAIN && (
+                <span className="tex-tier-gloss">
+                  {answer.tierReason || TIER_GLOSS[answer.tier]}
+                </span>
+              )}
             </p>
           )}
 
