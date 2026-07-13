@@ -1278,7 +1278,10 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  /* --tex-kb-offset lifts the line above the on-screen keyboard on touch (set
+     from the VisualViewport); 0 on desktop and at rest, so the line is centered. */
+  transform: translate(-50%, calc(-50% + var(--tex-kb-offset, 0px)));
+  transition: transform var(--tex-t3) var(--tex-ease);
   width: min(92vw, 60rem);
   display: flex;
   justify-content: center;
@@ -1376,6 +1379,23 @@
   font-size: 16px;
   caret-color: transparent;
   animation: none;
+}
+/* Where the engine auto-sizes an input to its content (CSS field-sizing: content,
+   Baseline in Chromium + Safari as of 2026), the line grows itself in the same
+   frame as the key — the hidden mirror + per-keystroke JS width read (guarded by
+   FIELD_SIZING) never run. The mirror stays in the DOM only as the fallback for
+   engines without it. Latent keeps its exact 1px collapse (fixed, not content). */
+@supports (field-sizing: content) {
+  .tex-line {
+    field-sizing: content;
+    width: auto;
+    min-width: 2px;
+  }
+  .tex-line--latent {
+    field-sizing: fixed;
+    width: 1px;
+    min-width: 0;
+  }
 }
 /* The one resident concession on touch: a single tiny, static hairline. */
 .tex-write-glyph {
@@ -1577,6 +1597,10 @@
   .tex-line-row,
   .tex-held-list {
     animation: none;
+  }
+  /* The keyboard-lift still moves the line into view — it just snaps, unanimated. */
+  .tex-line-slot {
+    transition: none;
   }
 }
 

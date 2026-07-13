@@ -904,6 +904,15 @@ const ANNOUNCE_RETRY_MS = 4_000;
    The whole path is additive — the proven voice reach is untouched. */
 const TYPING_ENABLED = import.meta.env.VITE_TEX_TYPING === "1";
 
+/* Does the engine auto-size an input to its content (CSS field-sizing: content)?
+   Baseline in Chromium + Safari as of 2026. When it does, the typed line grows
+   in the same frame as the key with nothing measured per keystroke; the hidden
+   mirror + JS width read stay only as the fallback for engines without it. */
+const FIELD_SIZING =
+  typeof CSS !== "undefined" &&
+  typeof CSS.supports === "function" &&
+  CSS.supports("field-sizing", "content");
+
 /* The FLUID-TRUTH ANSWER PIPELINE surface — the typed ask answered as an ordered
    list of SPANS (deterministic exhibits filling number-slots), each spoken in its
    own tier's prosody. Default-ON since 2026-07-07 (the /v1/answer backend is
@@ -1192,17 +1201,10 @@ export default function Vigil() {
   /* The hidden mirror that measures the typed text, so the input can be sized
      to its content and the ghost can live OUTSIDE the input's value. */
   const mirrorRef = useRef(null);
-  /* THE MOUNT-GAP BUFFER — on desktop the input doesn't exist until the first
-     keystroke conjures it, and it can't take focus until it mounts (a frame or
-     two later). A fast typist fires several keys in that gap; without a catch
-     they land on nothing and vanish (only the conjuring char survives). While
-     `bufferingRef` is set, the window keydown listener captures every printable
-     key into `pendingBufferRef` (which already holds the conjuring char, so the
-     flush REPLACES and never double-seeds it); the field's own rAF flush drains
-     the buffer in order the instant it has focus. Correctness never depends on
-     the gap being short — the buffer holds however many keys arrive. */
-  const bufferingRef = useRef(false);
-  const pendingBufferRef = useRef("");
+  /* The typed line lives latent in the DOM at rest (a 1px, opacity-0, aria-
+     hidden, pointer-events-none input) on both touch and desktop, so the first
+     keystroke focuses and inserts synchronously — no mount gap, no key buffer. */
+  const lineSlotRef = useRef(null);
   useEffect(() => {
     typingRef.current = typed !== null;
   }, [typed]);
@@ -2764,11 +2766,6 @@ export default function Vigil() {
     setTyped(null);
     setGhost("");
     typingRef.current = false;
-    /* Disarm the mount-gap buffer on any cancel (Escape, blur, a voice press
-       superseding a half-conjured line) so it never strands the surface with a
-       stuck window that swallows the next cold keystroke. */
-    bufferingRef.current = false;
-    pendingBufferRef.current = "";
     const el = inputRef.current;
     if (el) {
       try {
@@ -2781,8 +2778,10 @@ export default function Vigil() {
 
   /* Begin a typed line with its first character already in it — we insert the
      char into state directly and never rely on the browser to carry it into the
-     newly-focused field (the dropped-first-char race). Focus + caret land after
-     the input commits. A typed ask barges in on any ambient line, like a press. */
+     field. The input is already mounted (latent), so focus + caret land inside
+     this keystroke, synchronously: the letter and caret paint in one frame with
+     no mount gap and no key buffer. A typed ask barges in on any ambient line,
+     like a press. */
   const beginTyping = useCallback(
     (firstChar) => {
       /* Prime the voice INSIDE the keystroke gesture — a typed-first session
@@ -2810,49 +2809,23 @@ export default function Vigil() {
       setTyped(firstChar);
       setGhost(""); /* one char is too short to complete — abstain */
       typingRef.current = true;
-      /* Arm the mount-gap buffer, pre-seeded with the conjuring char, so every
-         key struck before the field can focus is captured (see the window
-         keydown listener), then drained here in order the moment it has focus. */
-      pendingBufferRef.current = firstChar;
-      bufferingRef.current = true;
-      requestAnimationFrame(() => {
-        const el = inputRef.current;
-        if (!el) return;
-        /* A cancel (voice press, blur) may have disarmed the window before the
-           field mounted — then there is nothing to drain and no line to fill. */
-        if (!bufferingRef.current) return;
-        /* Close the buffer window and drain it into the field, in order. The
-           buffer already holds the conjuring char, so we REPLACE the value
-           (never append) — the seed is present exactly once, no duplication. */
-        const buffered = pendingBufferRef.current;
-        bufferingRef.current = false;
-        pendingBufferRef.current = "";
+      /* The latent input is already in the DOM — focus it now, inside the
+         keystroke. Un-hide synchronously BEFORE focus so focus never rests on an
+         aria-hidden node (React reconciles to the same state this tick). React
+         then commits value=firstChar on the focused field, placing the caret at
+         the end; nothing is measured or deferred. */
+      const el = inputRef.current;
+      if (el) {
         try {
+          el.removeAttribute("aria-hidden");
+          el.tabIndex = 0;
           el.focus();
-          if (buffered !== el.value) {
-            /* Ghost/autocomplete computes against the FINAL flushed line, never
-               a stale partial. One char is too short to complete → abstain. */
-            setTyped(buffered);
-            setGhost(buffered.length > 1 ? computeGhost(buffered, false) : "");
-            requestAnimationFrame(() => {
-              const node = inputRef.current;
-              if (!node) return;
-              try {
-                node.setSelectionRange(buffered.length, buffered.length);
-              } catch {
-                /* ignore */
-              }
-            });
-          } else {
-            const n = el.value.length;
-            el.setSelectionRange(n, n);
-          }
         } catch {
           /* ignore */
         }
-      });
+      }
     },
-    [retireAnswer, loadRoster, loadAssist, computeGhost]
+    [retireAnswer, loadRoster, loadAssist]
   );
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
@@ -3032,58 +3005,55 @@ export default function Vigil() {
      card's buttons). Only then does the first letter conjure the line. */
   useEffect(() => {
     if (!TYPING_ENABLED) return undefined;
-    const onDocKeyDown = (e) => {
-      /* MOUNT-GAP BUFFER: the line was conjured but the field hasn't taken focus
-         yet. Catch every key here so a fast typist loses nothing between the
-         conjuring keystroke and the field mounting+focusing. */
-      if (bufferingRef.current) {
-        /* IME/composition: never swallow it — let the field own the session
-           cleanly once it has focus (composition can't target an unfocused
-           node anyway). */
-        if (e.isComposing || e.keyCode === 229) return;
-        /* A modifier chord is a shortcut, not text — never buffer or block it. */
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-        if (e.key === "Escape") {
-          /* Cancel the conjure and discard the buffer. */
-          e.preventDefault();
-          bufferingRef.current = false;
-          pendingBufferRef.current = "";
-          cancelTyping();
-          return;
-        }
-        if (e.key === "Backspace") {
-          e.preventDefault();
-          pendingBufferRef.current = pendingBufferRef.current.slice(0, -1);
-          return;
-        }
-        /* Any single printable char (space included — mid-sentence now). */
-        if (e.key && e.key.length === 1) {
-          e.preventDefault();
-          pendingBufferRef.current += e.key;
-        }
-        return;
-      }
-      if (typingRef.current) return;
-      if (!canTypeRef.current) return;
-      if (e.isComposing || e.keyCode === 229) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (!e.key || e.key.length !== 1 || e.key === " ") return;
+    /* Focus is on an editable / interactive element that must keep the key — an
+       INPUT / TEXTAREA / contentEditable, or a held card's Refuse/Keep/Seal act
+       ([data-act]). Preserves AT type-ahead and never hijacks a decision act. */
+    const guarded = () => {
       const ae = document.activeElement;
-      if (
+      return !!(
         ae &&
         (ae.tagName === "INPUT" ||
           ae.tagName === "TEXTAREA" ||
           ae.isContentEditable ||
           (ae.closest && ae.closest("[data-act]")))
-      ) {
+      );
+    };
+    const onDocKeyDown = (e) => {
+      /* A line is already open. Normally the field owns every key. But if the
+         line lost focus with content still in it (tapped away, keyboard
+         dismissed) the field is no longer the active element, so a keystroke
+         would land on <body> and vanish — recover it by refocusing the field so
+         the browser inserts the char there (onChange updates the line). Gated by
+         the same interactive guard so a key aimed at a decision act is kept. */
+      if (typingRef.current) {
+        const el = inputRef.current;
+        if (!el || document.activeElement === el) return; /* field owns the keys */
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!e.key || e.key.length !== 1 || e.key === " ") return;
+        if (guarded()) return;
+        /* Refocus WITHOUT preventDefault so this keystroke inserts into the now-
+           focused field. Un-hide before focus so it never rests on aria-hidden. */
+        try {
+          el.removeAttribute("aria-hidden");
+          el.tabIndex = 0;
+          el.focus();
+        } catch {
+          /* ignore */
+        }
         return;
       }
+      if (!canTypeRef.current) return;
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!e.key || e.key.length !== 1 || e.key === " ") return;
+      if (guarded()) return;
       e.preventDefault();
       beginTyping(e.key);
     };
     document.addEventListener("keydown", onDocKeyDown);
     return () => document.removeEventListener("keydown", onDocKeyDown);
-  }, [beginTyping, cancelTyping]);
+  }, [beginTyping]);
 
   /* A voice reach supersedes an open typed line: the instant a press opens the
      mic (holding), any half-formed typed question dissolves, so the two ask
@@ -3094,14 +3064,16 @@ export default function Vigil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holding]);
 
-  /* Size the input to EXACTLY the typed text (a hidden mirror in the same
-     type measures it, pre-paint), so the ghost span sits flush after the
-     caret and the line reads as one continuous sentence. The old design put
-     the ghost INSIDE the input's value behind a native selection — every
-     selection race then committed suggestion text as if typed (words joined)
-     or let a keystroke land on the wrong range (letters vanished). Out here
-     the input's value is the operator's words alone, by construction. */
+  /* Size the input to EXACTLY the typed text, so the ghost span sits flush after
+     the caret and the line reads as one continuous sentence. On engines with
+     `field-sizing: content` (the CSS in .tex-line) the input grows itself in the
+     same frame as the key — nothing is measured per keystroke, so this effect is
+     a no-op there. Only the fallback engines pay the read: a hidden mirror in the
+     same type measures the text pre-paint and we write the width. (The ghost lives
+     OUTSIDE the input's value either way — the operator's words alone are inside,
+     so no selection race can ever commit suggestion text or drop a keystroke.) */
   useLayoutEffect(() => {
+    if (FIELD_SIZING) return; /* the browser sizes the input to its content */
     const el = inputRef.current;
     if (!el) return;
     if (typed === null) {
@@ -3112,6 +3084,33 @@ export default function Vigil() {
     if (!mirror) return;
     el.style.width = `${Math.ceil(mirror.getBoundingClientRect().width) + 2}px`;
   }, [typed]);
+
+  /* Lift the composing line above the on-screen keyboard (touch only). The slot
+     is centered against the full LAYOUT viewport, which iOS Safari does NOT
+     shrink when the keyboard opens — so the line would hide beneath it. Track the
+     VISUAL viewport and offset the slot so the line stays centered in what the
+     operator can actually see; the offset eases via CSS (var(--tex-t3)) and only
+     ever lifts (never pushes the resting line down). Desktop is untouched. */
+  useEffect(() => {
+    if (!isCoarsePointer || typeof window === "undefined") return undefined;
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const apply = () => {
+      const slot = lineSlotRef.current;
+      if (!slot) return;
+      /* Center of the visible viewport minus center of the layout viewport → the
+         upward shift that keeps the line clear of the keyboard. */
+      const offset = vv.offsetTop + (vv.height - window.innerHeight) / 2;
+      slot.style.setProperty("--tex-kb-offset", `${Math.min(0, Math.round(offset))}px`);
+    };
+    apply();
+    vv.addEventListener("resize", apply);
+    vv.addEventListener("scroll", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      vv.removeEventListener("scroll", apply);
+    };
+  }, [isCoarsePointer]);
 
   /* ---------------- Resolving a held decision ----------------
      A held decision is not approved by a spoken "maybe" — it is sealed by a
@@ -4295,14 +4294,17 @@ export default function Vigil() {
           SAME voice register Tex answers in (the display serif), centered. It is
           a real <input> so it inherits native caret, selection, IME, and mobile
           predictive text; styled to a bare line — no box, no border, no send
-          button. On a touch device the input stays MOUNTED but latent (collapsed,
-          inert, off the a11y tree) so the resident glyph can focus it
-          synchronously inside the tap — the only way iOS raises the keyboard. On
-          desktop nothing is mounted until the first keystroke. It is voiced-and-
-          gone: cleared on submit, never persisted. data-act keeps a press on it
-          from opening the mic. */}
-      {TYPING_ENABLED && !doorOpen && !mapping && (typed !== null || isCoarsePointer) && (
-        <div className="tex-line-slot">
+          button. The input stays MOUNTED but latent at rest (collapsed, inert, off
+          the a11y tree) on BOTH touch and desktop, so the first keystroke — or, on
+          touch, the resident glyph's tap — focuses it synchronously (the only way
+          iOS raises the keyboard; on desktop, so the first letter and caret land in
+          one frame with no mount gap). It is voiced-and-gone: cleared on submit,
+          never persisted. data-act keeps a press on it from opening the mic. */}
+      {TYPING_ENABLED &&
+        !doorOpen &&
+        !mapping &&
+        (typed !== null || isCoarsePointer || canType) && (
+        <div className="tex-line-slot" ref={lineSlotRef}>
           {/* One visual line, three parts: a hidden mirror that measures the
               typed text, the real input sized to exactly that text, and the
               ghost — the suggestion — in its OWN element after the caret.
