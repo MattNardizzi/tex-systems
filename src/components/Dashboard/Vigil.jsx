@@ -3879,7 +3879,24 @@ export default function Vigil() {
           number over a seal still in flight. Keeping-holding is not a seal: it
           reads "held", quiet, no cinematic. */}
       {sealed && (
-        <div className="tex-seal" role="status">
+        <div
+          className="tex-seal"
+          role="status"
+          /* The crypto scheme stays REACHABLE — carried on the seal's own
+             description (hover tooltip + accessibility tree), where the proof
+             detail belongs — but no longer resident chrome competing with the
+             one earned moment. The hero holds only the verdict tag, the locking
+             hash, and the timestamp; the hash deepening to ink IS the proof. */
+          title={
+            sealed.signature
+              ? `${
+                  sealed.signature.post_quantum
+                    ? "post-quantum sealed"
+                    : "sealed"
+                } · ${sealed.signature.algorithm}`
+              : undefined
+          }
+        >
           {(() => {
             const isSeal =
               sealed.verdict === "approved" || sealed.verdict === "refused";
@@ -3928,12 +3945,6 @@ export default function Vigil() {
               </>
             );
           })()}
-          {sealed.signature && (
-            <p className="tex-seal-sig">
-              {sealed.signature.post_quantum ? "post-quantum sealed" : "sealed"}
-              &nbsp;·&nbsp;{sealed.signature.algorithm}
-            </p>
-          )}
         </div>
       )}
 

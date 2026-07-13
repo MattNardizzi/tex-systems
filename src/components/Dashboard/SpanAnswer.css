@@ -45,8 +45,10 @@
    No red, no icon, no border: just a quieter ink and a hair more air. */
 .tex-span--abstain .tex-span-line {
   color: var(--tex-ink-soft);
-  font-style: italic;
+  /* Upright, as the one voice always is — distinguished by softer ink and a hair
+     more air (open tracking + leading), never a slant. */
   letter-spacing: 0;
+  line-height: 1.22;
 }
 
 /* The sealed anchor, revealed under a SEALED span's PROOF affordance. The id

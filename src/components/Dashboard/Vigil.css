@@ -186,8 +186,9 @@
   font-weight: 300;
   /* Body in a wide single-weight face: small, with generous leading and a
      short measure so it stays calm and legible instead of dense. It steps
-     down the ink ladder to recede beneath the headline. */
-  font-size: clamp(28.13px, 2.81vw, 33.75px);
+     down the ink ladder to recede beneath BOTH the voice sentence and the
+     headline — detail is the quietest rung, ink-soft and small. */
+  font-size: clamp(15px, 1.5vw, 18px);
   line-height: 1.62;
   letter-spacing: 0.004em;
   color: var(--tex-ink-soft);
@@ -264,7 +265,10 @@
   max-width: 24em;
   font-family: var(--tex-display);
   font-weight: 300;
-  font-size: clamp(33.75px, 3.83vw, 47.25px);
+  /* Capped at or below the 32px voice register: the SEAL is the hero, not the
+     question. The quoted ask earns attention through hairline + air + ink, not
+     scale — it sits one step under the voice, never above it. */
+  font-size: clamp(22px, 2.6vw, 30px);
   line-height: 1.5;
   letter-spacing: -0.01em;
   color: var(--tex-ink-2);
@@ -345,7 +349,6 @@
 .tex-act:hover {
   border-color: var(--tex-ink);
   color: var(--tex-ink);
-  transform: translateY(-1px);
 }
 .tex-act:focus {
   outline: none;
@@ -366,7 +369,6 @@
   color: var(--tex-paper);
   background: var(--tex-ink);
   border-color: var(--tex-ink);
-  transform: translateY(-1px);
 }
 .tex-act--approve:active {
   transform: scale(0.97);
@@ -719,6 +721,9 @@
   font-size: 9.5px;
   color: var(--tex-ink-mute);
 }
+/* Retained for the style-gallery reference and any reachable proof surface —
+   the hero seal no longer renders this as resident chrome (the scheme now
+   rides the seal's reachable description instead). */
 .tex-seal-sig {
   margin: 0.6em 0 0;
   font-family: var(--tex-display);
@@ -728,7 +733,6 @@
   color: var(--tex-ink-mute);
   opacity: 0.7;
 }
-
 /* ------------------------------------------------------------------ */
 /* The voice — Tex speaks; the glass stays clean.                       */
 /* ------------------------------------------------------------------ */
@@ -1225,7 +1229,6 @@
 .tex-claim:hover:not(:disabled) {
   border-color: var(--tex-ink);
   color: var(--tex-ink);
-  transform: translateY(-1px);
 }
 .tex-claim:disabled {
   cursor: default;
@@ -1345,7 +1348,9 @@
 .tex-ghost {
   font-family: var(--tex-display);
   font-weight: 300;
-  font-style: italic;
+  /* Upright — the one voice is worn upright only (see the register note above).
+     The typed line reads as ink (--tex-ink); the ghost recedes to --tex-ink-mute.
+     Voice is distinguished by ink value, never a slant. */
   font-size: clamp(14px, 2.1vw, 25.2px);
   line-height: 1.5;
   letter-spacing: -0.02em;

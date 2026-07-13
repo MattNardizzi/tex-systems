@@ -92,7 +92,13 @@ const Span = memo(function Span({ span, anchor, wordOffset, activeWord }) {
         >
           <span className="tex-tier-mark" aria-hidden="true" />
           <span className="tex-tier-label">{TIER_LABEL[tier]}</span>
-          <span className="tex-tier-gloss">{TIER_GLOSS[tier]}</span>
+          {/* The gloss stays only where it carries weight — the ABSTAIN moment,
+              where the surface owes an honest reason. On SEALED/DERIVED it would
+              only narrate itself under every span; the meaning still rides the
+              aria-label above, so nothing is lost for a screen reader. */}
+          {tier === "ABSTAIN" && (
+            <span className="tex-tier-gloss">{TIER_GLOSS[tier]}</span>
+          )}
         </p>
       )}
 
