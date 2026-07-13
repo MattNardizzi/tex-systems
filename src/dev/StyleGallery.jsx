@@ -18,6 +18,7 @@ import "./gallery.css";
 import SpokenLine from "../components/Dashboard/SpokenLine";
 import SealAnchor from "../components/Dashboard/SealAnchor";
 import MappingMark from "../components/Dashboard/MappingMark";
+import DeliberationMark from "../components/Dashboard/DeliberationMark";
 
 /* Mock anchor — a true 64-char sha256 shape, so the seal harness exercises
    the same lock the live card runs on a real anchor. */
@@ -120,9 +121,7 @@ const SURFACES = {
     label: "04 · deliberation",
     node: (
       <div className="tex-deliberation" role="status">
-        <span className="tex-deliberation-mark" aria-hidden="true">
-          T
-        </span>
+        <DeliberationMark />
       </div>
     ),
   },
