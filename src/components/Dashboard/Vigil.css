@@ -1284,7 +1284,10 @@
   transition: transform var(--tex-t3) var(--tex-ease);
   width: min(92vw, 60rem);
   display: flex;
-  justify-content: center;
+  /* The row anchors itself at slot-left and centers via its OWN transform (below),
+     so a burst can PIN that transform — the left edge holds while the line grows,
+     instead of the flex re-centering (and swimming) on every keystroke. */
+  justify-content: flex-start;
   pointer-events: none;
 }
 /* One visual line, three parts: the hidden mirror that measures the typed
@@ -1300,11 +1303,40 @@
   justify-content: center;
   max-width: 100%;
   padding: 0 24px;
-  animation: tex-rise var(--tex-t3) var(--tex-ease) both;
+  /* True-center, measurement-free: left:50% of the slot puts the row's left edge
+     at the slot's center, translateX(-50%) of the row's OWN width pulls it back —
+     so the pair reads centered whatever the line's length. During a typing burst
+     the leaf overrides `transform` with a frozen px value (the current center),
+     pinning the left edge as the line grows; on the pause it clears the override
+     and this transition eases the now-longer line back to true-center over t3. */
+  left: 50%;
+  transform: translateX(-50%);
+  transition: transform var(--tex-t3) var(--tex-ease);
+  /* Opacity-only entrance — the transform property is reserved for centering, so
+     the line fades in (never a translateY that would fight the freeze). */
+  animation: tex-line-in var(--tex-t3) var(--tex-ease) both;
 }
 .tex-line-row--latent {
   padding: 0;
   animation: none;
+}
+@keyframes tex-line-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* The input + ghost share one anchor so the ghost can float at the caret end,
+   OUT of flow: the field shrink-wraps the input (its only in-flow child), and the
+   ghost sits at left:100% of it — the input's right edge, i.e. the caret. As the
+   input grows the anchor follows for free, and the ghost never shoves the words. */
+.tex-line-field {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
 }
 /* The three parts share one set of metrics — the mirror measures truly and
    the ghost continues the line without a seam. */
@@ -1351,12 +1383,22 @@
   pointer-events: none;
 }
 /* The ghost — visibly an OFFER, never ink: faint, after the caret, committed
-   only by the accept gesture (Tab / ArrowRight at the end / End) or Enter. */
+   only by the accept gesture (Tab / ArrowRight at the end / End) or Enter. It is
+   ALWAYS mounted and floated absolutely at the caret end (left:100% of the field),
+   so a suggestion FADES in beside the caret over --tex-t1 instead of popping into
+   the flow and shoving the words. Empty + opacity:0 at rest — invisible, inert. */
 .tex-ghost {
+  position: absolute;
+  left: 100%;
+  top: 0;
   color: var(--tex-ink-mute);
-  opacity: 0.6;
+  opacity: 0;
+  transition: opacity var(--tex-t1) var(--tex-ease);
   white-space: pre;
   pointer-events: none;
+}
+.tex-ghost.is-shown {
+  opacity: 0.6;
 }
 .tex-line::placeholder {
   color: var(--tex-ink-mute);
@@ -1598,8 +1640,11 @@
   .tex-held-list {
     animation: none;
   }
-  /* The keyboard-lift still moves the line into view — it just snaps, unanimated. */
-  .tex-line-slot {
+  /* The keyboard-lift, the freeze ease-back, and the ghost fade all snap instead
+     of animating — the line still centers and the ghost still shows, unanimated. */
+  .tex-line-slot,
+  .tex-line-row,
+  .tex-ghost {
     transition: none;
   }
 }

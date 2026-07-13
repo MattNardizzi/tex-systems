@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import "./Vigil.css";
 import { useVigil } from "../../hooks/useVigil";
@@ -913,6 +913,11 @@ const FIELD_SIZING =
   typeof CSS.supports === "function" &&
   CSS.supports("field-sizing", "content");
 
+/* How long the composing line stays pinned by its left edge after the last
+   keystroke before it eases back to true-center (the horizontal freeze — text
+   stops drifting sideways while a burst is live; a short pause re-centers it). */
+const TYPING_SETTLE_MS = 450;
+
 /* The FLUID-TRUTH ANSWER PIPELINE surface — the typed ask answered as an ordered
    list of SPANS (deterministic exhibits filling number-slots), each spoken in its
    own tier's prosody. Default-ON since 2026-07-07 (the /v1/answer backend is
@@ -1047,6 +1052,459 @@ function deriveState(liveDecision, snapshot) {
 }
 
 /* ------------------------------------------------------------------ */
+/* TypedLine — the composing line as its own memoized leaf.            */
+/* ------------------------------------------------------------------ */
+
+/* Keystroke-frequency state (`typed`, and the `ghost` derived from it) lives
+   HERE, not in Vigil — so a keystroke re-renders this one small subtree instead
+   of reconciling the whole surface, and the spoken-word highlight (Vigil state)
+   can never touch it. Vigil learns only the EDGE — a line opened / closed — via
+   onTypingChange, and hands down the two surface acts a reach performs: onBegin
+   (clear the glass for a new question) and onSubmit (the grounded round-trip).
+   The 'ghost lives OUTSIDE the input value' seamless design and the latent-mount
+   are preserved verbatim; the completion lookup is deferred off the keystroke. */
+const TypedLine = memo(function TypedLine({
+  canType,
+  isCoarsePointer,
+  holding,
+  watchTenant,
+  onBegin,
+  onSubmit,
+  onTypingChange,
+}) {
+  const [typed, setTyped] = useState(null);
+  const [ghost, setGhost] = useState("");
+  const inputRef = useRef(null);
+  const mirrorRef = useRef(null);
+  const lineSlotRef = useRef(null);
+  const rowRef = useRef(null);
+  const typingRef = useRef(false); /* live mirror for the document key listener */
+  const canTypeRef = useRef(false);
+  const composingRef = useRef(false); /* an IME session owns its keys */
+  const rosterNamesRef = useRef([]); /* real agent names; the GROUNDED vocabulary */
+  const rosterLoadedRef = useRef(false);
+  const assistRef = useRef(null); /* the loaded general-aid module, or "loading"/null */
+  const lastDelRef = useRef(false); /* was the last edit a deletion → abstain the ghost */
+  const wasTypingRef = useRef(false);
+  /* Horizontal freeze — while a burst is live the line is pinned by its left edge
+     (already-typed text stops drifting sideways per keystroke); a short pause
+     clears the pin and CSS eases the now-longer line back to true-center. One
+     measure per burst, never per key (so item-4's de-measuring is not undone). */
+  const composingBurstRef = useRef(false);
+  const settleTimerRef = useRef(null);
+
+  /* Vigil needs only the boolean, and only on the EDGE — never per keystroke. */
+  useEffect(() => {
+    const now = typed !== null;
+    typingRef.current = now;
+    if (now !== wasTypingRef.current) {
+      wasTypingRef.current = now;
+      onTypingChange(now);
+    }
+  }, [typed, onTypingChange]);
+  /* If the leaf unmounts mid-line (door / mapping takes the surface), tell Vigil
+     the line closed so its guards can never wedge on a stale 'typing'. */
+  useEffect(() => () => onTypingChange(false), [onTypingChange]);
+  useEffect(() => {
+    canTypeRef.current = canType;
+  }, [canType]);
+
+  /* Pull Tex's real, signed agent names ONCE, the moment a typed question begins
+     — never at rest. On any failure the vocabulary stays empty and no ghost ever
+     shows: a completion is offered only toward a name Tex can actually prove. */
+  const loadRoster = useCallback(() => {
+    if (rosterLoadedRef.current) return;
+    rosterLoadedRef.current = true;
+    getAgentRoster(watchTenant)
+      .then((rows) => {
+        rosterNamesRef.current = (rows || [])
+          .map((r) => r?.name || r?.agent_id || r?.id)
+          .filter((n) => typeof n === "string" && n.length > 0);
+      })
+      .catch(() => {
+        /* honest empty — no fabricated vocabulary */
+      });
+  }, [watchTenant]);
+
+  /* Load the general typing aid (its own chunk) the first time someone types. */
+  const loadAssist = useCallback(() => {
+    if (assistRef.current) return;
+    assistRef.current = "loading";
+    import("../../lib/typingAssist")
+      .then((m) => m.init().then(() => { assistRef.current = m; }))
+      .catch(() => { assistRef.current = null; });
+  }, []);
+
+  /* The ghost = the real remainder of the ONE agent name the trailing token
+     unambiguously prefixes; else a grounded question completion; else a common
+     English word. Abstains ("") on ambiguity — completes only toward what Tex
+     can prove, and only when it is sure. */
+  const computeGhost = useCallback((text, isDeletion) => {
+    if (isDeletion || !text) return "";
+    const m = text.match(/(\S+)$/);
+    const frag = m ? m[1] : "";
+    const lower = frag.toLowerCase();
+    if (frag.length >= 2) {
+      const hits = rosterNamesRef.current.filter(
+        (n) => n.length > frag.length && n.toLowerCase().startsWith(lower)
+      );
+      if (hits.length === 1) return hits[0].slice(frag.length);
+      if (hits.length > 1) return "";
+    }
+    const q = completeAsk(text);
+    if (q) return q;
+    if (frag.length >= 2) {
+      const a = assistRef.current;
+      if (a && a.complete) {
+        const suf = a.complete(frag, 3);
+        if (suf) return suf;
+      }
+    }
+    return "";
+  }, []);
+
+  /* When a completed line's trailing token IS a real agent, commit it in the
+     agent's TRUE casing — so accepting/submitting "claimp"→"ClaimPulse" sends the
+     real entity name, never a lowercased echo. No match → unchanged. */
+  const canonicalizeTail = useCallback((text) => {
+    const m = text.match(/(\S+)$/);
+    if (!m) return text;
+    const real = rosterNamesRef.current.find(
+      (n) => n.toLowerCase() === m[1].toLowerCase()
+    );
+    return real ? text.slice(0, text.length - m[1].length) + real : text;
+  }, []);
+
+  /* GROUNDED COMPLETION off the CRITICAL PATH: `typed` is urgent (the caret never
+     lags), the ghost is derived from a DEFERRED copy so the completion lookup can
+     never block the keystroke. A deletion or an IME session abstains. The ghost
+     stays STATE so the accept gesture can clear it in the same frame (no flash). */
+  const deferredTyped = useDeferredValue(typed);
+  useEffect(() => {
+    if (composingRef.current) return;
+    if (deferredTyped == null || lastDelRef.current) {
+      setGhost("");
+      return;
+    }
+    setGhost(computeGhost(deferredTyped, false));
+  }, [deferredTyped, computeGhost]);
+
+  /* Pin the line's left edge for the length of a burst — one measure at the
+     burst's start (equal to the current true-center, so no jump), held while the
+     line grows rightward, cleared on the pause so CSS eases it back to center. */
+  const freezeBeat = useCallback(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    if (!composingBurstRef.current) {
+      composingBurstRef.current = true;
+      const w = row.getBoundingClientRect().width;
+      row.style.transform = `translateX(${-(w / 2)}px)`;
+    }
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = setTimeout(() => {
+      settleTimerRef.current = null;
+      composingBurstRef.current = false;
+      const r = rowRef.current;
+      if (r) r.style.transform = ""; /* eases to CSS translateX(-50%) over --tex-t3 */
+    }, TYPING_SETTLE_MS);
+  }, []);
+
+  const clearFreeze = useCallback(() => {
+    if (settleTimerRef.current) {
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+    composingBurstRef.current = false;
+    const r = rowRef.current;
+    if (r) r.style.transform = "";
+  }, []);
+
+  const cancelTyping = useCallback(() => {
+    setTyped(null);
+    setGhost("");
+    typingRef.current = false;
+    lastDelRef.current = false;
+    clearFreeze();
+    const el = inputRef.current;
+    if (el) {
+      try {
+        el.blur();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [clearFreeze]);
+
+  /* Begin a typed line with its first character already in it — the latent input
+     is already mounted, so focus + caret land inside this keystroke, synchronously
+     (no mount gap). onBegin clears Vigil's own surface (the wedge-guard); the
+     voice-unlock and roster/aid load are local so priming never re-renders Vigil. */
+  const beginTyping = useCallback(
+    (firstChar) => {
+      unlockVoice();
+      loadRoster();
+      loadAssist();
+      onBegin();
+      setTyped(firstChar);
+      setGhost(""); /* one char is too short to complete — abstain */
+      lastDelRef.current = false;
+      typingRef.current = true;
+      const el = inputRef.current;
+      if (el) {
+        try {
+          el.removeAttribute("aria-hidden");
+          el.tabIndex = 0;
+          el.focus();
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [onBegin, loadRoster, loadAssist]
+  );
+
+  /* Submit — read the full displayed line (words + any accepted ghost, in the
+     agent's true casing), dissolve the leaf, and hand the question up to Vigil's
+     grounded round-trip. */
+  const submitTyped = useCallback(() => {
+    const q = canonicalizeTail((typed ?? "") + ghost).trim();
+    cancelTyping();
+    onSubmit(q);
+  }, [typed, ghost, canonicalizeTail, cancelTyping, onSubmit]);
+
+  /* The input owns its own keys. Enter asks; Escape dissolves; Tab / ArrowRight-
+     at-end / End accepts the ghost (the ONLY way suggestion text becomes typed
+     text); an in-flight IME composition is left to finish. */
+  const onTypedKeyDown = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (composingRef.current || e.isComposing || e.keyCode === 229) return;
+      if (ghost && (e.key === "ArrowRight" || e.key === "Tab" || e.key === "End")) {
+        const el = inputRef.current;
+        const atEnd =
+          !el ||
+          (el.selectionStart === el.selectionEnd &&
+            el.selectionStart === (typed ?? "").length);
+        if (e.key !== "ArrowRight" || atEnd) {
+          e.preventDefault();
+          const full = canonicalizeTail((typed ?? "") + ghost);
+          setTyped(full);
+          setGhost("");
+          requestAnimationFrame(() => {
+            const node = inputRef.current;
+            if (node) {
+              try {
+                const n = node.value.length;
+                node.setSelectionRange(n, n);
+              } catch {
+                /* ignore */
+              }
+            }
+          });
+          return;
+        }
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitTyped();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelTyping();
+      }
+    },
+    [ghost, typed, submitTyped, cancelTyping, canonicalizeTail]
+  );
+
+  /* Losing focus with nothing typed dissolves the line; a line with content stays
+     (e.g. the mobile keyboard dismissed) so a half-typed question isn't lost. */
+  const onTypedBlur = useCallback(() => {
+    if (!typed || !typed.trim()) cancelTyping();
+  }, [typed, cancelTyping]);
+
+  /* Every keystroke: store the words EXACTLY as typed (the ghost is derived off a
+     deferred copy, above — not here, so completion never blocks the key) and beat
+     the horizontal freeze. Nothing rewrites what was typed. */
+  const onTypedChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      const it = (e.nativeEvent && e.nativeEvent.inputType) || "";
+      lastDelRef.current = it.startsWith("delete");
+      setTyped(value);
+      freezeBeat();
+    },
+    [freezeBeat]
+  );
+
+  /* Desktop "just start typing" + blurred-line recovery — one document-level
+     keydown. Defers entirely once the field owns the keys or typing is inert. */
+  useEffect(() => {
+    if (!TYPING_ENABLED) return undefined;
+    const guarded = () => {
+      const ae = document.activeElement;
+      return !!(
+        ae &&
+        (ae.tagName === "INPUT" ||
+          ae.tagName === "TEXTAREA" ||
+          ae.isContentEditable ||
+          (ae.closest && ae.closest("[data-act]")))
+      );
+    };
+    const onDocKeyDown = (e) => {
+      if (typingRef.current) {
+        const el = inputRef.current;
+        if (!el || document.activeElement === el) return; /* field owns the keys */
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!e.key || e.key.length !== 1 || e.key === " ") return;
+        if (guarded()) return;
+        try {
+          el.removeAttribute("aria-hidden");
+          el.tabIndex = 0;
+          el.focus();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      if (!canTypeRef.current) return;
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!e.key || e.key.length !== 1 || e.key === " ") return;
+      if (guarded()) return;
+      e.preventDefault();
+      beginTyping(e.key);
+    };
+    document.addEventListener("keydown", onDocKeyDown);
+    return () => document.removeEventListener("keydown", onDocKeyDown);
+  }, [beginTyping]);
+
+  /* A voice reach supersedes an open typed line. */
+  useEffect(() => {
+    if (holding && typed !== null) cancelTyping();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holding]);
+
+  /* Size the input to EXACTLY the typed text — a no-op where the engine auto-sizes
+     it (field-sizing: content); only the fallback engines pay the mirror read. */
+  useLayoutEffect(() => {
+    if (FIELD_SIZING) return;
+    const el = inputRef.current;
+    if (!el) return;
+    if (typed === null) {
+      el.style.width = ""; /* latent: the CSS class owns the 1px width */
+      return;
+    }
+    const mirror = mirrorRef.current;
+    if (!mirror) return;
+    el.style.width = `${Math.ceil(mirror.getBoundingClientRect().width) + 2}px`;
+  }, [typed]);
+
+  /* Lift the composing line above the on-screen keyboard (touch only). */
+  useEffect(() => {
+    if (!isCoarsePointer || typeof window === "undefined") return undefined;
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const apply = () => {
+      const slot = lineSlotRef.current;
+      if (!slot) return;
+      const offset = vv.offsetTop + (vv.height - window.innerHeight) / 2;
+      slot.style.setProperty("--tex-kb-offset", `${Math.min(0, Math.round(offset))}px`);
+    };
+    apply();
+    vv.addEventListener("resize", apply);
+    vv.addEventListener("scroll", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      vv.removeEventListener("scroll", apply);
+    };
+  }, [isCoarsePointer]);
+
+  return (
+    <>
+      {/* One visual line: a hidden mirror (fallback measure), the real input sized
+          to exactly the typed text, and the ghost — the suggestion — floated OUT
+          of the flow, anchored to the caret end, so a suggestion fades in beside
+          the caret and never shoves the words or pops. The input's value is only
+          ever the operator's words; native autocorrect is OFF. */}
+      <div className="tex-line-slot" ref={lineSlotRef}>
+        <div
+          className={"tex-line-row" + (typed === null ? " tex-line-row--latent" : "")}
+          ref={rowRef}
+        >
+          <span ref={mirrorRef} className="tex-line-mirror" aria-hidden="true">
+            {typed ?? ""}
+          </span>
+          <span className="tex-line-field">
+            <input
+              ref={inputRef}
+              data-act="write"
+              className={"tex-line" + (typed === null ? " tex-line--latent" : "")}
+              value={typed ?? ""}
+              onChange={onTypedChange}
+              onKeyDown={onTypedKeyDown}
+              onKeyUp={(e) => e.stopPropagation()}
+              onBlur={onTypedBlur}
+              onCompositionStart={() => {
+                composingRef.current = true;
+              }}
+              onCompositionEnd={() => {
+                composingRef.current = false;
+              }}
+              inputMode="text"
+              enterKeyHint="send"
+              autoCapitalize="sentences"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Type your question to Tex"
+              aria-hidden={typed === null ? true : undefined}
+              tabIndex={typed === null ? -1 : 0}
+            />
+            <span
+              className={"tex-ghost" + (typed !== null && ghost ? " is-shown" : "")}
+              aria-hidden="true"
+            >
+              {ghost}
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {/* The single resident concession on touch: one tiny static mark the operator
+          taps to raise the keyboard (the only way iOS opens it — synchronous focus
+          inside the tap). data-act so the tap focuses the line, not the mic. */}
+      {isCoarsePointer && canType && typed === null && (
+        <button
+          type="button"
+          data-act="write"
+          className="tex-write-glyph"
+          aria-label="Type a question to Tex"
+          onClick={(e) => {
+            e.stopPropagation();
+            /* A tap is a valid audio-unlock gesture — a typed-first session must
+               not render its first answer silent (see beginTyping). */
+            unlockVoice();
+            loadRoster();
+            loadAssist();
+            const el = inputRef.current;
+            if (el) {
+              try {
+                el.removeAttribute("aria-hidden");
+                el.tabIndex = 0;
+                el.focus();
+              } catch {
+                /* ignore */
+              }
+            }
+            setTyped("");
+          }}
+        />
+      )}
+    </>
+  );
+});
+
+/* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -1168,12 +1626,14 @@ export default function Vigil() {
     state === "held" && liveDecision && !isCalibration(liveDecision)
   );
 
-  /* TYPE TO WRITE — the transient typed line. `typed` is null at rest (nothing
-     mounted on desktop, latent on touch) and a string while a question forms.
-     The ask gesture for typing is inert in exactly the states the voice reach is
-     (mirrors beginHold's guard): not before ignition, not over the day-one door,
-     not during mapping. */
-  const [typed, setTyped] = useState(null);
+  /* TYPE TO WRITE — the transient typed line now lives in the memoized <TypedLine>
+     leaf (below the return), so a keystroke re-renders one element, not this whole
+     surface. Vigil keeps only the EDGE — whether a line is open — for the guards
+     that pause the held-linger, block idle, recede the card, and hide the trail
+     while a question is forming. The ask gesture is inert in exactly the states the
+     voice reach is: not before ignition, not over the day-one door, not mapping. */
+  const [isTyping, setIsTyping] = useState(false);
+  const onTypingChange = useCallback((v) => setIsTyping(v), []);
   const [isCoarsePointer] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -1181,113 +1641,6 @@ export default function Vigil() {
       window.matchMedia("(pointer: coarse)").matches
   );
   const canType = TYPING_ENABLED && ignitionReady && !ignitionDoorOpen && !mapping;
-  const inputRef = useRef(null);
-  const typingRef = useRef(false); /* live mirror for the document key listener */
-  const canTypeRef = useRef(false);
-  const composingRef = useRef(false); /* an IME session owns its keys */
-  /* GROUNDED COMPLETION — the ghost suffix completes a typed entity fragment
-     toward a REAL agent Tex governs (lazy-loaded from the live, signed roster),
-     and ONLY when the fragment is unambiguous (Nomon: commit when confident).
-     `ghost` is the suggested remainder, shown as a faint native selection. */
-  const [ghost, setGhost] = useState("");
-  const rosterNamesRef = useRef([]); /* real agent names; the GROUNDED completion vocabulary */
-  const rosterLoadedRef = useRef(false);
-  /* The general keyboard aid (frequency-trie completion only), lazy-loaded as
-     its own chunk the first time someone types. Grounded agents always win;
-     this only fills the completion gap. NOTHING rewrites what was typed:
-     the SymSpell autocorrect-on-space is retired — a surface that silently
-     edits the operator's own words is the aid being confidently wrong. */
-  const assistRef = useRef(null); /* the loaded module, or "loading" / null */
-  /* The hidden mirror that measures the typed text, so the input can be sized
-     to its content and the ghost can live OUTSIDE the input's value. */
-  const mirrorRef = useRef(null);
-  /* The typed line lives latent in the DOM at rest (a 1px, opacity-0, aria-
-     hidden, pointer-events-none input) on both touch and desktop, so the first
-     keystroke focuses and inserts synchronously — no mount gap, no key buffer. */
-  const lineSlotRef = useRef(null);
-  useEffect(() => {
-    typingRef.current = typed !== null;
-  }, [typed]);
-  useEffect(() => {
-    canTypeRef.current = canType;
-  }, [canType]);
-
-  /* Pull Tex's real, signed agent names ONCE, the moment a typed question begins
-     — never at rest. On any failure the vocabulary stays empty and no ghost ever
-     shows: a completion is offered only toward a name Tex can actually prove. */
-  const loadRoster = useCallback(() => {
-    if (rosterLoadedRef.current) return;
-    rosterLoadedRef.current = true;
-    getAgentRoster(watchTenant)
-      .then((rows) => {
-        rosterNamesRef.current = (rows || [])
-          .map((r) => r?.name || r?.agent_id || r?.id)
-          .filter((n) => typeof n === "string" && n.length > 0);
-      })
-      .catch(() => {
-        /* honest empty — no fabricated vocabulary */
-      });
-  }, [watchTenant]);
-
-  /* Load the general typing aid (its own chunk) the first time someone types. */
-  const loadAssist = useCallback(() => {
-    if (assistRef.current) return;
-    assistRef.current = "loading";
-    import("../../lib/typingAssist")
-      .then((m) => m.init().then(() => { assistRef.current = m; }))
-      .catch(() => { assistRef.current = null; });
-  }, []);
-
-  /* The ghost = the real remainder of the ONE agent name the trailing token
-     unambiguously prefixes. Abstains (returns "") on a deletion, a too-short
-     fragment, or any ambiguity — so it completes only toward what Tex can prove,
-     and only when it is sure. */
-  const computeGhost = useCallback((text, isDeletion) => {
-    if (isDeletion || !text) return "";
-    const m = text.match(/(\S+)$/);
-    const frag = m ? m[1] : "";
-    const lower = frag.toLowerCase();
-    /* 1. GROUNDED ENTITY — a real signed agent (always wins; this is the
-       product's voice, completing only toward what Tex can prove). An
-       AMBIGUOUS entity fragment silences every register — never guess. */
-    if (frag.length >= 2) {
-      const hits = rosterNamesRef.current.filter(
-        (n) => n.length > frag.length && n.toLowerCase().startsWith(lower)
-      );
-      if (hits.length === 1) return hits[0].slice(frag.length);
-      if (hits.length > 1) return "";
-    }
-    /* 2. GROUNDED QUESTION — the whole line prefixes a question Tex can
-       certifiably answer (askTemplates: each maps to a certified plan
-       primitive). One match completes the question; several complete only
-       their common prefix — never wrong, Google-Suggest over a closed,
-       honest vocabulary. Fires even on a trailing space ("how many "). */
-    const q = completeAsk(text);
-    if (q) return q;
-    /* 3. GENERAL — a common English word (the user's quiet keyboard aid).
-       ONLY when nothing grounded could match, so grounded always wins and
-       general never guesses a name or fact. Abstains generously (min 3). */
-    if (frag.length >= 2) {
-      const a = assistRef.current;
-      if (a && a.complete) {
-        const suf = a.complete(frag, 3);
-        if (suf) return suf;
-      }
-    }
-    return "";
-  }, []);
-
-  /* When a completed line's trailing token IS a real agent, commit it in the
-     agent's TRUE casing — so accepting/submitting "claimp"→ "ClaimPulse" sends
-     and shows the real entity name, never a lowercased echo. No match → unchanged. */
-  const canonicalizeTail = useCallback((text) => {
-    const m = text.match(/(\S+)$/);
-    if (!m) return text;
-    const real = rosterNamesRef.current.find(
-      (n) => n.toLowerCase() === m[1].toLowerCase()
-    );
-    return real ? text.slice(0, text.length - m[1].length) + real : text;
-  }, []);
 
   /* Interaction state. */
   const [holding, setHolding] = useState(false);
@@ -1688,7 +2041,7 @@ export default function Vigil() {
     if (humanHold && (heldWaiting === null || heldWaitingCount > 0))
       return undefined;
     if (heldReceded === dismissKey) return undefined; /* already receded */
-    if (answer || spanAnswer || verifying || typed !== null || holding)
+    if (answer || spanAnswer || verifying || isTyping || holding)
       return undefined; /* card not readable — the clock starts when it is */
     /* The announce comes first: the clock starts only after this hold's
        announce has settled (spoken to the end, or consumed silently), so a
@@ -1705,7 +2058,7 @@ export default function Vigil() {
         heldLingerTimer.current = null;
       }
     };
-  }, [state, dismissKey, answer, spanAnswer, verifying, typed, holding, heldReceded, humanHold, heldWaiting, heldWaitingCount, announcedKey, ignitionDoorOpen, mapping, spoken]);
+  }, [state, dismissKey, answer, spanAnswer, verifying, isTyping, holding, heldReceded, humanHold, heldWaiting, heldWaitingCount, announcedKey, ignitionDoorOpen, mapping, spoken]);
 
   /* ---------------- A held decision speaks first, unprompted ----------------
      A HELD decision is one of the only two surfaces allowed to break the
@@ -2758,87 +3111,38 @@ export default function Vigil() {
     }
   };
 
-  /* ---------------- TYPE TO WRITE — the typed line ----------------
-     A printable keystroke conjures the line; submit reuses the grounded answer
-     path; the line dissolves voiced-and-gone. Self-contained and flag-gated, so
-     the proven voice reach above is untouched even when typing ships. */
-  const cancelTyping = useCallback(() => {
-    setTyped(null);
-    setGhost("");
-    typingRef.current = false;
-    const el = inputRef.current;
-    if (el) {
-      try {
-        el.blur();
-      } catch {
-        /* ignore */
-      }
-    }
-  }, []);
+  /* ---------------- TYPE TO WRITE — the surface acts ----------------
+     The composing line itself lives in the memoized <TypedLine> leaf (so a
+     keystroke never reconciles this monolith). Vigil keeps only the two surface
+     ACTS a typed reach performs — clearing the glass when a line begins, and the
+     grounded round-trip when it is submitted — handed down to the leaf as props. */
 
-  /* Begin a typed line with its first character already in it — we insert the
-     char into state directly and never rely on the browser to carry it into the
-     field. The input is already mounted (latent), so focus + caret land inside
-     this keystroke, synchronously: the letter and caret paint in one frame with
-     no mount gap and no key buffer. A typed ask barges in on any ambient line,
-     like a press. */
-  const beginTyping = useCallback(
-    (firstChar) => {
-      /* Prime the voice INSIDE the keystroke gesture — a typed-first session
-         otherwise reaches its first spoken answer outside the activation
-         window and strict browsers keep it silent (the press path unlocks in
-         beginHold; typing needs its own). Idempotent; no epoch is touched. */
-      unlockVoice();
-      loadRoster();
-      loadAssist();
-      /* A typed reach takes the surface exactly like a press: the object, a
-         lingering seal, and any ask still in flight all yield to the new
-         question (the same wedge-guard beginHold carries). */
-      askEpochRef.current += 1;
-      clearLineTimer();
-      setSealed(null);
-      /* The presence-beat wedge-guard, exactly as in beginHold: the "Here."
-         and ignite-count dissolves ride the lineTimer cleared above, so both
-         beats must yield with the timer. */
-      setSpoken((s) => (s && (s.kind === "here" || s.kind === "ignite") ? null : s));
-      clearObjectTimer();
-      setSurfaced(null);
-      retireAnswer();
-      stopSpeaking();
-      setHeard("");
-      setTyped(firstChar);
-      setGhost(""); /* one char is too short to complete — abstain */
-      typingRef.current = true;
-      /* The latent input is already in the DOM — focus it now, inside the
-         keystroke. Un-hide synchronously BEFORE focus so focus never rests on an
-         aria-hidden node (React reconciles to the same state this tick). React
-         then commits value=firstChar on the focused field, placing the caret at
-         the end; nothing is measured or deferred. */
-      const el = inputRef.current;
-      if (el) {
-        try {
-          el.removeAttribute("aria-hidden");
-          el.tabIndex = 0;
-          el.focus();
-        } catch {
-          /* ignore */
-        }
-      }
-    },
-    [retireAnswer, loadRoster, loadAssist]
-  );
+  /* The surface-clear a typed reach performs when it BEGINS — the same wedge-guard
+     beginHold carries: the object, a lingering seal, and any ask still in flight
+     all yield to the new question. (The voice-unlock and roster/aid load live in
+     the leaf, off this render, so priming them never re-renders the monolith.) */
+  const onTypingBegin = useCallback(() => {
+    askEpochRef.current += 1;
+    clearLineTimer();
+    setSealed(null);
+    /* The presence-beat wedge-guard, exactly as in beginHold: the "Here." and
+       ignite-count dissolves ride the lineTimer cleared above. */
+    setSpoken((s) => (s && (s.kind === "here" || s.kind === "ignite") ? null : s));
+    clearObjectTimer();
+    setSurfaced(null);
+    retireAnswer();
+    stopSpeaking();
+    setHeard("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retireAnswer]);
 
   /* Submit the typed question — the SAME grounded round-trip the voice reach runs
      (playPresenceAck → /v1/ask → derivePresence → surfaceAnswer), then dissolve.
-     The line is read, then cleared immediately: never persisted, never echoed.
+     The leaf hands up the final line (its words + any accepted ghost, in the
+     agent's true casing) and has already dissolved its own state.
      (Duplicates the voice path's ~6-line answer flow on purpose, so the proven
      endHold stays byte-identical while typing is behind a flag; DRY once shipped.) */
-  const submitTyped = useCallback(() => {
-    /* The full displayed line — the user's text plus any confident ghost they
-       left standing — so submitting accepts the completion and asks the real
-       grounded question about the real agent. */
-    const q = canonicalizeTail((typed ?? "") + ghost).trim();
-    cancelTyping();
+  const onTypingSubmit = useCallback((q) => {
     if (!q) return;
     /* The clean-slate verb is the surface's own turn, never a backend
        question: a typed "refresh" wipes the trail and the topic, silently. */
@@ -2920,197 +3224,7 @@ export default function Vigil() {
     }
 
     runAskTex();
-  }, [typed, ghost, cancelTyping, refreshSurface, watchTenant, surfaceAnswer, surfaceSpanAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows, canonicalizeTail]);
-
-  /* The input owns its own keys: stop them reaching the section's voice handler
-     (a typed space/Enter must never open the mic). Enter asks; Escape dissolves;
-     an in-flight IME composition is left to finish. */
-  const onTypedKeyDown = useCallback(
-    (e) => {
-      e.stopPropagation();
-      if (composingRef.current || e.isComposing || e.keyCode === 229) return;
-      /* Accept the ghost with one gesture: commit it into the line and drop
-         the caret at the end. The ghost lives OUTSIDE the input's value, so
-         accepting is the ONLY way suggestion text ever becomes typed text.
-         Reject is just to keep typing, or Escape. ArrowRight accepts only
-         from the end of the line — mid-line it stays a caret move. */
-      if (ghost && (e.key === "ArrowRight" || e.key === "Tab" || e.key === "End")) {
-        const el = inputRef.current;
-        const atEnd =
-          !el ||
-          (el.selectionStart === el.selectionEnd &&
-            el.selectionStart === (typed ?? "").length);
-        if (e.key !== "ArrowRight" || atEnd) {
-          e.preventDefault();
-          const full = canonicalizeTail((typed ?? "") + ghost);
-          setTyped(full);
-          setGhost("");
-          requestAnimationFrame(() => {
-            const node = inputRef.current;
-            if (node) {
-              try {
-                const n = node.value.length;
-                node.setSelectionRange(n, n);
-              } catch {
-                /* ignore */
-              }
-            }
-          });
-          return;
-        }
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        submitTyped();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        cancelTyping();
-      }
-    },
-    [ghost, typed, submitTyped, cancelTyping, canonicalizeTail]
-  );
-
-  /* Losing focus with nothing typed dissolves the line back to silence — the
-     line exists only while a question is forming. A line with content stays put
-     (e.g. the mobile keyboard dismissed) so a half-typed question isn't lost. */
-  const onTypedBlur = useCallback(() => {
-    if (!typed || !typed.trim()) cancelTyping();
-  }, [typed, cancelTyping]);
-
-  /* Every keystroke into the line. Stores the user's text EXACTLY as typed and
-     recomputes the ghost (grounded → general). Nothing else. The input's value
-     is the operator's words alone — the ghost renders in its own element after
-     the caret, and no code path rewrites, splices, or "corrects" what was
-     typed. Seamless means the keyboard is theirs. */
-  const onTypedChange = useCallback(
-    (e) => {
-      const value = e.target.value;
-      const it = (e.nativeEvent && e.nativeEvent.inputType) || "";
-      const del = it.startsWith("delete");
-      setTyped(value);
-      setGhost(composingRef.current ? "" : computeGhost(value, del));
-    },
-    [computeGhost]
-  );
-
-  /* Desktop "just start typing": one document-level keydown listener catches the
-     first printable key on a cold surface (nothing is focused at rest). It is the
-     ONLY new global handler and it defers entirely once a line is open (the input
-     owns keys) or when typing is inert. Guards, in order: typing already open →
-     let the field handle it; not allowed yet (pre-ignition / door / mapping) →
-     ignore; IME composition → let it own the keystroke; a modifier chord → leave
-     shortcuts alone; not a single printable char, or a space → not a line-start
-     (space at rest is the keyboard voice reach); focus already in an editable /
-     interactive element → don't hijack (preserves AT type-ahead and the held
-     card's buttons). Only then does the first letter conjure the line. */
-  useEffect(() => {
-    if (!TYPING_ENABLED) return undefined;
-    /* Focus is on an editable / interactive element that must keep the key — an
-       INPUT / TEXTAREA / contentEditable, or a held card's Refuse/Keep/Seal act
-       ([data-act]). Preserves AT type-ahead and never hijacks a decision act. */
-    const guarded = () => {
-      const ae = document.activeElement;
-      return !!(
-        ae &&
-        (ae.tagName === "INPUT" ||
-          ae.tagName === "TEXTAREA" ||
-          ae.isContentEditable ||
-          (ae.closest && ae.closest("[data-act]")))
-      );
-    };
-    const onDocKeyDown = (e) => {
-      /* A line is already open. Normally the field owns every key. But if the
-         line lost focus with content still in it (tapped away, keyboard
-         dismissed) the field is no longer the active element, so a keystroke
-         would land on <body> and vanish — recover it by refocusing the field so
-         the browser inserts the char there (onChange updates the line). Gated by
-         the same interactive guard so a key aimed at a decision act is kept. */
-      if (typingRef.current) {
-        const el = inputRef.current;
-        if (!el || document.activeElement === el) return; /* field owns the keys */
-        if (e.isComposing || e.keyCode === 229) return;
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-        if (!e.key || e.key.length !== 1 || e.key === " ") return;
-        if (guarded()) return;
-        /* Refocus WITHOUT preventDefault so this keystroke inserts into the now-
-           focused field. Un-hide before focus so it never rests on aria-hidden. */
-        try {
-          el.removeAttribute("aria-hidden");
-          el.tabIndex = 0;
-          el.focus();
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
-      if (!canTypeRef.current) return;
-      if (e.isComposing || e.keyCode === 229) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (!e.key || e.key.length !== 1 || e.key === " ") return;
-      if (guarded()) return;
-      e.preventDefault();
-      beginTyping(e.key);
-    };
-    document.addEventListener("keydown", onDocKeyDown);
-    return () => document.removeEventListener("keydown", onDocKeyDown);
-  }, [beginTyping]);
-
-  /* A voice reach supersedes an open typed line: the instant a press opens the
-     mic (holding), any half-formed typed question dissolves, so the two ask
-     paths never share the glass. Kept out of beginHold so the proven voice path
-     stays untouched; a no-op when typing is off (typed is always null then). */
-  useEffect(() => {
-    if (holding && typed !== null) cancelTyping();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holding]);
-
-  /* Size the input to EXACTLY the typed text, so the ghost span sits flush after
-     the caret and the line reads as one continuous sentence. On engines with
-     `field-sizing: content` (the CSS in .tex-line) the input grows itself in the
-     same frame as the key — nothing is measured per keystroke, so this effect is
-     a no-op there. Only the fallback engines pay the read: a hidden mirror in the
-     same type measures the text pre-paint and we write the width. (The ghost lives
-     OUTSIDE the input's value either way — the operator's words alone are inside,
-     so no selection race can ever commit suggestion text or drop a keystroke.) */
-  useLayoutEffect(() => {
-    if (FIELD_SIZING) return; /* the browser sizes the input to its content */
-    const el = inputRef.current;
-    if (!el) return;
-    if (typed === null) {
-      el.style.width = ""; /* latent: the CSS class owns the 1px width */
-      return;
-    }
-    const mirror = mirrorRef.current;
-    if (!mirror) return;
-    el.style.width = `${Math.ceil(mirror.getBoundingClientRect().width) + 2}px`;
-  }, [typed]);
-
-  /* Lift the composing line above the on-screen keyboard (touch only). The slot
-     is centered against the full LAYOUT viewport, which iOS Safari does NOT
-     shrink when the keyboard opens — so the line would hide beneath it. Track the
-     VISUAL viewport and offset the slot so the line stays centered in what the
-     operator can actually see; the offset eases via CSS (var(--tex-t3)) and only
-     ever lifts (never pushes the resting line down). Desktop is untouched. */
-  useEffect(() => {
-    if (!isCoarsePointer || typeof window === "undefined") return undefined;
-    const vv = window.visualViewport;
-    if (!vv) return undefined;
-    const apply = () => {
-      const slot = lineSlotRef.current;
-      if (!slot) return;
-      /* Center of the visible viewport minus center of the layout viewport → the
-         upward shift that keeps the line clear of the keyboard. */
-      const offset = vv.offsetTop + (vv.height - window.innerHeight) / 2;
-      slot.style.setProperty("--tex-kb-offset", `${Math.min(0, Math.round(offset))}px`);
-    };
-    apply();
-    vv.addEventListener("resize", apply);
-    vv.addEventListener("scroll", apply);
-    return () => {
-      vv.removeEventListener("resize", apply);
-      vv.removeEventListener("scroll", apply);
-    };
-  }, [isCoarsePointer]);
+  }, [refreshSurface, watchTenant, surfaceAnswer, surfaceSpanAnswer, surfaceFailure, surfaceObject, maybeSurfaceHeldRows]);
 
   /* ---------------- Resolving a held decision ----------------
      A held decision is not approved by a spoken "maybe" — it is sealed by a
@@ -3352,8 +3466,9 @@ export default function Vigil() {
         return { name, len: L, uniquePrefix: p, keystrokes: keys, kspc: keys / L };
       });
       const avgKspc = per.reduce((s, r) => s + r.kspc, 0) / (per.length || 1);
-      /* keystroke→paint sample: time a real value-set + input → next paint. */
-      const el = inputRef.current;
+      /* keystroke→paint sample: time a real value-set + input → next paint.
+         The composing input lives in the <TypedLine> leaf now — query it. */
+      const el = document.querySelector(".tex-line");
       let paintMs = null;
       if (el) {
         const t0 = performance.now();
@@ -3490,7 +3605,7 @@ export default function Vigil() {
     holding ||
     thinking ||
     verifying ||
-    typed != null;
+    isTyping;
   const idleHasContent =
     trail.length > 0 ||
     Boolean(answer) ||
@@ -3889,7 +4004,7 @@ export default function Vigil() {
             answer ||
             spanAnswer ||
             verifying ||
-            typed !== null ||
+            isTyping ||
             (dismissKey != null && heldReceded === dismissKey)
               ? " is-receded"
               : ""
@@ -4046,7 +4161,7 @@ export default function Vigil() {
           !answer &&
           !spanAnswer &&
           !verifying &&
-          typed === null
+          !isTyping
         ) && (
           <div
             className={
@@ -4290,105 +4405,26 @@ export default function Vigil() {
         </div>
       )}
 
-      {/* TYPE TO WRITE — the transient typed line. The question forming, in the
-          SAME voice register Tex answers in (the display serif), centered. It is
-          a real <input> so it inherits native caret, selection, IME, and mobile
-          predictive text; styled to a bare line — no box, no border, no send
-          button. The input stays MOUNTED but latent at rest (collapsed, inert, off
-          the a11y tree) on BOTH touch and desktop, so the first keystroke — or, on
-          touch, the resident glyph's tap — focuses it synchronously (the only way
-          iOS raises the keyboard; on desktop, so the first letter and caret land in
-          one frame with no mount gap). It is voiced-and-gone: cleared on submit,
-          never persisted. data-act keeps a press on it from opening the mic. */}
+      {/* TYPE TO WRITE — the transient typed line, now its own memoized leaf so a
+          keystroke re-renders one element, not this whole surface. The question
+          forms in the SAME voice register Tex answers in, centered; a real <input>
+          (native caret, selection, IME, mobile predictive text), latent-mounted at
+          rest on both touch and desktop so the first keystroke — or the touch
+          glyph's tap — focuses it synchronously. Voiced-and-gone. Vigil hands down
+          the two surface acts (onBegin clears the glass, onSubmit runs the grounded
+          round-trip) and learns back only the EDGE via onTypingChange. */}
       {TYPING_ENABLED &&
         !doorOpen &&
         !mapping &&
-        (typed !== null || isCoarsePointer || canType) && (
-        <div className="tex-line-slot" ref={lineSlotRef}>
-          {/* One visual line, three parts: a hidden mirror that measures the
-              typed text, the real input sized to exactly that text, and the
-              ghost — the suggestion — in its OWN element after the caret.
-              The input's value is only ever what the operator typed; nothing
-              can commit ghost text except the explicit accept gesture. Native
-              autocorrect is OFF: the surface never rewrites their words. */}
-          <div
-            className={
-              "tex-line-row" + (typed === null ? " tex-line-row--latent" : "")
-            }
-          >
-            <span ref={mirrorRef} className="tex-line-mirror" aria-hidden="true">
-              {typed ?? ""}
-            </span>
-            <input
-              ref={inputRef}
-              data-act="write"
-              className={"tex-line" + (typed === null ? " tex-line--latent" : "")}
-              value={typed ?? ""}
-              onChange={onTypedChange}
-              onKeyDown={onTypedKeyDown}
-              onKeyUp={(e) => e.stopPropagation()}
-              onBlur={onTypedBlur}
-              onCompositionStart={() => {
-                composingRef.current = true;
-              }}
-              onCompositionEnd={() => {
-                composingRef.current = false;
-              }}
-              inputMode="text"
-              enterKeyHint="send"
-              autoCapitalize="sentences"
-              autoCorrect="off"
-              autoComplete="off"
-              spellCheck={false}
-              aria-label="Type your question to Tex"
-              aria-hidden={typed === null ? true : undefined}
-              tabIndex={typed === null ? -1 : 0}
-            />
-            {typed !== null && ghost && (
-              <span className="tex-ghost" aria-hidden="true">
-                {ghost}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* The single resident concession to a literal empty-at-rest surface, on
-          touch only: one tiny, static, low-contrast mark the operator taps to
-          raise the keyboard. data-act so the tap focuses the line instead of
-          opening the mic; the focus is synchronous inside the tap (iOS). */}
-      {TYPING_ENABLED &&
-        !doorOpen &&
-        !mapping &&
-        isCoarsePointer &&
-        canType &&
-        typed === null && (
-          <button
-            type="button"
-            data-act="write"
-            className="tex-write-glyph"
-            aria-label="Type a question to Tex"
-            onClick={(e) => {
-              e.stopPropagation();
-              /* A tap is a valid audio-unlock gesture — a typed-first session
-                 must not render its first answer silent (see beginTyping). */
-              unlockVoice();
-              loadRoster();
-              loadAssist();
-              const el = inputRef.current;
-              if (el) {
-                try {
-                  /* Un-hide synchronously BEFORE focus so focus never lands on an
-                     aria-hidden node; React reconciles to the same state this tick. */
-                  el.removeAttribute("aria-hidden");
-                  el.tabIndex = 0;
-                  el.focus();
-                } catch {
-                  /* ignore */
-                }
-              }
-              setTyped("");
-            }}
+        (isTyping || isCoarsePointer || canType) && (
+          <TypedLine
+            canType={canType}
+            isCoarsePointer={isCoarsePointer}
+            holding={holding}
+            watchTenant={watchTenant}
+            onBegin={onTypingBegin}
+            onSubmit={onTypingSubmit}
+            onTypingChange={onTypingChange}
           />
         )}
 
@@ -4420,7 +4456,7 @@ export default function Vigil() {
         !spanAnswer &&
         !surfaced &&
         !spoken &&
-        typed === null &&
+        !isTyping &&
         alive && (
           <p
             className={`tex-rest-hint${restHint ? " is-shown" : ""}${
