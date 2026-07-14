@@ -3621,13 +3621,24 @@ export default function Vigil() {
      flash); "summary" is the return posture — the count line + See held
      decisions; "queue" is the walk itself (HeldRowsList), risen by the act or
      already mid-walk; "card" is the fallback when /held could not speak —
-     the single-decision card the frame itself carries, exactly as before. */
-  const heldMode = !humanHold
+     the single-decision card the frame itself carries, exactly as before.
+
+     A MOUNTED walk owns the surface first, ABOVE the humanHold gate: sealing
+     the walk's last (or only) row optimistically dismisses that decision id,
+     which flips humanHold false — a multi-row walk survives because its
+     aggregate hold isn't the dismissed id, but a single-row walk would
+     collapse to "card" mid-seal and tear the seal ceremony (anchor lock,
+     provenance lines) off the glass before it renders. Keeping "queue" while
+     heldRows is non-null lets the walk finish and rest on its final seal
+     exactly as the multi-row walk already does; the walk clears its own
+     heldRows (settled + fresh holds → summary), so this never strands a
+     stale queue over new work. */
+  const heldMode = heldRows?.length
+    ? "queue"
+    : !humanHold
     ? "card"
     : heldWaiting === null
     ? "pending"
-    : heldRows?.length
-    ? "queue"
     : heldWaitingCount > 0
     ? "summary"
     : "card";
