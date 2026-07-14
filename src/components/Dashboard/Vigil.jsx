@@ -3643,6 +3643,18 @@ export default function Vigil() {
     ? "summary"
     : "card";
 
+  /* A walk is mounted and owns the glass whenever heldRows carries decisions.
+     This outlives the underlying hold: sealing the walk's last (or only) row
+     dismisses that decision id, which drops liveDecision to null and takes the
+     surface out of "held" — so the held region's own state === "held" gate
+     would tear the walk (and its resting seal ceremony) off the glass. A
+     multi-row walk never noticed because a later unsealed row kept the hold
+     live; a single-row walk vanished mid-seal. Keeping the region alive while
+     a walk is mounted lets it finish and rest on its final seal exactly as the
+     multi-row walk does; the walk clears its own heldRows (settled + fresh →
+     summary, or a fresh ask via clearAnswer), so this never strands a queue. */
+  const walkActive = Boolean(heldRows?.length);
+
   /* The day-one door owns the surface until it is crossed — the session-scoped
      threshold, deferring to a faltering chain (you don't greet over a broken
      witness) and yielding to the mapping state the instant Begin is pressed. */
@@ -4130,8 +4142,7 @@ export default function Vigil() {
       {!doorOpen &&
         !mapping &&
         spoken?.kind !== "ignite" &&
-        state === "held" &&
-        decision &&
+        ((state === "held" && decision) || walkActive) &&
         heldMode !== "pending" &&
         !sealed && (
         <div
