@@ -1536,10 +1536,10 @@ const TypedLine = memo(function TypedLine({
 /* ------------------------------------------------------------------ */
 
 export default function Vigil() {
-  /* The day-one threshold. Server-authoritative: whether Tex has begun
-     lives in the backend, not localStorage. While the status read is in
-     flight the surface renders nothing (silence is the resting truth, not
-     a spinner), so a returning operator never sees a flash of the door. */
+  /* The entrance threshold. The manifesto door — "I am Tex." through the
+     passcode-gated Begin — shows on EVERY visit; the load-time status read
+     only proves the wire is alive first. While that read is in flight the
+     surface renders nothing (silence is the resting truth, not a spinner). */
   const ignition = useIgnition();
 
   /* The estate Tex watches. In the keyed (production) posture the tenant IS

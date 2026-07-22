@@ -32,9 +32,13 @@ import {
    scanning window without leaving the glass white. */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* The load-time threshold read. The ceremony happens ONCE per estate: the
-   durable server status tells us whether Tex has already begun, so a returning
-   operator lands straight on the live vigil and never re-watches the opening.
+/* The load-time threshold read. The ceremony happens on EVERY visit: the
+   manifesto door — "I am Tex." through the passcode-gated Begin — is the
+   entrance to the surface, not a one-time onboarding. The durable server
+   status is still read, but only to prove the wire is ALIVE (and warm a cold
+   backend) before the door is shown; it no longer decides whether the door
+   opens. Begin on an already-ignited estate is idempotent — it falls through
+   to the standing count and lands on the live vigil.
 
    STATUS_ATTEMPTS / STATUS_RETRY_MS ride out a cold-booting free-tier backend
    (~2 retries over ~10s) before we're willing to call the wire dead — a spun-
@@ -105,14 +109,14 @@ export function useIgnition() {
        has RESOLVED the threshold (ignited or not), false only when the wire
        never answered across the retry window. */
     const resolveOnce = async () => {
-      const status = await readIgnitionStatus();
+      await readIgnitionStatus();
       if (cancelledRef.current) return true;
-      /* status.ignited===true  → door never opens, land on the live vigil.
-         status.ignited===false → honest first-ever run, the full ceremony.
-         The contract guarantees the boolean; anything else is treated as the
-         first-run door (which is passcode-gated regardless). */
+      /* The wire answered — that is all the read decides now. The ceremony
+         (the manifesto door, passcode-gated Begin) shows on EVERY visit, so a
+         resolved status always opens the door; crossing it via begin() is
+         idempotent on an already-ignited estate. */
       setDown(false);
-      setIgnited(status?.ignited === true);
+      setIgnited(false);
       return true;
     };
 
